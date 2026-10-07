@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Spill</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Your dashboard</h1>
+    <button type="button" id="sign-out-button" style="width: auto;">Sign out</button>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>How are you feeling today?</h2>
+      <form id="mood-form">
+        <label for="score">Mood (1 = rough, 5 = great)</label>
+        <select id="score" name="score" required>
+          <option value="1">1 — Rough</option>
+          <option value="2">2</option>
+          <option value="3">3 — Okay</option>
+          <option value="4">4</option>
+          <option value="5">5 — Great</option>
+        </select>
+
+        <label for="note">Anything you want to add? (optional)</label>
+        <textarea id="note" name="note" rows="3" maxlength="280"></textarea>
+
+        <button type="submit">Save check-in</button>
+        <p id="mood-message" class="message"></p>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Your recent check-ins</h2>
+      <p id="monthly-recap"></p>
+      <ul id="mood-history" class="plain-list">
+        <li>Loading...</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Account</h2>
+      <button type="button" id="delete-account-button" style="width: auto; background: #a4303f;">Delete my account</button>
+    </section>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/mood-validate.js"></script>
+  <script src="js/mood.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/crisis-card.js"></script>
+</body>
+</html>
