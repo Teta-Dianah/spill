@@ -74,7 +74,7 @@ npm test
 This runs the plain Jest unit tests. The Firestore Security Rules tests need the emulator running first:
 
 ```bash
-npx firebase emulators:exec "npm test"
+npx firebase emulators:exec --project demo-spill-dev "npm test"
 ```
 
 ## Linting

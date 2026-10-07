@@ -7,7 +7,7 @@
     "test": "jest",
     "lint": "eslint .",
     "seed": "node scripts/seed-resources.js",
-    "emulators": "firebase emulators:start"
+    "emulators": "firebase emulators:start --project demo-spill-dev"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

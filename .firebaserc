@@ -1,6 +1,6 @@
 {
   "projects": {
-    "dev": "demo-spill-dev",
+    "dev": "spill-dev-01",
     "pilot": "REPLACE_WITH_PILOT_PROJECT_ID",
     "default": "dev"
   }
