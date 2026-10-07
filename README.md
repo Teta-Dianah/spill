@@ -43,26 +43,38 @@ Everything runs on Firebase's free Spark plan — no billing account, no paid se
 
 ## Setup
 
-_To be filled in once Sprint 1 scaffolds the project (package.json, Firebase config, emulator setup)._
+You'll need Node.js and a JDK 21 or newer (the Firebase emulators run on Java).
 
 ```bash
 npm install
 ```
 
+Copy `public/js/firebase-config.example.js` to `public/js/firebase-config.js` and fill in your Firebase project's values. For local development against the emulators only, the committed `public/js/firebase-config.js` already points at a fake "demo-spill-dev" project, so this step is only needed once you connect to a real Firebase project.
+
 ## Running locally
 
-_To be filled in once the emulator suite is wired up in Sprint 1._
+```bash
+npm run emulators
+```
+
+This starts the Firestore and Auth emulators plus Hosting, serving the app at `http://localhost:5000`. The emulator UI (for inspecting data) is at `http://localhost:4000`.
+
+To add some sample helplines and clinics to try the resources page, run in another terminal while the emulators are running:
 
 ```bash
-firebase emulators:start
+npm run seed
 ```
 
 ## Testing
 
-_To be filled in once the Jest + emulator test setup lands in Sprint 1._
-
 ```bash
 npm test
+```
+
+This runs the plain Jest unit tests. The Firestore Security Rules tests need the emulator running first:
+
+```bash
+npx firebase emulators:exec "npm test"
 ```
 
 ## Linting

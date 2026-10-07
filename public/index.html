@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spill — talk to someone who understands</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Spill</h1>
+    <p>A private, judgement-free place for young people in Rwanda to talk.</p>
+    <nav>
+      <a href="signup.html">Sign up</a> &middot;
+      <a href="signin.html">Sign in</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="not-therapy-notice">
+      Spill offers peer support, not therapy, and is not an emergency service.
+      If you are in immediate danger, use the "Need help now" button below.
+    </div>
+
+    <section class="card">
+      <h2>Helplines and clinics</h2>
+      <p>These are free to use and open to anyone, no account needed.</p>
+      <ul id="resources-list" class="plain-list">
+        <li>Loading...</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>A few things that can help right now</h2>
+      <ul class="plain-list">
+        <li><strong>Breathe slowly.</strong> In for 4 seconds, hold for 4, out for 6. Repeat a few times.</li>
+        <li><strong>Name 5 things you can see.</strong> It helps bring your mind back to the room.</li>
+        <li><strong>Study overload?</strong> Take a 10-minute break before going back to it.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>Spill is free and anonymous. We never ask for your real name.</p>
+  </footer>
+
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/resources.js"></script>
+  <script src="js/crisis-card.js"></script>
+</body>
+</html>
