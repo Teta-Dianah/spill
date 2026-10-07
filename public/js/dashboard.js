@@ -6,6 +6,25 @@ function showMoodMessage(text) {
   if (box) box.textContent = text;
 }
 
+// Shows the account's pseudonym, since this is the only "name" a user
+// ever has in Spill (FR 1.2) and it should stay visible, not just appear
+// once in the sign-up message.
+function renderPseudonym(uid) {
+  var box = document.getElementById('pseudonym-display');
+  if (!box) return;
+
+  firebase
+    .firestore()
+    .collection('accounts')
+    .doc(uid)
+    .get()
+    .then(function (accountDoc) {
+      if (accountDoc.exists) {
+        box.textContent = 'You are known here as ' + accountDoc.data().pseudonym;
+      }
+    });
+}
+
 // FR 3.4: a private "how has this month been" summary. Off by default in
 // the sense that it only ever shows to the signed-in user themselves —
 // there's no sharing feature at all in version 1.0.
@@ -61,6 +80,7 @@ document.addEventListener('DOMContentLoaded', function () {
       window.location.href = 'signin.html';
       return;
     }
+    renderPseudonym(user.uid);
     renderMoodHistory(user.uid);
   });
 
