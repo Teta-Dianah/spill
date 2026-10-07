@@ -1,0 +1,55 @@
+rules_version = '2';
+
+// Spill Firestore Security Rules
+// Everything is denied by default. Each collection below turns on only the
+// access it needs. See docs/Spill_Proposal_and_SRS.pdf section 4.2 (FR 7.4)
+// and section 5.5 (business rules) for why these rules exist.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: true if the signed-in user's account has the given role.
+    // Looking up the account doc costs one extra read, which is fine for
+    // our small pilot scale.
+    function hasRole(role) {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/accounts/$(request.auth.uid)).data.role == role;
+    }
+
+    // accounts/{uid} — one document per registered user (FR 1, FR 7.4).
+    // A user can only ever read or write their own account, and can never
+    // set their own role to anything but "user" through the client.
+    match /accounts/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      allow create: if request.auth != null &&
+        request.auth.uid == uid &&
+        request.resource.data.role == 'user';
+
+      allow update: if request.auth != null &&
+        request.auth.uid == uid &&
+        request.resource.data.role == resource.data.role;
+
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // resources/{resourceId} — helplines, clinics and self-help content
+    // (FR 2, FR 7.2, BR 8). Anyone can read, even signed out. Only an
+    // admin account can add, edit or remove a resource.
+    match /resources/{resourceId} {
+      allow read: if true;
+      allow write: if hasRole('admin');
+    }
+
+    // moods/{moodId} — one document per mood check-in (FR 3). A user can
+    // only create and read their own mood entries. Mood entries are a
+    // simple log, so there is no update or delete in version 1.0.
+    match /moods/{moodId} {
+      allow create: if request.auth != null &&
+        request.auth.uid == request.resource.data.uid;
+
+      allow read: if request.auth != null &&
+        request.auth.uid == resource.data.uid;
+    }
+  }
+}
