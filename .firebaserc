@@ -1,7 +1,7 @@
 {
   "projects": {
     "dev": "spill-dev-01",
-    "pilot": "REPLACE_WITH_PILOT_PROJECT_ID",
+    "pilot": "spill-pilot",
     "default": "dev"
   }
 }
