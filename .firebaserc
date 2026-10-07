@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "dev": "demo-spill-dev",
+    "pilot": "REPLACE_WITH_PILOT_PROJECT_ID",
+    "default": "dev"
+  }
+}

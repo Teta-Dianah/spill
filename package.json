@@ -1,0 +1,23 @@
+{
+  "name": "spill",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Spill: an anonymous peer-listener web app for young people in Rwanda",
+  "scripts": {
+    "test": "jest",
+    "lint": "eslint .",
+    "seed": "node scripts/seed-resources.js",
+    "emulators": "firebase emulators:start"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@firebase/rules-unit-testing": "5.0.2",
+    "eslint": "10.12.0",
+    "eslint-plugin-jest": "29.16.6",
+    "firebase": "12.19.0",
+    "firebase-admin": "14.5.0",
+    "firebase-tools": "15.32.1",
+    "globals": "17.13.0",
+    "jest": "30.5.2"
+  }
+}
