@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat — Spill</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Chat</h1>
+    <p class="not-therapy-notice">This is peer support, not therapy or an emergency service.</p>
+    <p id="chat-status"></p>
+  </header>
+
+  <main>
+    <section class="card">
+      <ul id="message-list" class="plain-list">
+        <li>Loading...</li>
+      </ul>
+
+      <form id="message-form">
+        <label for="messageText">Message</label>
+        <input type="text" id="messageText" name="messageText" maxlength="1000" autocomplete="off">
+        <button type="submit">Send</button>
+      </form>
+      <p id="chat-message" class="message"></p>
+    </section>
+
+    <button type="button" id="end-chat-button" style="width: auto; background: #a4303f;">End chat</button>
+
+    <form id="end-chat-form" class="card" hidden>
+      <h2>Before you go</h2>
+
+      <label for="moodAfter">How are you feeling now? (1 = rough, 5 = great)</label>
+      <select id="moodAfter" name="moodAfter" required>
+        <option value="1">1 — Rough</option>
+        <option value="2">2</option>
+        <option value="3">3 — Okay</option>
+        <option value="4">4</option>
+        <option value="5">5 — Great</option>
+      </select>
+
+      <label>Was this chat helpful? (optional)</label>
+      <label><input type="radio" name="rating" value="helpful" style="width:auto;display:inline-block;"> Helpful</label>
+      <label><input type="radio" name="rating" value="not-helpful" style="width:auto;display:inline-block;"> Not helpful</label>
+
+      <label for="ratingComment">Anything else? (optional)</label>
+      <textarea id="ratingComment" name="ratingComment" rows="3" maxlength="280"></textarea>
+
+      <button type="submit">Finish</button>
+    </form>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/chat.js"></script>
+  <script src="js/crisis-card.js"></script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Listener training — Spill</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Listener training</h1>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Before you start taking chats</h2>
+      <ul class="plain-list">
+        <li>Listen first. You're there to let someone talk, not to fix them or give medical advice.</li>
+        <li>Spill is peer support, not therapy. Say so if a chat starts feeling like more than that.</li>
+        <li>You can end a chat or block someone at any time, for any reason, no explanation needed.</li>
+        <li>Never ask for or share a phone number, email, or any way to talk outside Spill.</li>
+        <li>If someone mentions serious risk of harm, the crisis card shows automatically — you don't need to handle it alone.</li>
+      </ul>
+    </section>
+
+    <form id="quiz-form" class="card">
+      <h2>Quick check</h2>
+
+      <label>1. If someone tells you they're thinking about suicide, what should you do?</label>
+      <label><input type="radio" name="q1" value="a" style="width:auto;display:inline-block;"> Try to talk them out of it yourself</label>
+      <label><input type="radio" name="q1" value="b" style="width:auto;display:inline-block;"> Let the crisis card and moderator flag do their job, and stay present</label>
+      <label><input type="radio" name="q1" value="c" style="width:auto;display:inline-block;"> End the chat immediately without saying anything</label>
+
+      <label>2. A user asks for your phone number so you can keep talking outside Spill. What do you do?</label>
+      <label><input type="radio" name="q2" value="a" style="width:auto;display:inline-block;"> Give it to them since you want to help</label>
+      <label><input type="radio" name="q2" value="b" style="width:auto;display:inline-block;"> Politely decline and remind them everything happens on Spill</label>
+      <label><input type="radio" name="q2" value="c" style="width:auto;display:inline-block;"> Ignore the message and say nothing</label>
+
+      <label>3. What's the most important thing to do when a chat feels unsafe or abusive?</label>
+      <label><input type="radio" name="q3" value="a" style="width:auto;display:inline-block;"> Keep trying to calm the user down no matter what</label>
+      <label><input type="radio" name="q3" value="b" style="width:auto;display:inline-block;"> End the chat or block them — you're allowed to, no reason needed</label>
+      <label><input type="radio" name="q3" value="c" style="width:auto;display:inline-block;"> Wait for a moderator to tell you to end it</label>
+
+      <button type="submit">Submit</button>
+      <p id="quiz-message" class="message"></p>
+    </form>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/listeners.js"></script>
+  <script src="js/listener-training.js"></script>
+  <script src="js/crisis-card.js"></script>
+</body>
+</html>

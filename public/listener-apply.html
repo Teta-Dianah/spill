@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apply to be a listener — Spill</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Apply to be a listener</h1>
+    <p>Thank you for wanting to help. After you apply, an admin reviews your application offline (identity, references, police clearance) before approving you.</p>
+  </header>
+
+  <main>
+    <form id="apply-form" class="card">
+      <label for="motivation">Why do you want to be a listener? (optional)</label>
+      <textarea id="motivation" name="motivation" rows="4"></textarea>
+
+      <button type="submit">Submit application</button>
+      <p id="apply-message" class="message"></p>
+    </form>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/listeners.js"></script>
+  <script src="js/listener-apply.js"></script>
+  <script src="js/crisis-card.js"></script>
+</body>
+</html>

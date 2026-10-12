@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Listener dashboard — Spill</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Listener dashboard</h1>
+    <button type="button" id="sign-out-button" style="width: auto;">Sign out</button>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Your status</h2>
+      <p id="status-message"></p>
+
+      <label>
+        <input type="checkbox" id="available-toggle" style="width: auto; display: inline-block;">
+        Available to take chats
+      </label>
+      <p id="availability-note" class="message"></p>
+    </section>
+
+    <section class="card">
+      <h2>Your active chats</h2>
+      <ul id="active-chats" class="plain-list">
+        <li>Loading...</li>
+      </ul>
+    </section>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/listeners.js"></script>
+  <script src="js/listener-dashboard.js"></script>
+  <script src="js/crisis-card.js"></script>
+</body>
+</html>
