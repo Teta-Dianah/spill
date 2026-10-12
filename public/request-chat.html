@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Talk to a listener — Spill</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Talk to a listener</h1>
+  </header>
+
+  <main>
+    <form id="request-chat-form" class="card">
+      <label for="topic">What's on your mind?</label>
+      <select id="topic" name="topic" required>
+        <option value="exams">Exams</option>
+        <option value="family">Family</option>
+        <option value="money">Money stress</option>
+        <option value="loneliness">Loneliness</option>
+        <option value="other">Something else</option>
+      </select>
+
+      <label for="moodBefore">How are you feeling right now? (1 = rough, 5 = great)</label>
+      <select id="moodBefore" name="moodBefore" required>
+        <option value="1">1 — Rough</option>
+        <option value="2">2</option>
+        <option value="3">3 — Okay</option>
+        <option value="4">4</option>
+        <option value="5">5 — Great</option>
+      </select>
+
+      <button type="submit">Find a listener</button>
+      <p id="request-message" class="message"></p>
+    </form>
+
+    <p>Not ready to wait? <a href="index.html">See helplines and self-help resources</a>.</p>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/listeners.js"></script>
+  <script src="js/request-chat.js"></script>
+  <script src="js/crisis-card.js"></script>
+</body>
+</html>
