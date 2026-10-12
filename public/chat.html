@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat — Spill</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Chat</h1>
+    <p class="not-therapy-notice">This is peer support, not therapy or an emergency service.</p>
+    <p id="chat-status"></p>
+  </header>
+
+  <main>
+    <section class="card">
+      <ul id="message-list" class="plain-list">
+        <li>Loading...</li>
+      </ul>
+
+      <form id="message-form">
+        <label for="messageText">Message</label>
+        <input type="text" id="messageText" name="messageText" maxlength="1000" autocomplete="off">
+        <button type="submit">Send</button>
+      </form>
+      <p id="chat-message" class="message"></p>
+    </section>
+
+    <button type="button" id="end-chat-button" style="width: auto; background: #a4303f;">End chat</button>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/chat.js"></script>
+  <script src="js/crisis-card.js"></script>
+</body>
+</html>
