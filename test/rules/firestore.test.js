@@ -123,6 +123,283 @@ describe('resources', () => {
   });
 });
 
+describe('listeners', () => {
+  test('a user can apply to be a listener for themselves', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'listeners/alice'), {
+        status: 'pending',
+        clearedForMinors: false,
+        available: false,
+        trainingComplete: false,
+      })
+    );
+  });
+
+  test('a user cannot apply already marked approved', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'listeners/alice'), {
+        status: 'approved',
+        clearedForMinors: false,
+        available: false,
+        trainingComplete: false,
+      })
+    );
+  });
+
+  test('a user cannot apply on someone else\'s behalf', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'listeners/bob'), {
+        status: 'pending',
+        clearedForMinors: false,
+        available: false,
+        trainingComplete: false,
+      })
+    );
+  });
+
+  test('any signed-in user can read the listeners list (needed for matching)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'listeners/grace'), {
+        status: 'approved',
+        clearedForMinors: true,
+        available: true,
+        trainingComplete: true,
+      });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(getDoc(doc(db, 'listeners/grace')));
+  });
+
+  test('a listener can toggle their own availability', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'listeners/grace'), {
+        status: 'approved',
+        clearedForMinors: false,
+        available: false,
+        trainingComplete: true,
+      });
+    });
+
+    const db = testEnv.authenticatedContext('grace').firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'listeners/grace'), { available: true })
+    );
+  });
+
+  test('a listener cannot approve themselves', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'listeners/grace'), {
+        status: 'pending',
+        clearedForMinors: false,
+        available: false,
+        trainingComplete: false,
+      });
+    });
+
+    const db = testEnv.authenticatedContext('grace').firestore();
+    await assertFails(
+      updateDoc(doc(db, 'listeners/grace'), { status: 'approved' })
+    );
+  });
+
+  test('an admin can approve a listener and clear them for minors', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/admin1'), {
+        pseudonym: 'SteadyEmber3',
+        role: 'admin',
+      });
+      await setDoc(doc(context.firestore(), 'listeners/grace'), {
+        status: 'pending',
+        clearedForMinors: false,
+        available: false,
+        trainingComplete: true,
+      });
+    });
+
+    const db = testEnv.authenticatedContext('admin1').firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'listeners/grace'), { status: 'approved', clearedForMinors: true })
+    );
+  });
+});
+
+describe('chats', () => {
+  async function seedApprovedListener(uid, overrides = {}) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `listeners/${uid}`), {
+        status: 'approved',
+        clearedForMinors: false,
+        available: true,
+        trainingComplete: true,
+        ...overrides,
+      });
+    });
+  }
+
+  async function seedAccount(uid, ageBand) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `accounts/${uid}`), {
+        pseudonym: 'Test',
+        role: 'user',
+        ageBand,
+      });
+    });
+  }
+
+  test('a user can start a chat with an approved, available listener', async () => {
+    await seedAccount('alice', '18-25');
+    await seedApprovedListener('grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'chats/chat-1'), { userId: 'alice', listenerId: 'grace', status: 'active' })
+    );
+  });
+
+  test('a user cannot start a chat with a listener who is not approved', async () => {
+    await seedAccount('alice', '18-25');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'listeners/grace'), {
+        status: 'pending',
+        clearedForMinors: false,
+        available: true,
+        trainingComplete: true,
+      });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'chats/chat-1'), { userId: 'alice', listenerId: 'grace', status: 'active' })
+    );
+  });
+
+  test('a user cannot start a chat with a listener who is unavailable', async () => {
+    await seedAccount('alice', '18-25');
+    await seedApprovedListener('grace', { available: false });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'chats/chat-1'), { userId: 'alice', listenerId: 'grace', status: 'active' })
+    );
+  });
+
+  test('a 16-17 user cannot match with a listener not cleared for minors (BR 1)', async () => {
+    await seedAccount('young-alice', '16-17');
+    await seedApprovedListener('grace', { clearedForMinors: false });
+
+    const db = testEnv.authenticatedContext('young-alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'chats/chat-1'), { userId: 'young-alice', listenerId: 'grace', status: 'active' })
+    );
+  });
+
+  test('a 16-17 user can match with a listener cleared for minors (BR 1)', async () => {
+    await seedAccount('young-alice', '16-17');
+    await seedApprovedListener('grace', { clearedForMinors: true });
+
+    const db = testEnv.authenticatedContext('young-alice').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'chats/chat-1'), { userId: 'young-alice', listenerId: 'grace', status: 'active' })
+    );
+  });
+
+  test('someone outside the chat cannot read it', async () => {
+    await seedAccount('alice', '18-25');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'chats/chat-1'), {
+        userId: 'alice',
+        listenerId: 'grace',
+        status: 'active',
+      });
+    });
+
+    const db = testEnv.authenticatedContext('mallory').firestore();
+    await assertFails(getDoc(doc(db, 'chats/chat-1')));
+  });
+
+  test('a participant can update a chat but cannot reassign who it belongs to', async () => {
+    const createdAt = { seconds: 1, nanoseconds: 0 };
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'chats/chat-1'), {
+        userId: 'alice',
+        listenerId: 'grace',
+        status: 'active',
+        createdAt,
+      });
+    });
+
+    const db = testEnv.authenticatedContext('grace').firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'chats/chat-1'), { status: 'ended' })
+    );
+    await assertFails(
+      updateDoc(doc(db, 'chats/chat-1'), { listenerId: 'someone-else' })
+    );
+  });
+});
+
+describe('messages', () => {
+  async function seedChat(chatId, userId, listenerId) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `chats/${chatId}`), {
+        userId,
+        listenerId,
+        status: 'active',
+      });
+    });
+  }
+
+  test('a chat participant can send a message in their chat', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'messages/msg-1'), { chatId: 'chat-1', senderId: 'alice', text: 'Hi' })
+    );
+  });
+
+  test('someone outside the chat cannot send a message in it', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('mallory').firestore();
+    await assertFails(
+      setDoc(doc(db, 'messages/msg-1'), { chatId: 'chat-1', senderId: 'mallory', text: 'Hi' })
+    );
+  });
+
+  test('a chat participant can read messages in their chat', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'messages/msg-1'), {
+        chatId: 'chat-1',
+        senderId: 'alice',
+        text: 'Hi',
+      });
+    });
+
+    const db = testEnv.authenticatedContext('grace').firestore();
+    await assertSucceeds(getDoc(doc(db, 'messages/msg-1')));
+  });
+
+  test('someone outside the chat cannot read its messages', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'messages/msg-1'), {
+        chatId: 'chat-1',
+        senderId: 'alice',
+        text: 'Hi',
+      });
+    });
+
+    const db = testEnv.authenticatedContext('mallory').firestore();
+    await assertFails(getDoc(doc(db, 'messages/msg-1')));
+  });
+});
+
 describe('moods', () => {
   test('a user can create their own mood entry', async () => {
     const db = testEnv.authenticatedContext('alice').firestore();

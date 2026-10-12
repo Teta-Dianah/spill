@@ -16,6 +16,24 @@ service cloud.firestore {
         get(/databases/$(database)/documents/accounts/$(request.auth.uid)).data.role == role;
     }
 
+    // Helper: is this listener allowed to be matched with this user right
+    // now? Checked here, not just in the UI, so a tampered client can't
+    // force a match with an unapproved listener or skip the minors rule
+    // (BR 1, FR 4.2).
+    function isEligibleListener(listenerId, userId) {
+      let listener = get(/databases/$(database)/documents/listeners/$(listenerId)).data;
+      let account = get(/databases/$(database)/documents/accounts/$(userId)).data;
+      return listener.status == 'approved' &&
+        listener.available == true &&
+        (account.ageBand != '16-17' || listener.clearedForMinors == true);
+    }
+
+    // Helper: is this person one of the two people in this chat?
+    function isChatParticipant(chatId, uid) {
+      let chat = get(/databases/$(database)/documents/chats/$(chatId)).data;
+      return chat.userId == uid || chat.listenerId == uid;
+    }
+
     // accounts/{uid} — one document per registered user (FR 1, FR 7.4).
     // A user can only ever read or write their own account, and can never
     // set their own role to anything but "user" through the client.
@@ -50,6 +68,64 @@ service cloud.firestore {
 
       allow read: if request.auth != null &&
         request.auth.uid == resource.data.uid;
+    }
+
+    // listeners/{uid} — one document per listener application (FR 5).
+    // Anyone signed in can read the whole collection: matching a user to
+    // a listener happens in the browser (the free plan has no Cloud
+    // Functions to do it on a server), so a user's client needs to see
+    // who is approved and available. A person can only apply for
+    // themselves, always starting as unapproved and unavailable; only an
+    // admin can approve, reject, or clear someone for minors (BR 2).
+    match /listeners/{uid} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null &&
+        request.auth.uid == uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.clearedForMinors == false &&
+        request.resource.data.available == false &&
+        request.resource.data.trainingComplete == false;
+
+      allow update: if request.auth != null && (
+        hasRole('admin') ||
+        (request.auth.uid == uid &&
+          request.resource.data.status == resource.data.status &&
+          request.resource.data.clearedForMinors == resource.data.clearedForMinors)
+      );
+    }
+
+    // chats/{chatId} — one document per chat session (FR 4). Only a user
+    // can start a chat (FR 4.4), and only with a listener who is actually
+    // approved, available, and cleared for minors if the user needs that
+    // (BR 1). Only the two participants can read or change it, and
+    // neither can rewrite who the chat belongs to once it exists.
+    match /chats/{chatId} {
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'active' &&
+        isEligibleListener(request.resource.data.listenerId, request.auth.uid);
+
+      allow read: if request.auth != null &&
+        (resource.data.userId == request.auth.uid || resource.data.listenerId == request.auth.uid);
+
+      allow update: if request.auth != null &&
+        (resource.data.userId == request.auth.uid || resource.data.listenerId == request.auth.uid) &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.listenerId == resource.data.listenerId &&
+        request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    // messages/{messageId} — one document per chat message (FR 4.3).
+    // Only someone in the chat can send or read its messages. Screening
+    // (FR 6.1-6.3) is not built yet — that is Sprint 3.
+    match /messages/{messageId} {
+      allow create: if request.auth != null &&
+        request.resource.data.senderId == request.auth.uid &&
+        isChatParticipant(request.resource.data.chatId, request.auth.uid);
+
+      allow read: if request.auth != null &&
+        isChatParticipant(resource.data.chatId, request.auth.uid);
     }
   }
 }
