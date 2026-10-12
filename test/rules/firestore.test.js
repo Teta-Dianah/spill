@@ -76,6 +76,22 @@ describe('accounts', () => {
     await assertFails(getDoc(doc(db, 'accounts/bob')));
   });
 
+  test('an admin can read someone else\'s account (to review a listener application)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/admin1'), {
+        pseudonym: 'SteadyEmber3',
+        role: 'admin',
+      });
+      await setDoc(doc(context.firestore(), 'accounts/bob'), {
+        pseudonym: 'BraveStone7',
+        role: 'user',
+      });
+    });
+
+    const db = testEnv.authenticatedContext('admin1').firestore();
+    await assertSucceeds(getDoc(doc(db, 'accounts/bob')));
+  });
+
   test('a user cannot change their own role through an update', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), 'accounts/alice'), {

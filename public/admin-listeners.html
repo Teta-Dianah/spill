@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage listeners — Spill</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Manage listeners</h1>
+    <p>Admin only. Approve or reject listener applications, and mark who's cleared to talk to 16-17 year olds.</p>
+  </header>
+
+  <main>
+    <p id="admin-listeners-message" class="message"></p>
+    <ul id="listeners-list" class="plain-list"></ul>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/listeners.js"></script>
+  <script src="js/admin-listeners.js"></script>
+  <script src="js/crisis-card.js"></script>
+</body>
+</html>

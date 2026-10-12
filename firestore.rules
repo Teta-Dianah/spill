@@ -35,10 +35,14 @@ service cloud.firestore {
     }
 
     // accounts/{uid} — one document per registered user (FR 1, FR 7.4).
-    // A user can only ever read or write their own account, and can never
-    // set their own role to anything but "user" through the client.
+    // A user can only ever write their own account, and can never set
+    // their own role to anything but "user" through the client. An admin
+    // can also read any account, since approving a listener (FR 5.2)
+    // means seeing who applied — this is their pseudonym, never real
+    // identity, so it doesn't cross into chat content (BR 4).
     match /accounts/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
+      allow read: if request.auth != null &&
+        (request.auth.uid == uid || hasRole('admin'));
 
       allow create: if request.auth != null &&
         request.auth.uid == uid &&
