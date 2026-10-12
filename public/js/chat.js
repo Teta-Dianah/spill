@@ -61,6 +61,8 @@ function listenForMessages(chatId, myUid) {
     });
 }
 
+var currentChat = null;
+
 function listenForChatStatus(chatId) {
   firebase
     .firestore()
@@ -70,16 +72,40 @@ function listenForChatStatus(chatId) {
       if (!docSnap.exists) return;
 
       var chat = docSnap.data();
+      currentChat = chat;
       var topicLabel = chat.topic ? ' — ' + chat.topic : '';
       showChatStatus(chat.status === 'ended' ? 'This chat has ended.' + topicLabel : 'Chat in progress' + topicLabel);
 
-      var form = document.getElementById('message-form');
-      if (form) {
-        var disabled = chat.status === 'ended';
-        form.messageText.disabled = disabled;
-        form.querySelector('button').disabled = disabled;
+      var messageForm = document.getElementById('message-form');
+      var endChatButton = document.getElementById('end-chat-button');
+      var disabled = chat.status === 'ended';
+      if (messageForm) {
+        messageForm.messageText.disabled = disabled;
+        messageForm.querySelector('button').disabled = disabled;
+      }
+      if (endChatButton) {
+        endChatButton.hidden = disabled;
       }
     });
+}
+
+// FR 4.5: either side can end a chat any time, no reason needed.
+// FR 3.2 / FR 4.6: only the user (not the listener) records a mood-after
+// and an optional rating, since those describe how the chat felt to them.
+function endChat(chatId, updates) {
+  return firebase
+    .firestore()
+    .collection('chats')
+    .doc(chatId)
+    .update(
+      Object.assign(
+        {
+          status: 'ended',
+          endedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        },
+        updates
+      )
+    );
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -124,6 +150,53 @@ document.addEventListener('DOMContentLoaded', function () {
         })
         .catch(function (error) {
           showChatMessage('Could not send that message. Please try again.');
+          console.error(error);
+        });
+    });
+  }
+
+  var endChatButton = document.getElementById('end-chat-button');
+  var endChatForm = document.getElementById('end-chat-form');
+
+  if (endChatButton) {
+    endChatButton.addEventListener('click', function () {
+      var user = firebase.auth().currentUser;
+      if (!user || !currentChat) return;
+
+      if (user.uid === currentChat.listenerId) {
+        // The listener's side: just end it, no mood or rating to capture.
+        endChat(chatId, {}).catch(function (error) {
+          showChatMessage('Could not end the chat. Please try again.');
+          console.error(error);
+        });
+        return;
+      }
+
+      // The user's side: capture a mood-after and optional rating first.
+      endChatButton.hidden = true;
+      if (endChatForm) endChatForm.hidden = false;
+    });
+  }
+
+  if (endChatForm) {
+    endChatForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      var moodAfter = parseInt(endChatForm.moodAfter.value, 10);
+      var ratingInput = endChatForm.querySelector('input[name="rating"]:checked');
+      var rating = ratingInput ? ratingInput.value : null;
+      var ratingComment = endChatForm.ratingComment.value.trim();
+
+      endChat(chatId, {
+        moodAfter: moodAfter,
+        rating: rating,
+        ratingComment: ratingComment,
+      })
+        .then(function () {
+          window.location.href = 'dashboard.html';
+        })
+        .catch(function (error) {
+          showChatMessage('Could not finish the chat. Please try again.');
           console.error(error);
         });
     });

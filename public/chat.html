@@ -28,6 +28,28 @@
     </section>
 
     <button type="button" id="end-chat-button" style="width: auto; background: #a4303f;">End chat</button>
+
+    <form id="end-chat-form" class="card" hidden>
+      <h2>Before you go</h2>
+
+      <label for="moodAfter">How are you feeling now? (1 = rough, 5 = great)</label>
+      <select id="moodAfter" name="moodAfter" required>
+        <option value="1">1 — Rough</option>
+        <option value="2">2</option>
+        <option value="3">3 — Okay</option>
+        <option value="4">4</option>
+        <option value="5">5 — Great</option>
+      </select>
+
+      <label>Was this chat helpful? (optional)</label>
+      <label><input type="radio" name="rating" value="helpful" style="width:auto;display:inline-block;"> Helpful</label>
+      <label><input type="radio" name="rating" value="not-helpful" style="width:auto;display:inline-block;"> Not helpful</label>
+
+      <label for="ratingComment">Anything else? (optional)</label>
+      <textarea id="ratingComment" name="ratingComment" rows="3" maxlength="280"></textarea>
+
+      <button type="submit">Finish</button>
+    </form>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
