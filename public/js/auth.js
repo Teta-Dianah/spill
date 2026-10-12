@@ -1,7 +1,7 @@
 // Sign-up, sign-in and sign-out (FR 1.1, FR 1.2, FR 1.4).
 // Needs pseudonym.js and firebase-init.js loaded first.
 
-function createAccountDocument(uid, ageBand) {
+function createAccountDocument(uid, ageBand, firstTimeSeekingHelp) {
   var pseudonym = generatePseudonym();
   return firebase
     .firestore()
@@ -10,6 +10,9 @@ function createAccountDocument(uid, ageBand) {
     .set({
       pseudonym: pseudonym,
       ageBand: ageBand,
+      // FR 1.6: asked once at sign-up, used to measure how many pilot
+      // users are trying this kind of support for the first time (H1).
+      firstTimeSeekingHelp: firstTimeSeekingHelp,
       role: 'user',
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     })
@@ -18,19 +21,19 @@ function createAccountDocument(uid, ageBand) {
     });
 }
 
-function registerUser(email, password, ageBand) {
+function registerUser(email, password, ageBand, firstTimeSeekingHelp) {
   return firebase
     .auth()
     .createUserWithEmailAndPassword(email, password)
     .then(function (credential) {
-      // FR 1.6: send a verification email. This is a "nice to have", so a
+      // FR 1.7: send a verification email. This is a "nice to have", so a
       // failure here (e.g. emulator doesn't send real email) shouldn't stop
       // the sign-up from finishing.
       credential.user.sendEmailVerification().catch(function (error) {
         console.error('Could not send verification email', error);
       });
 
-      return createAccountDocument(credential.user.uid, ageBand);
+      return createAccountDocument(credential.user.uid, ageBand, firstTimeSeekingHelp);
     });
 }
 

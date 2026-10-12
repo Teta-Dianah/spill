@@ -16,14 +16,22 @@ document.addEventListener('DOMContentLoaded', function () {
     var email = form.email.value.trim();
     var password = form.password.value;
     var ageBand = form.ageBand.value;
+    var firstTimeAnswer = form.firstTimeSeekingHelp.value;
     var consentGiven = form.consent.checked;
+
+    if (!firstTimeAnswer) {
+      showSignupMessage('Please answer whether this is your first time seeking support.');
+      return;
+    }
 
     if (!consentGiven) {
       showSignupMessage('Please read and accept the notice above before continuing.');
       return;
     }
 
-    registerUser(email, password, ageBand)
+    var firstTimeSeekingHelp = firstTimeAnswer === 'yes';
+
+    registerUser(email, password, ageBand, firstTimeSeekingHelp)
       .then(function (pseudonym) {
         showSignupMessage('Account created. Your name here is ' + pseudonym + '.');
         window.location.href = 'dashboard.html';
