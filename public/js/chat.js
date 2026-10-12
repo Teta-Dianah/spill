@@ -31,9 +31,13 @@ function renderMessages(docs, myUid) {
     messages.push(docSnap.data());
   });
 
+  // A message you just sent has no createdAt yet locally (the real
+  // server timestamp arrives a moment later), so treat that as "now"
+  // rather than the start of time — otherwise it would briefly jump to
+  // the top of the list instead of the bottom.
   messages.sort(function (a, b) {
-    var aTime = a.createdAt ? a.createdAt.toMillis() : 0;
-    var bTime = b.createdAt ? b.createdAt.toMillis() : 0;
+    var aTime = a.createdAt ? a.createdAt.toMillis() : Date.now();
+    var bTime = b.createdAt ? b.createdAt.toMillis() : Date.now();
     return aTime - bTime;
   });
 
