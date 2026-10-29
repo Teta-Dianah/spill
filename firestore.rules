@@ -4,6 +4,16 @@ rules_version = '2';
 // Everything is denied by default. Each collection below turns on only the
 // access it needs. See docs/Spill_Proposal_and_SRS.pdf section 4.2 (FR 7.4)
 // and section 5.5 (business rules) for why these rules exist.
+//
+// A note on message screening (FR 6.1-6.3): there are two layers, on
+// purpose. This file has its own small, FIXED set of crisis and
+// contact-sharing patterns, hardcoded below and not editable without a
+// redeploy — that is the real safety backstop, enforced at write time no
+// matter what any client does. public/js/screening.js has a richer,
+// admin-editable set of term lists (FR 7.1) that the app uses for the
+// actual chat experience (showing the crisis card promptly, warning
+// messages, etc.) — editing those lists changes the app's behaviour, not
+// what the database will actually accept.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -18,14 +28,20 @@ service cloud.firestore {
 
     // Helper: is this listener allowed to be matched with this user right
     // now? Checked here, not just in the UI, so a tampered client can't
-    // force a match with an unapproved listener or skip the minors rule
-    // (BR 1, FR 4.2).
+    // force a match with an unapproved listener, skip the minors rule
+    // (BR 1, FR 4.2), reach someone who blocked them (FR 6.6), or reach
+    // someone while either account is suspended (BR 7).
     function isEligibleListener(listenerId, userId) {
       let listener = get(/databases/$(database)/documents/listeners/$(listenerId)).data;
-      let account = get(/databases/$(database)/documents/accounts/$(userId)).data;
+      let listenerAccount = get(/databases/$(database)/documents/accounts/$(listenerId)).data;
+      let userAccount = get(/databases/$(database)/documents/accounts/$(userId)).data;
       return listener.status == 'approved' &&
         listener.available == true &&
-        (account.ageBand != '16-17' || listener.clearedForMinors == true);
+        listenerAccount.status == 'active' &&
+        userAccount.status == 'active' &&
+        (userAccount.ageBand != '16-17' || listener.clearedForMinors == true) &&
+        !(listenerId in userAccount.blockedUids) &&
+        !(userId in listenerAccount.blockedUids);
     }
 
     // Helper: is this person one of the two people in this chat?
@@ -43,23 +59,70 @@ service cloud.firestore {
       return (chat.userId == uid || chat.listenerId == uid) && chat.status == 'active';
     }
 
+    // Helper: has a moderator opened a case on this chat? chatCases is
+    // only ever written by a moderator (see that collection below) — this
+    // is the one and only path in to chat content for them (BR 3).
+    function chatHasCase(chatId) {
+      return exists(/databases/$(database)/documents/chatCases/$(chatId));
+    }
+
+    // Helper: does the flag named on this crisis message actually belong
+    // to it — same chat, same message, same sender — and is it really a
+    // high-priority crisis flag? Checking the flag merely exists isn't
+    // enough: a stale or mismatched flag id would satisfy that and let a
+    // crisis message through unflagged in all the ways that matter.
+    function hasMatchingCrisisFlag(messageId, chatId, senderId) {
+      let flag = getAfter(/databases/$(database)/documents/flags/$(request.resource.data.flagId)).data;
+      return flag.type == 'crisis' &&
+        flag.severity == 3 &&
+        flag.chatId == chatId &&
+        flag.senderId == senderId &&
+        flag.messageId == messageId;
+    }
+
+    // Fixed, non-editable crisis-language check (FR 6.2). Deliberately
+    // small — this is a backstop, not the primary detector.
+    function hasCrisisLanguage(text) {
+      return text.lower().matches(
+        '.*(kill myself|kill me|suicide|suicidal|end my life|want to die|self harm|hurt myself).*'
+      );
+    }
+
+    // Fixed, non-editable contact-sharing check (FR 6.3): phone numbers,
+    // emails/handles (an "@" next to a letter or digit), links, and
+    // naming a platform to move the conversation to.
+    function hasContactSharing(text) {
+      return text.lower().matches(
+        '.*(https?://|www[.]|whatsapp|instagram|telegram|snapchat|@[a-z0-9]).*'
+      ) || text.matches('.*[0-9][0-9 -]{6,}[0-9].*');
+    }
+
     // accounts/{uid} — one document per registered user (FR 1, FR 7.4).
-    // A user can only ever write their own account, and can never set
-    // their own role to anything but "user" through the client. An admin
-    // can also read any account, since approving a listener (FR 5.2)
-    // means seeing who applied — this is their pseudonym, never real
-    // identity, so it doesn't cross into chat content (BR 4).
+    // A user can write most of their own account, but never their own
+    // role or status (BR 7 — a suspended account can't just un-suspend
+    // itself). An admin can change role and status on any account
+    // (approving a listener for moderator duty, for example); a
+    // moderator can change status only, for suspend/reinstate (FR 6.8).
+    // Admins and moderators can also read any account, since safety work
+    // means seeing who applied or who was flagged — just their
+    // pseudonym, never real identity, and never chat content (BR 4).
     match /accounts/{uid} {
       allow read: if request.auth != null &&
-        (request.auth.uid == uid || hasRole('admin'));
+        (request.auth.uid == uid || hasRole('admin') || hasRole('moderator'));
 
       allow create: if request.auth != null &&
         request.auth.uid == uid &&
         request.resource.data.role == 'user';
 
-      allow update: if request.auth != null &&
-        request.auth.uid == uid &&
-        request.resource.data.role == resource.data.role;
+      allow update: if request.auth != null && (
+        (request.auth.uid == uid &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.status == resource.data.status) ||
+        (hasRole('admin') &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'status'])) ||
+        (hasRole('moderator') &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+      );
 
       allow delete: if request.auth != null && request.auth.uid == uid;
     }
@@ -110,11 +173,12 @@ service cloud.firestore {
 
     // chats/{chatId} — one document per chat session (FR 4, FR 5.5). Only
     // a user can start a chat (FR 4.4), and only with a listener who is
-    // actually approved, available, and cleared for minors if the user
-    // needs that (BR 1). A new chat always starts "pending" — the
+    // actually eligible right now (BR 1, BR 7, FR 6.6 — see
+    // isEligibleListener). A new chat always starts "pending" — the
     // listener accepts or declines it (FR 5.5) before any messages can
-    // flow. Only the two participants can read or change it, and neither
-    // can rewrite who the chat belongs to once it exists.
+    // flow. The two participants can always read or change it; a
+    // moderator can read it too, but only once a case exists for it
+    // (BR 3) — an admin never can (BR 4).
     match /chats/{chatId} {
       allow create: if request.auth != null &&
         request.resource.data.userId == request.auth.uid &&
@@ -122,7 +186,9 @@ service cloud.firestore {
         isEligibleListener(request.resource.data.listenerId, request.auth.uid);
 
       allow read: if request.auth != null &&
-        (resource.data.userId == request.auth.uid || resource.data.listenerId == request.auth.uid);
+        (resource.data.userId == request.auth.uid ||
+          resource.data.listenerId == request.auth.uid ||
+          (hasRole('moderator') && chatHasCase(chatId)));
 
       allow update: if request.auth != null &&
         (resource.data.userId == request.auth.uid || resource.data.listenerId == request.auth.uid) &&
@@ -131,17 +197,91 @@ service cloud.firestore {
         request.resource.data.createdAt == resource.data.createdAt;
     }
 
-    // messages/{messageId} — one document per chat message (FR 4.3).
-    // Only someone in the chat can send or read its messages, and sending
-    // only works once the chat has been accepted. Screening
-    // (FR 6.1-6.3) is not built yet — that is Sprint 3.
+    // messages/{messageId} — one document per chat message (FR 4.3,
+    // FR 6.1-6.3). Contact-sharing is always rejected outright. Crisis
+    // wording is never blocked, but the write must bring its own
+    // matching high-priority flag along in the same batch (same chat,
+    // message and sender — see hasMatchingCrisisFlag). A tampered client
+    // could try to skip or mismatch the flag, but then the whole write
+    // (crisis message included) is refused, not silently delivered
+    // unflagged or flagged against the wrong message.
     match /messages/{messageId} {
       allow create: if request.auth != null &&
         request.resource.data.senderId == request.auth.uid &&
-        isActiveChatParticipant(request.resource.data.chatId, request.auth.uid);
+        isActiveChatParticipant(request.resource.data.chatId, request.auth.uid) &&
+        !hasContactSharing(request.resource.data.text) &&
+        (!hasCrisisLanguage(request.resource.data.text) ||
+          hasMatchingCrisisFlag(messageId, request.resource.data.chatId, request.resource.data.senderId));
 
       allow read: if request.auth != null &&
-        isChatParticipant(resource.data.chatId, request.auth.uid);
+        (isChatParticipant(resource.data.chatId, request.auth.uid) ||
+          (hasRole('moderator') && chatHasCase(resource.data.chatId)));
+    }
+
+    // flags/{flagId} — system-raised safety flags: crisis wording,
+    // blocked contact-sharing attempts, and flagged abusive language
+    // (FR 6.2, FR 6.3, FR 6.4). Written by the sender themselves — a
+    // chat participant — since Security Rules can only allow or deny a
+    // write, never create data on their own. Only moderators work the
+    // queue (FR 6.7, BR 3); this is safety data, so admins don't read it
+    // either, matching BR 4's spirit.
+    match /flags/{flagId} {
+      allow create: if request.auth != null &&
+        request.resource.data.senderId == request.auth.uid &&
+        isChatParticipant(request.resource.data.chatId, request.auth.uid);
+
+      allow read: if hasRole('moderator');
+
+      allow update: if hasRole('moderator');
+    }
+
+    // reports/{reportId} — a participant reporting a chat or the other
+    // person, with a reason (FR 6.5). Same visibility as flags.
+    match /reports/{reportId} {
+      allow create: if request.auth != null &&
+        request.resource.data.reporterId == request.auth.uid &&
+        isChatParticipant(request.resource.data.chatId, request.auth.uid);
+
+      allow read: if hasRole('moderator');
+
+      allow update: if hasRole('moderator');
+    }
+
+    // chatFlagged/{chatId} — a marker saying "at least one flag or
+    // report has been raised for this chat", written by the participant
+    // alongside that flag or report. On its own this gives nobody access
+    // to anything new; it only exists so chatCases (below) has something
+    // to check.
+    match /chatFlagged/{chatId} {
+      allow create, update: if request.auth != null && isChatParticipant(chatId, request.auth.uid);
+
+      allow read: if hasRole('moderator');
+    }
+
+    // chatCases/{chatId} — a moderator deliberately opening a case on a
+    // flagged chat (BR 3). Only a moderator can create this — never a
+    // participant, never an admin — and only once chatFlagged confirms a
+    // flag or report genuinely exists for that chat, so a moderator
+    // can't just open an arbitrary chat with nothing raised against it.
+    // This is what chatHasCase() checks, and it is the only path in to
+    // chat content for a moderator.
+    match /chatCases/{chatId} {
+      allow create: if hasRole('moderator') &&
+        exists(/databases/$(database)/documents/chatFlagged/$(chatId));
+
+      allow read: if hasRole('moderator');
+    }
+
+    // auditLog/{entryId} — every moderator/admin action and every case
+    // opened, logged by the client at the moment it happens (FR 6.9,
+    // NFR 19). Entries can never be edited or removed through the app —
+    // there is no update or delete rule for this collection at all.
+    match /auditLog/{entryId} {
+      allow create: if request.auth != null &&
+        request.resource.data.actorId == request.auth.uid &&
+        (hasRole('moderator') || hasRole('admin'));
+
+      allow read: if hasRole('moderator') || hasRole('admin');
     }
   }
 }

@@ -14,6 +14,11 @@ function createAccountDocument(uid, ageBand, firstTimeSeekingHelp) {
       // users are trying this kind of support for the first time (H1).
       firstTimeSeekingHelp: firstTimeSeekingHelp,
       role: 'user',
+      // BR 7: a moderator can suspend an account; it stays suspended
+      // until they reinstate it. FR 6.6: who this account has blocked,
+      // so they're never matched again.
+      status: 'active',
+      blockedUids: [],
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     })
     .then(function () {

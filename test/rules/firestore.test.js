@@ -9,7 +9,7 @@ const {
   assertSucceeds,
   assertFails,
 } = require('@firebase/rules-unit-testing');
-const { doc, getDoc, setDoc, updateDoc } = require('firebase/firestore');
+const { doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch } = require('firebase/firestore');
 
 let testEnv;
 
@@ -244,7 +244,25 @@ describe('listeners', () => {
 });
 
 describe('chats', () => {
+  async function seedAccount(uid, ageBand, overrides = {}) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `accounts/${uid}`), {
+        pseudonym: 'Test',
+        role: 'user',
+        ageBand,
+        status: 'active',
+        blockedUids: [],
+        ...overrides,
+      });
+    });
+  }
+
+  // A listener needs both documents: listeners/{uid} for their approval
+  // status, and accounts/{uid} like any other person, since
+  // isEligibleListener now also checks the listener's own account isn't
+  // suspended and hasn't blocked (or been blocked by) the requester.
   async function seedApprovedListener(uid, overrides = {}) {
+    await seedAccount(uid, '18-25');
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), `listeners/${uid}`), {
         status: 'approved',
@@ -252,16 +270,6 @@ describe('chats', () => {
         available: true,
         trainingComplete: true,
         ...overrides,
-      });
-    });
-  }
-
-  async function seedAccount(uid, ageBand) {
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await setDoc(doc(context.firestore(), `accounts/${uid}`), {
-        pseudonym: 'Test',
-        role: 'user',
-        ageBand,
       });
     });
   }
@@ -398,6 +406,56 @@ describe('chats', () => {
       updateDoc(doc(db, 'chats/chat-1'), { listenerId: 'someone-else' })
     );
   });
+
+  test('a suspended user cannot request a chat (BR 7)', async () => {
+    await seedAccount('alice', '18-25', { status: 'suspended' });
+    await seedApprovedListener('grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'chats/chat-1'), { userId: 'alice', listenerId: 'grace', status: 'pending' })
+    );
+  });
+
+  test('a user cannot request a chat with a suspended listener (BR 7)', async () => {
+    await seedAccount('alice', '18-25');
+    await seedApprovedListener('grace');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/grace'), {
+        pseudonym: 'Grace', role: 'user', ageBand: '18-25', status: 'suspended', blockedUids: [],
+      });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'chats/chat-1'), { userId: 'alice', listenerId: 'grace', status: 'pending' })
+    );
+  });
+
+  test('a user cannot request a chat with a listener they have blocked (FR 6.6)', async () => {
+    await seedAccount('alice', '18-25', { blockedUids: ['grace'] });
+    await seedApprovedListener('grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'chats/chat-1'), { userId: 'alice', listenerId: 'grace', status: 'pending' })
+    );
+  });
+
+  test('a user cannot request a chat with a listener who has blocked them (FR 6.6)', async () => {
+    await seedAccount('alice', '18-25');
+    await seedApprovedListener('grace', {});
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/grace'), {
+        pseudonym: 'Grace', role: 'user', ageBand: '18-25', status: 'active', blockedUids: ['alice'],
+      });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'chats/chat-1'), { userId: 'alice', listenerId: 'grace', status: 'pending' })
+    );
+  });
 });
 
 describe('messages', () => {
@@ -471,6 +529,102 @@ describe('messages', () => {
     const db = testEnv.authenticatedContext('mallory').firestore();
     await assertFails(getDoc(doc(db, 'messages/msg-1')));
   });
+
+  test('a clean message is delivered normally', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'messages/msg-2'), { chatId: 'chat-1', senderId: 'alice', text: 'Hi, how are you?' })
+    );
+  });
+
+  test('a crisis message is refused when it has no matching flag (FR 6.2)', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'messages/msg-3'), {
+        chatId: 'chat-1',
+        senderId: 'alice',
+        text: 'I want to kill myself',
+        flagId: 'flag-1',
+      })
+    );
+  });
+
+  test('a crisis message succeeds when batched with its matching flag (FR 6.2)', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'messages/msg-4'), {
+      chatId: 'chat-1',
+      senderId: 'alice',
+      text: 'I want to kill myself',
+      flagId: 'flag-2',
+    });
+    batch.set(doc(db, 'flags/flag-2'), {
+      type: 'crisis',
+      chatId: 'chat-1',
+      senderId: 'alice',
+      messageId: 'msg-4',
+      severity: 3,
+      status: 'open',
+    });
+    await assertSucceeds(batch.commit());
+  });
+
+  test('a crisis message is refused when the flag belongs to a different chat, message or sender (FR 6.2)', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+
+    const wrongChat = writeBatch(db);
+    wrongChat.set(doc(db, 'messages/msg-wrong-chat'), {
+      chatId: 'chat-1', senderId: 'alice', text: 'I want to kill myself', flagId: 'flag-wrong-chat',
+    });
+    wrongChat.set(doc(db, 'flags/flag-wrong-chat'), {
+      type: 'crisis', chatId: 'some-other-chat', senderId: 'alice', messageId: 'msg-wrong-chat', severity: 3,
+    });
+    await assertFails(wrongChat.commit());
+
+    const wrongMessage = writeBatch(db);
+    wrongMessage.set(doc(db, 'messages/msg-wrong-message'), {
+      chatId: 'chat-1', senderId: 'alice', text: 'I want to kill myself', flagId: 'flag-wrong-message',
+    });
+    wrongMessage.set(doc(db, 'flags/flag-wrong-message'), {
+      type: 'crisis', chatId: 'chat-1', senderId: 'alice', messageId: 'some-other-message', severity: 3,
+    });
+    await assertFails(wrongMessage.commit());
+
+    const wrongSender = writeBatch(db);
+    wrongSender.set(doc(db, 'messages/msg-wrong-sender'), {
+      chatId: 'chat-1', senderId: 'alice', text: 'I want to kill myself', flagId: 'flag-wrong-sender',
+    });
+    wrongSender.set(doc(db, 'flags/flag-wrong-sender'), {
+      type: 'crisis', chatId: 'chat-1', senderId: 'someone-else', messageId: 'msg-wrong-sender', severity: 3,
+    });
+    await assertFails(wrongSender.commit());
+
+    const wrongType = writeBatch(db);
+    wrongType.set(doc(db, 'messages/msg-wrong-type'), {
+      chatId: 'chat-1', senderId: 'alice', text: 'I want to kill myself', flagId: 'flag-wrong-type',
+    });
+    wrongType.set(doc(db, 'flags/flag-wrong-type'), {
+      type: 'abusive-language', chatId: 'chat-1', senderId: 'alice', messageId: 'msg-wrong-type', severity: 1,
+    });
+    await assertFails(wrongType.commit());
+  });
+
+  test('a contact-sharing message is refused outright (FR 6.3)', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'messages/msg-5'), { chatId: 'chat-1', senderId: 'alice', text: 'call me at 0788123456' })
+    );
+  });
 });
 
 describe('moods', () => {
@@ -498,5 +652,311 @@ describe('moods', () => {
 
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(getDoc(doc(db, 'moods/mood-3')));
+  });
+});
+
+describe('chatFlagged', () => {
+  async function seedChat(chatId, userId, listenerId) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `chats/${chatId}`), { userId, listenerId, status: 'active' });
+    });
+  }
+
+  test('a chat participant can mark their own chat as flagged', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(setDoc(doc(db, 'chatFlagged/chat-1'), { chatId: 'chat-1' }));
+  });
+
+  test('someone outside the chat cannot mark it as flagged', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('mallory').firestore();
+    await assertFails(setDoc(doc(db, 'chatFlagged/chat-1'), { chatId: 'chat-1' }));
+  });
+});
+
+describe('chatCases (BR 3: moderator-only, and only once something is actually flagged)', () => {
+  async function seedModerator(uid) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `accounts/${uid}`), {
+        pseudonym: 'Mod', role: 'moderator', status: 'active', blockedUids: [],
+      });
+    });
+  }
+
+  async function seedFlaggedChat(chatId) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `chats/${chatId}`), { userId: 'alice', listenerId: 'grace', status: 'active' });
+      await setDoc(doc(context.firestore(), `chatFlagged/${chatId}`), { chatId });
+    });
+  }
+
+  test('a moderator can open a case once the chat is actually flagged', async () => {
+    await seedFlaggedChat('chat-1');
+    await seedModerator('mod1');
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertSucceeds(setDoc(doc(db, 'chatCases/chat-1'), { chatId: 'chat-1' }));
+  });
+
+  test('a moderator cannot open a case on a chat nothing was raised against', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'chats/chat-2'), { userId: 'alice', listenerId: 'grace', status: 'active' });
+    });
+    await seedModerator('mod1');
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertFails(setDoc(doc(db, 'chatCases/chat-2'), { chatId: 'chat-2' }));
+  });
+
+  test('a chat participant cannot open a case, even on their own flagged chat', async () => {
+    await seedFlaggedChat('chat-1');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(setDoc(doc(db, 'chatCases/chat-1'), { chatId: 'chat-1' }));
+  });
+
+  test('an admin cannot open a case', async () => {
+    await seedFlaggedChat('chat-1');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/admin1'), {
+        pseudonym: 'Admin', role: 'admin', status: 'active', blockedUids: [],
+      });
+    });
+
+    const db = testEnv.authenticatedContext('admin1').firestore();
+    await assertFails(setDoc(doc(db, 'chatCases/chat-1'), { chatId: 'chat-1' }));
+  });
+});
+
+describe('flags and reports', () => {
+  async function seedChat(chatId, userId, listenerId) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `chats/${chatId}`), { userId, listenerId, status: 'active' });
+    });
+  }
+
+  async function seedModerator(uid) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `accounts/${uid}`), {
+        pseudonym: 'Mod', role: 'moderator', status: 'active', blockedUids: [],
+      });
+    });
+  }
+
+  test('a chat participant can create a flag for their own chat', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'flags/flag-1'), {
+        type: 'abusive-language', chatId: 'chat-1', senderId: 'alice', severity: 1, status: 'open',
+      })
+    );
+  });
+
+  test('a non-moderator cannot read flags', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'flags/flag-1'), { type: 'crisis', chatId: 'chat-1', senderId: 'alice' });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(getDoc(doc(db, 'flags/flag-1')));
+  });
+
+  test('a moderator can read a flag and resolve it with a reason (FR 6.8)', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    await seedModerator('mod1');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'flags/flag-1'), {
+        type: 'crisis', chatId: 'chat-1', senderId: 'alice', severity: 3, status: 'open',
+      });
+    });
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertSucceeds(getDoc(doc(db, 'flags/flag-1')));
+    await assertSucceeds(
+      updateDoc(doc(db, 'flags/flag-1'), { status: 'reviewed', action: 'dismiss', reason: 'Not needed' })
+    );
+  });
+
+  test('a participant can report their chat', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'reports/report-1'), {
+        chatId: 'chat-1', reporterId: 'alice', reportedId: 'grace',
+        reason: 'Made me uncomfortable', severity: 2, status: 'open',
+      })
+    );
+  });
+
+  test('a non-moderator cannot read reports', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'reports/report-1'), {
+        chatId: 'chat-1', reporterId: 'alice', reportedId: 'grace', reason: 'test',
+      });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(getDoc(doc(db, 'reports/report-1')));
+  });
+});
+
+describe('moderator access to chat content (BR 3, BR 4)', () => {
+  async function seedCasedChat(chatId) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `chats/${chatId}`), { userId: 'alice', listenerId: 'grace', status: 'ended' });
+      await setDoc(doc(context.firestore(), `chatCases/${chatId}`), { chatId });
+      await setDoc(doc(context.firestore(), 'accounts/mod1'), {
+        pseudonym: 'Mod', role: 'moderator', status: 'active', blockedUids: [],
+      });
+      await setDoc(doc(context.firestore(), 'accounts/admin1'), {
+        pseudonym: 'Admin', role: 'admin', status: 'active', blockedUids: [],
+      });
+    });
+  }
+
+  test('a moderator can read a chat once a case exists for it', async () => {
+    await seedCasedChat('chat-1');
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertSucceeds(getDoc(doc(db, 'chats/chat-1')));
+  });
+
+  test('a moderator cannot read a chat with no case opened for it', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'chats/chat-2'), { userId: 'alice', listenerId: 'grace', status: 'ended' });
+      await setDoc(doc(context.firestore(), 'accounts/mod1'), {
+        pseudonym: 'Mod', role: 'moderator', status: 'active', blockedUids: [],
+      });
+    });
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertFails(getDoc(doc(db, 'chats/chat-2')));
+  });
+
+  test('an admin can never read a chat, even with a case (BR 4)', async () => {
+    await seedCasedChat('chat-1');
+
+    const db = testEnv.authenticatedContext('admin1').firestore();
+    await assertFails(getDoc(doc(db, 'chats/chat-1')));
+  });
+});
+
+describe('auditLog', () => {
+  async function seedModerator(uid) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `accounts/${uid}`), {
+        pseudonym: 'Mod', role: 'moderator', status: 'active', blockedUids: [],
+      });
+    });
+  }
+
+  test('a moderator can log their own action', async () => {
+    await seedModerator('mod1');
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'auditLog/entry-1'), {
+        actorId: 'mod1', action: 'opened_case', targetType: 'chat', targetId: 'chat-1',
+      })
+    );
+  });
+
+  test('a moderator cannot log an action claiming to be someone else', async () => {
+    await seedModerator('mod1');
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertFails(
+      setDoc(doc(db, 'auditLog/entry-1'), { actorId: 'someone-else', action: 'opened_case' })
+    );
+  });
+
+  test('a regular user cannot write to the audit log', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'auditLog/entry-1'), { actorId: 'alice', action: 'opened_case' })
+    );
+  });
+
+  test('audit log entries cannot be updated, even by a moderator (NFR 19)', async () => {
+    await seedModerator('mod1');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'auditLog/entry-1'), { actorId: 'mod1', action: 'opened_case' });
+    });
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertFails(updateDoc(doc(db, 'auditLog/entry-1'), { action: 'dismissed' }));
+  });
+
+  test('audit log entries cannot be deleted, even by a moderator (NFR 19)', async () => {
+    await seedModerator('mod1');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'auditLog/entry-1'), { actorId: 'mod1', action: 'opened_case' });
+    });
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertFails(deleteDoc(doc(db, 'auditLog/entry-1')));
+  });
+});
+
+describe('admin and moderator account updates', () => {
+  async function seedAccounts() {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/admin1'), {
+        pseudonym: 'Admin', role: 'admin', status: 'active', blockedUids: [],
+      });
+      await setDoc(doc(context.firestore(), 'accounts/mod1'), {
+        pseudonym: 'Mod', role: 'moderator', status: 'active', blockedUids: [],
+      });
+      await setDoc(doc(context.firestore(), 'accounts/bob'), {
+        pseudonym: 'Bob', role: 'user', status: 'active', blockedUids: [],
+      });
+    });
+  }
+
+  test('an admin can change role and status', async () => {
+    await seedAccounts();
+
+    const db = testEnv.authenticatedContext('admin1').firestore();
+    await assertSucceeds(updateDoc(doc(db, 'accounts/bob'), { role: 'moderator', status: 'active' }));
+  });
+
+  test('an admin cannot change other fields, like pseudonym', async () => {
+    await seedAccounts();
+
+    const db = testEnv.authenticatedContext('admin1').firestore();
+    await assertFails(updateDoc(doc(db, 'accounts/bob'), { pseudonym: 'Renamed' }));
+  });
+
+  test('a moderator can suspend an account (status only, FR 6.8)', async () => {
+    await seedAccounts();
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertSucceeds(updateDoc(doc(db, 'accounts/bob'), { status: 'suspended' }));
+  });
+
+  test('a moderator cannot change role', async () => {
+    await seedAccounts();
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertFails(updateDoc(doc(db, 'accounts/bob'), { role: 'admin' }));
+  });
+
+  test('a user cannot un-suspend their own account (BR 7)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/bob'), {
+        pseudonym: 'Bob', role: 'user', status: 'suspended', blockedUids: [],
+      });
+    });
+
+    const db = testEnv.authenticatedContext('bob').firestore();
+    await assertFails(updateDoc(doc(db, 'accounts/bob'), { status: 'active' }));
   });
 });
