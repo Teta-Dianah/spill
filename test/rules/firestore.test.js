@@ -266,17 +266,27 @@ describe('chats', () => {
     });
   }
 
-  test('a user can start a chat with an approved, available listener', async () => {
+  test('a user can request a chat with an approved, available listener', async () => {
     await seedAccount('alice', '18-25');
     await seedApprovedListener('grace');
 
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertSucceeds(
+      setDoc(doc(db, 'chats/chat-1'), { userId: 'alice', listenerId: 'grace', status: 'pending' })
+    );
+  });
+
+  test('a new chat cannot be created already active (must start pending, FR 5.5)', async () => {
+    await seedAccount('alice', '18-25');
+    await seedApprovedListener('grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
       setDoc(doc(db, 'chats/chat-1'), { userId: 'alice', listenerId: 'grace', status: 'active' })
     );
   });
 
-  test('a user cannot start a chat with a listener who is not approved', async () => {
+  test('a user cannot request a chat with a listener who is not approved', async () => {
     await seedAccount('alice', '18-25');
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), 'listeners/grace'), {
@@ -289,17 +299,17 @@ describe('chats', () => {
 
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(
-      setDoc(doc(db, 'chats/chat-1'), { userId: 'alice', listenerId: 'grace', status: 'active' })
+      setDoc(doc(db, 'chats/chat-1'), { userId: 'alice', listenerId: 'grace', status: 'pending' })
     );
   });
 
-  test('a user cannot start a chat with a listener who is unavailable', async () => {
+  test('a user cannot request a chat with a listener who is unavailable', async () => {
     await seedAccount('alice', '18-25');
     await seedApprovedListener('grace', { available: false });
 
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(
-      setDoc(doc(db, 'chats/chat-1'), { userId: 'alice', listenerId: 'grace', status: 'active' })
+      setDoc(doc(db, 'chats/chat-1'), { userId: 'alice', listenerId: 'grace', status: 'pending' })
     );
   });
 
@@ -309,7 +319,7 @@ describe('chats', () => {
 
     const db = testEnv.authenticatedContext('young-alice').firestore();
     await assertFails(
-      setDoc(doc(db, 'chats/chat-1'), { userId: 'young-alice', listenerId: 'grace', status: 'active' })
+      setDoc(doc(db, 'chats/chat-1'), { userId: 'young-alice', listenerId: 'grace', status: 'pending' })
     );
   });
 
@@ -319,7 +329,39 @@ describe('chats', () => {
 
     const db = testEnv.authenticatedContext('young-alice').firestore();
     await assertSucceeds(
-      setDoc(doc(db, 'chats/chat-1'), { userId: 'young-alice', listenerId: 'grace', status: 'active' })
+      setDoc(doc(db, 'chats/chat-1'), { userId: 'young-alice', listenerId: 'grace', status: 'pending' })
+    );
+  });
+
+  test('the matched listener can accept a pending chat (FR 5.5)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'chats/chat-1'), {
+        userId: 'alice',
+        listenerId: 'grace',
+        status: 'pending',
+        createdAt: { seconds: 1, nanoseconds: 0 },
+      });
+    });
+
+    const db = testEnv.authenticatedContext('grace').firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'chats/chat-1'), { status: 'active' })
+    );
+  });
+
+  test('the matched listener can decline a pending chat (FR 5.5)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'chats/chat-1'), {
+        userId: 'alice',
+        listenerId: 'grace',
+        status: 'pending',
+        createdAt: { seconds: 1, nanoseconds: 0 },
+      });
+    });
+
+    const db = testEnv.authenticatedContext('grace').firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'chats/chat-1'), { status: 'declined' })
     );
   });
 
@@ -384,6 +426,21 @@ describe('messages', () => {
     const db = testEnv.authenticatedContext('mallory').firestore();
     await assertFails(
       setDoc(doc(db, 'messages/msg-1'), { chatId: 'chat-1', senderId: 'mallory', text: 'Hi' })
+    );
+  });
+
+  test('a participant cannot send a message while the chat is still pending (FR 5.5)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'chats/chat-1'), {
+        userId: 'alice',
+        listenerId: 'grace',
+        status: 'pending',
+      });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'messages/msg-1'), { chatId: 'chat-1', senderId: 'alice', text: 'Hi' })
     );
   });
 

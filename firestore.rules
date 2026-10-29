@@ -34,6 +34,15 @@ service cloud.firestore {
       return chat.userId == uid || chat.listenerId == uid;
     }
 
+    // Helper: is this person a participant AND is the chat actually
+    // accepted? Messages only flow once the listener has accepted the
+    // request (FR 5.5) — not while it's still pending, and not once it's
+    // ended.
+    function isActiveChatParticipant(chatId, uid) {
+      let chat = get(/databases/$(database)/documents/chats/$(chatId)).data;
+      return (chat.userId == uid || chat.listenerId == uid) && chat.status == 'active';
+    }
+
     // accounts/{uid} — one document per registered user (FR 1, FR 7.4).
     // A user can only ever write their own account, and can never set
     // their own role to anything but "user" through the client. An admin
@@ -99,15 +108,17 @@ service cloud.firestore {
       );
     }
 
-    // chats/{chatId} — one document per chat session (FR 4). Only a user
-    // can start a chat (FR 4.4), and only with a listener who is actually
-    // approved, available, and cleared for minors if the user needs that
-    // (BR 1). Only the two participants can read or change it, and
-    // neither can rewrite who the chat belongs to once it exists.
+    // chats/{chatId} — one document per chat session (FR 4, FR 5.5). Only
+    // a user can start a chat (FR 4.4), and only with a listener who is
+    // actually approved, available, and cleared for minors if the user
+    // needs that (BR 1). A new chat always starts "pending" — the
+    // listener accepts or declines it (FR 5.5) before any messages can
+    // flow. Only the two participants can read or change it, and neither
+    // can rewrite who the chat belongs to once it exists.
     match /chats/{chatId} {
       allow create: if request.auth != null &&
         request.resource.data.userId == request.auth.uid &&
-        request.resource.data.status == 'active' &&
+        request.resource.data.status == 'pending' &&
         isEligibleListener(request.resource.data.listenerId, request.auth.uid);
 
       allow read: if request.auth != null &&
@@ -121,12 +132,13 @@ service cloud.firestore {
     }
 
     // messages/{messageId} — one document per chat message (FR 4.3).
-    // Only someone in the chat can send or read its messages. Screening
+    // Only someone in the chat can send or read its messages, and sending
+    // only works once the chat has been accepted. Screening
     // (FR 6.1-6.3) is not built yet — that is Sprint 3.
     match /messages/{messageId} {
       allow create: if request.auth != null &&
         request.resource.data.senderId == request.auth.uid &&
-        isChatParticipant(request.resource.data.chatId, request.auth.uid);
+        isActiveChatParticipant(request.resource.data.chatId, request.auth.uid);
 
       allow read: if request.auth != null &&
         isChatParticipant(resource.data.chatId, request.auth.uid);
