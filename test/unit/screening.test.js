@@ -106,6 +106,72 @@ describe('screenMessage against labelled sample messages (NFR 21)', () => {
   });
 });
 
+// A held-out set, never used while writing the term lists or patterns
+// above. Some are English phrased differently from anything in the term
+// list; some are Kinyarwanda or mixed Kinyarwanda/English. The point is
+// to see how the screener actually generalises, not to tune it until
+// this set passes too — the SRS already documents English-only term
+// lists as a known limitation (section 2.5, Design and Implementation
+// Constraints), and this set measures exactly that gap honestly instead
+// of asserting it away.
+const HELD_OUT_MESSAGES = [
+  // Kinyarwanda crisis language — expected to be missed: the crisis term
+  // list only has English phrases, so there is nothing for these to
+  // match against.
+  { text: 'Ndashaka kwiyahura', crisis: true, contact: false, abuse: false, note: 'Kinyarwanda: "I want to kill myself"' },
+  { text: 'Nta mpamvu yo kubaho', crisis: true, contact: false, abuse: false, note: 'Kinyarwanda: "there is no reason to live"' },
+  { text: 'Ndumva nshaka gupfa buri munsi', crisis: true, contact: false, abuse: false, note: 'Kinyarwanda: "I feel like I want to die every day"' },
+  { text: "I feel like ndashaka kwiyahura, I can't take it anymore", crisis: true, contact: false, abuse: false, note: 'mixed Kinyarwanda/English' },
+  { text: 'Nibyiza ko nagiye, sinzongera kubaho', crisis: true, contact: false, abuse: false, note: 'Kinyarwanda: "better that I\'m gone, I won\'t live anymore"' },
+
+  // English crisis language, reworded away from anything in the term
+  // list — tests whether phrase-matching generalises within English too.
+  { text: "I can't go on anymore, everything feels pointless", crisis: true, contact: false, abuse: false },
+  { text: "honestly? i don't want to be alive anymore", crisis: true, contact: false, abuse: false },
+  { text: 'sometimes I just want to disappear, I think about suicide a lot', crisis: true, contact: false, abuse: false, note: 'contains "suicide" verbatim, so this one should still hit' },
+
+  // Clean Kinyarwanda — checking we don't false-positive just because
+  // the text isn't English.
+  { text: 'Amakuru ki? Ndumva neza uyu munsi', crisis: false, contact: false, abuse: false, note: 'Kinyarwanda: "what\'s new? I\'m feeling fine today"' },
+  { text: "Narushye cyane n'ibizamini", crisis: false, contact: false, abuse: false, note: 'Kinyarwanda: "I\'m very tired from exams"' },
+
+  // Contact-sharing in Kinyarwanda/mixed text — this is pattern-based
+  // (phone numbers, platform names), not term-list based, so it should
+  // generalise across languages much better than crisis/abuse do.
+  { text: 'Mpamagara kuri 0788123456', crisis: false, contact: true, abuse: false, note: 'Kinyarwanda: "call me at 0788123456"' },
+  { text: 'Reba kuri whatsapp yanjye', crisis: false, contact: true, abuse: false, note: 'Kinyarwanda: "check my whatsapp"' },
+  { text: 'Twaganire kuri telegram', crisis: false, contact: true, abuse: false, note: 'Kinyarwanda: "let\'s talk on telegram"' },
+  { text: 'Urashobora kumbwira kuri +250788123456?', crisis: false, contact: true, abuse: false, note: 'mixed Kinyarwanda/English, phone number' },
+
+  // Abuse — Kinyarwanda and reworded English, both expected to miss.
+  { text: 'Uri igicucu, ndakwanga', crisis: false, contact: false, abuse: true, note: 'Kinyarwanda insult + "I hate you"' },
+  { text: "You're an absolute waste of space, nobody likes you", crisis: false, contact: false, abuse: true, note: 'English, reworded away from the term list' },
+];
+
+describe('screenMessage against a held-out set (not tuned against)', () => {
+  test('the held-out set has at least 15 messages', () => {
+    expect(HELD_OUT_MESSAGES.length).toBeGreaterThanOrEqual(15);
+  });
+
+  test('crisis language on held-out messages (expect a real drop, especially on Kinyarwanda)', () => {
+    const score = scoreCategory(HELD_OUT_MESSAGES, 'crisis', (text) => screenMessage(text).hasCrisisLanguage);
+    console.log('Held-out crisis language —', score);
+    expect(score.recall).toBeGreaterThanOrEqual(0);
+  });
+
+  test('contact-sharing on held-out messages (pattern-based, should generalise better)', () => {
+    const score = scoreCategory(HELD_OUT_MESSAGES, 'contact', (text) => screenMessage(text).hasContactSharing);
+    console.log('Held-out contact-sharing —', score);
+    expect(score.recall).toBeGreaterThanOrEqual(0);
+  });
+
+  test('abusive language on held-out messages (expect a real drop)', () => {
+    const score = scoreCategory(HELD_OUT_MESSAGES, 'abuse', (text) => screenMessage(text).hasAbusiveLanguage);
+    console.log('Held-out abusive language —', score);
+    expect(score.recall).toBeGreaterThanOrEqual(0);
+  });
+});
+
 describe('normalise', () => {
   test('lower-cases and collapses repeated letters', () => {
     expect(normalise('HEEEELP')).toBe('heelp');

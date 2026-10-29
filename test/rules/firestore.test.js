@@ -553,7 +553,7 @@ describe('messages', () => {
     );
   });
 
-  test('a crisis message succeeds when batched with its flag (FR 6.2)', async () => {
+  test('a crisis message succeeds when batched with its matching flag (FR 6.2)', async () => {
     await seedChat('chat-1', 'alice', 'grace');
 
     const db = testEnv.authenticatedContext('alice').firestore();
@@ -568,10 +568,53 @@ describe('messages', () => {
       type: 'crisis',
       chatId: 'chat-1',
       senderId: 'alice',
+      messageId: 'msg-4',
       severity: 3,
       status: 'open',
     });
     await assertSucceeds(batch.commit());
+  });
+
+  test('a crisis message is refused when the flag belongs to a different chat, message or sender (FR 6.2)', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+
+    const wrongChat = writeBatch(db);
+    wrongChat.set(doc(db, 'messages/msg-wrong-chat'), {
+      chatId: 'chat-1', senderId: 'alice', text: 'I want to kill myself', flagId: 'flag-wrong-chat',
+    });
+    wrongChat.set(doc(db, 'flags/flag-wrong-chat'), {
+      type: 'crisis', chatId: 'some-other-chat', senderId: 'alice', messageId: 'msg-wrong-chat', severity: 3,
+    });
+    await assertFails(wrongChat.commit());
+
+    const wrongMessage = writeBatch(db);
+    wrongMessage.set(doc(db, 'messages/msg-wrong-message'), {
+      chatId: 'chat-1', senderId: 'alice', text: 'I want to kill myself', flagId: 'flag-wrong-message',
+    });
+    wrongMessage.set(doc(db, 'flags/flag-wrong-message'), {
+      type: 'crisis', chatId: 'chat-1', senderId: 'alice', messageId: 'some-other-message', severity: 3,
+    });
+    await assertFails(wrongMessage.commit());
+
+    const wrongSender = writeBatch(db);
+    wrongSender.set(doc(db, 'messages/msg-wrong-sender'), {
+      chatId: 'chat-1', senderId: 'alice', text: 'I want to kill myself', flagId: 'flag-wrong-sender',
+    });
+    wrongSender.set(doc(db, 'flags/flag-wrong-sender'), {
+      type: 'crisis', chatId: 'chat-1', senderId: 'someone-else', messageId: 'msg-wrong-sender', severity: 3,
+    });
+    await assertFails(wrongSender.commit());
+
+    const wrongType = writeBatch(db);
+    wrongType.set(doc(db, 'messages/msg-wrong-type'), {
+      chatId: 'chat-1', senderId: 'alice', text: 'I want to kill myself', flagId: 'flag-wrong-type',
+    });
+    wrongType.set(doc(db, 'flags/flag-wrong-type'), {
+      type: 'abusive-language', chatId: 'chat-1', senderId: 'alice', messageId: 'msg-wrong-type', severity: 1,
+    });
+    await assertFails(wrongType.commit());
   });
 
   test('a contact-sharing message is refused outright (FR 6.3)', async () => {
@@ -612,24 +655,78 @@ describe('moods', () => {
   });
 });
 
-describe('chatCases', () => {
+describe('chatFlagged', () => {
   async function seedChat(chatId, userId, listenerId) {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), `chats/${chatId}`), { userId, listenerId, status: 'active' });
     });
   }
 
-  test('a chat participant can open a case for their own chat', async () => {
+  test('a chat participant can mark their own chat as flagged', async () => {
     await seedChat('chat-1', 'alice', 'grace');
 
     const db = testEnv.authenticatedContext('alice').firestore();
-    await assertSucceeds(setDoc(doc(db, 'chatCases/chat-1'), { chatId: 'chat-1' }));
+    await assertSucceeds(setDoc(doc(db, 'chatFlagged/chat-1'), { chatId: 'chat-1' }));
   });
 
-  test('someone outside the chat cannot open a case for it', async () => {
+  test('someone outside the chat cannot mark it as flagged', async () => {
     await seedChat('chat-1', 'alice', 'grace');
 
     const db = testEnv.authenticatedContext('mallory').firestore();
+    await assertFails(setDoc(doc(db, 'chatFlagged/chat-1'), { chatId: 'chat-1' }));
+  });
+});
+
+describe('chatCases (BR 3: moderator-only, and only once something is actually flagged)', () => {
+  async function seedModerator(uid) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `accounts/${uid}`), {
+        pseudonym: 'Mod', role: 'moderator', status: 'active', blockedUids: [],
+      });
+    });
+  }
+
+  async function seedFlaggedChat(chatId) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `chats/${chatId}`), { userId: 'alice', listenerId: 'grace', status: 'active' });
+      await setDoc(doc(context.firestore(), `chatFlagged/${chatId}`), { chatId });
+    });
+  }
+
+  test('a moderator can open a case once the chat is actually flagged', async () => {
+    await seedFlaggedChat('chat-1');
+    await seedModerator('mod1');
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertSucceeds(setDoc(doc(db, 'chatCases/chat-1'), { chatId: 'chat-1' }));
+  });
+
+  test('a moderator cannot open a case on a chat nothing was raised against', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'chats/chat-2'), { userId: 'alice', listenerId: 'grace', status: 'active' });
+    });
+    await seedModerator('mod1');
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertFails(setDoc(doc(db, 'chatCases/chat-2'), { chatId: 'chat-2' }));
+  });
+
+  test('a chat participant cannot open a case, even on their own flagged chat', async () => {
+    await seedFlaggedChat('chat-1');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(setDoc(doc(db, 'chatCases/chat-1'), { chatId: 'chat-1' }));
+  });
+
+  test('an admin cannot open a case', async () => {
+    await seedFlaggedChat('chat-1');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/admin1'), {
+        pseudonym: 'Admin', role: 'admin', status: 'active', blockedUids: [],
+      });
+    });
+
+    const db = testEnv.authenticatedContext('admin1').firestore();
     await assertFails(setDoc(doc(db, 'chatCases/chat-1'), { chatId: 'chat-1' }));
   });
 });

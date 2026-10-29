@@ -59,14 +59,25 @@ service cloud.firestore {
       return (chat.userId == uid || chat.listenerId == uid) && chat.status == 'active';
     }
 
-    // Helper: has a flag or report ever been opened against this chat?
-    // chatCases/{chatId} is created alongside the first flag or report
-    // for that chat. This is how a moderator's chat access (BR 3) is
-    // checked — Security Rules can't run a search query, only look at a
-    // specific document, so this marker document stands in for "does a
-    // case exist for this chat".
+    // Helper: has a moderator opened a case on this chat? chatCases is
+    // only ever written by a moderator (see that collection below) — this
+    // is the one and only path in to chat content for them (BR 3).
     function chatHasCase(chatId) {
       return exists(/databases/$(database)/documents/chatCases/$(chatId));
+    }
+
+    // Helper: does the flag named on this crisis message actually belong
+    // to it — same chat, same message, same sender — and is it really a
+    // high-priority crisis flag? Checking the flag merely exists isn't
+    // enough: a stale or mismatched flag id would satisfy that and let a
+    // crisis message through unflagged in all the ways that matter.
+    function hasMatchingCrisisFlag(messageId, chatId, senderId) {
+      let flag = getAfter(/databases/$(database)/documents/flags/$(request.resource.data.flagId)).data;
+      return flag.type == 'crisis' &&
+        flag.severity == 3 &&
+        flag.chatId == chatId &&
+        flag.senderId == senderId &&
+        flag.messageId == messageId;
     }
 
     // Fixed, non-editable crisis-language check (FR 6.2). Deliberately
@@ -189,18 +200,18 @@ service cloud.firestore {
     // messages/{messageId} — one document per chat message (FR 4.3,
     // FR 6.1-6.3). Contact-sharing is always rejected outright. Crisis
     // wording is never blocked, but the write must bring its own
-    // high-priority flag along in the same batch — the flag's id is
-    // named on the message itself, and existsAfter checks it landed.
-    // A tampered client could try to skip the flag, but then the whole
-    // write (crisis message included) is refused, not silently
-    // delivered unflagged.
+    // matching high-priority flag along in the same batch (same chat,
+    // message and sender — see hasMatchingCrisisFlag). A tampered client
+    // could try to skip or mismatch the flag, but then the whole write
+    // (crisis message included) is refused, not silently delivered
+    // unflagged or flagged against the wrong message.
     match /messages/{messageId} {
       allow create: if request.auth != null &&
         request.resource.data.senderId == request.auth.uid &&
         isActiveChatParticipant(request.resource.data.chatId, request.auth.uid) &&
         !hasContactSharing(request.resource.data.text) &&
         (!hasCrisisLanguage(request.resource.data.text) ||
-          existsAfter(/databases/$(database)/documents/flags/$(request.resource.data.flagId)));
+          hasMatchingCrisisFlag(messageId, request.resource.data.chatId, request.resource.data.senderId));
 
       allow read: if request.auth != null &&
         (isChatParticipant(resource.data.chatId, request.auth.uid) ||
@@ -236,13 +247,27 @@ service cloud.firestore {
       allow update: if hasRole('moderator');
     }
 
-    // chatCases/{chatId} — a marker saying "a flag or report exists for
-    // this chat", written in the same batch as that flag or report, by
-    // the same chat participant. This is what chatHasCase() checks, and
-    // it is what actually lets a moderator see the chat and its messages
-    // (BR 3) — there is no other path in to chat content for them.
-    match /chatCases/{chatId} {
+    // chatFlagged/{chatId} — a marker saying "at least one flag or
+    // report has been raised for this chat", written by the participant
+    // alongside that flag or report. On its own this gives nobody access
+    // to anything new; it only exists so chatCases (below) has something
+    // to check.
+    match /chatFlagged/{chatId} {
       allow create, update: if request.auth != null && isChatParticipant(chatId, request.auth.uid);
+
+      allow read: if hasRole('moderator');
+    }
+
+    // chatCases/{chatId} — a moderator deliberately opening a case on a
+    // flagged chat (BR 3). Only a moderator can create this — never a
+    // participant, never an admin — and only once chatFlagged confirms a
+    // flag or report genuinely exists for that chat, so a moderator
+    // can't just open an arbitrary chat with nothing raised against it.
+    // This is what chatHasCase() checks, and it is the only path in to
+    // chat content for a moderator.
+    match /chatCases/{chatId} {
+      allow create: if hasRole('moderator') &&
+        exists(/databases/$(database)/documents/chatFlagged/$(chatId));
 
       allow read: if hasRole('moderator');
     }
