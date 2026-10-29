@@ -41,6 +41,15 @@ Everything runs on Firebase's free Spark plan — no billing account, no paid se
 | 3 | 5-6 | Make it safe | Message screening, report/block, moderator queue |
 | 4 | 7-8 | Prove it and ship | Testing, deployment, demo |
 
+## How message screening works
+
+Every chat message is checked for crisis language and attempts to share contact details before it's delivered. This happens in two layers, on purpose:
+
+- **`firestore.rules`** has its own small, fixed set of crisis and contact-sharing patterns, hardcoded and not editable without a redeploy. This is the real safety backstop — it's enforced at write time no matter what any client does, tampered or not.
+- **`public/js/screening.js`** has a richer, normalised set of term lists that an admin can edit from the admin pages without redeploying anything. This drives the actual chat experience (showing the crisis card promptly, warning messages about blocked contact-sharing attempts) — editing these lists changes the app's behaviour, not what the database will actually accept.
+
+So an admin editing the term lists can make Spill *more* responsive to new phrasing, but can never turn off the underlying safety net.
+
 ## Setup
 
 You'll need Node.js and a JDK 21 or newer (the Firebase emulators run on Java).
