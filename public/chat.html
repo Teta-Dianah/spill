@@ -27,7 +27,26 @@
       <p id="chat-message" class="message"></p>
     </section>
 
-    <button type="button" id="end-chat-button" style="width: auto; background: #a4303f;">End chat</button>
+    <div id="safety-actions">
+      <button type="button" id="report-button" style="width: auto;">Report</button>
+      <button type="button" id="block-button" style="width: auto; background: #a4303f;">Block</button>
+      <button type="button" id="end-chat-button" style="width: auto; background: #a4303f;">End chat</button>
+    </div>
+
+    <form id="report-form" class="card" hidden>
+      <h2>Report this chat</h2>
+      <label for="reportReason">What happened?</label>
+      <textarea id="reportReason" name="reportReason" rows="3" maxlength="500" required></textarea>
+      <button type="submit">Send report</button>
+      <button type="button" id="cancel-report-button">Cancel</button>
+    </form>
+
+    <div id="block-confirm" class="card" hidden>
+      <h2>Block this person?</h2>
+      <p>You won't be matched with them again, and this chat will end.</p>
+      <button type="button" id="confirm-block-button" style="width: auto; background: #a4303f;">Yes, block them</button>
+      <button type="button" id="cancel-block-button">Cancel</button>
+    </div>
 
     <form id="end-chat-form" class="card" hidden>
       <h2>Before you go</h2>

@@ -90,16 +90,60 @@ function listenForChatStatus(chatId) {
       showChatStatus(statusText);
 
       var messageForm = document.getElementById('message-form');
-      var endChatButton = document.getElementById('end-chat-button');
+      var safetyActions = document.getElementById('safety-actions');
       var disabled = chat.status !== 'active';
       if (messageForm) {
         messageForm.messageText.disabled = disabled;
         messageForm.querySelector('button').disabled = disabled;
       }
-      if (endChatButton) {
-        endChatButton.hidden = disabled;
+      if (safetyActions) {
+        safetyActions.hidden = disabled;
       }
     });
+}
+
+// Who's on the other side of this chat from the signed-in user?
+function otherParticipant(chat, myUid) {
+  return chat.userId === myUid ? chat.listenerId : chat.userId;
+}
+
+// FR 6.5: either participant can report the chat with a reason. Writing
+// the chatFlagged marker in the same batch is what lets a moderator
+// later open a case on it (BR 3) — a report on its own doesn't give
+// anyone new access to anything.
+function sendReport(chatId, user, otherUid, reason) {
+  var db = firebase.firestore();
+  var reportRef = db.collection('reports').doc();
+  var batch = db.batch();
+
+  batch.set(reportRef, {
+    chatId: chatId,
+    reporterId: user.uid,
+    reportedId: otherUid,
+    reason: reason,
+    severity: 2,
+    status: 'open',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+  markChatFlagged(batch, chatId);
+
+  return batch.commit();
+}
+
+// FR 6.6, BR 5: either side can block the other at any time, no reason
+// needed, and isn't matched with them again (see isEligibleListener in
+// firestore.rules). Blocking also ends the current chat — there's no
+// reason to keep talking to someone you just blocked.
+function blockPerson(chatId, user, otherUid) {
+  var accountUpdate = firebase
+    .firestore()
+    .collection('accounts')
+    .doc(user.uid)
+    .update({ blockedUids: firebase.firestore.FieldValue.arrayUnion(otherUid) });
+
+  return accountUpdate.then(function () {
+    return endChat(chatId, {});
+  });
 }
 
 // FR 4.5: either side can end a chat any time, no reason needed.
@@ -345,6 +389,79 @@ document.addEventListener('DOMContentLoaded', function () {
 
       var isListener = !!(currentChat && user.uid === currentChat.listenerId);
       screenAndSendMessage(chatId, user, text, isListener, form);
+    });
+  }
+
+  var reportButton = document.getElementById('report-button');
+  var reportForm = document.getElementById('report-form');
+  var cancelReportButton = document.getElementById('cancel-report-button');
+  var blockButton = document.getElementById('block-button');
+
+  if (reportButton && reportForm) {
+    reportButton.addEventListener('click', function () {
+      reportForm.hidden = false;
+    });
+  }
+
+  if (cancelReportButton && reportForm) {
+    cancelReportButton.addEventListener('click', function () {
+      reportForm.hidden = true;
+    });
+  }
+
+  if (reportForm) {
+    reportForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      var user = firebase.auth().currentUser;
+      if (!user || !currentChat) return;
+
+      var reason = reportForm.reportReason.value.trim();
+      if (!reason) return;
+
+      sendReport(chatId, user, otherParticipant(currentChat, user.uid), reason)
+        .then(function () {
+          reportForm.reset();
+          reportForm.hidden = true;
+          showChatMessage('Thanks — a moderator will review this.');
+        })
+        .catch(function (error) {
+          showChatMessage('Could not send that report. Please try again.');
+          console.error(error);
+        });
+    });
+  }
+
+  var blockConfirm = document.getElementById('block-confirm');
+  var confirmBlockButton = document.getElementById('confirm-block-button');
+  var cancelBlockButton = document.getElementById('cancel-block-button');
+
+  if (blockButton && blockConfirm) {
+    blockButton.addEventListener('click', function () {
+      blockConfirm.hidden = false;
+    });
+  }
+
+  if (cancelBlockButton && blockConfirm) {
+    cancelBlockButton.addEventListener('click', function () {
+      blockConfirm.hidden = true;
+    });
+  }
+
+  if (confirmBlockButton) {
+    confirmBlockButton.addEventListener('click', function () {
+      var user = firebase.auth().currentUser;
+      if (!user || !currentChat) return;
+
+      blockPerson(chatId, user, otherParticipant(currentChat, user.uid))
+        .then(function () {
+          if (blockConfirm) blockConfirm.hidden = true;
+          showChatMessage('Blocked. This chat has ended.');
+        })
+        .catch(function (error) {
+          showChatMessage('Could not block that person. Please try again.');
+          console.error(error);
+        });
     });
   }
 
