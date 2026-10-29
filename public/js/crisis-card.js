@@ -38,4 +38,13 @@ function buildCrisisCard() {
   });
 }
 
+// Lets other scripts (chat.js, on crisis wording) open the card
+// directly, not just the button click — FR 6.2 shows it automatically.
+function showCrisisCard() {
+  var modal = document.getElementById('crisis-modal');
+  if (modal) modal.hidden = false;
+}
+
 document.addEventListener('DOMContentLoaded', buildCrisisCard);
+
+window.showCrisisCard = showCrisisCard;
