@@ -78,11 +78,14 @@ function listenForChatStatus(chatId) {
       var chat = docSnap.data();
       currentChat = chat;
       var topicLabel = chat.topic ? ' — ' + chat.topic : '';
-      showChatStatus(chat.status === 'ended' ? 'This chat has ended.' + topicLabel : 'Chat in progress' + topicLabel);
+      var statusText = 'Chat in progress' + topicLabel;
+      if (chat.status === 'pending') statusText = 'Waiting for the listener to accept...' + topicLabel;
+      if (chat.status === 'ended') statusText = 'This chat has ended.' + topicLabel;
+      showChatStatus(statusText);
 
       var messageForm = document.getElementById('message-form');
       var endChatButton = document.getElementById('end-chat-button');
-      var disabled = chat.status === 'ended';
+      var disabled = chat.status !== 'active';
       if (messageForm) {
         messageForm.messageText.disabled = disabled;
         messageForm.querySelector('button').disabled = disabled;

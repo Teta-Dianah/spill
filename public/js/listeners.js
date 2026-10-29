@@ -73,7 +73,9 @@ function setTrainingComplete(uid) {
 // Finds an approved, available listener who can take this user, following
 // BR 1 (16-17 only matched with listeners cleared for minors). Picks the
 // first eligible one found — simple, no ranking or load-balancing.
-function findEligibleListener(ageBand, onFound) {
+// excludeIds skips listeners who already declined this user's request in
+// this session (FR 5.5), so retrying doesn't just ask the same person again.
+function findEligibleListener(ageBand, excludeIds, onFound) {
   firebase
     .firestore()
     .collection('listeners')
@@ -84,6 +86,7 @@ function findEligibleListener(ageBand, onFound) {
       var match = null;
       snapshot.forEach(function (docSnap) {
         if (match) return;
+        if (excludeIds.indexOf(docSnap.id) !== -1) return;
         var listener = docSnap.data();
         if (ageBand === '16-17' && !listener.clearedForMinors) return;
         match = docSnap.id;

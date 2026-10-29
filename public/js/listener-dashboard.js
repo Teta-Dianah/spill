@@ -51,6 +51,103 @@ function renderActiveChats(uid) {
     });
 }
 
+function countActiveChats(uid, onCounted) {
+  firebase
+    .firestore()
+    .collection('chats')
+    .where('listenerId', '==', uid)
+    .where('status', '==', 'active')
+    .get()
+    .then(function (snapshot) {
+      onCounted(snapshot.size);
+    });
+}
+
+function showPendingMessage(text) {
+  var box = document.getElementById('pending-message');
+  if (box) box.textContent = text;
+}
+
+// FR 5.5: the listener reviews each request and accepts or declines it.
+// Accepting is blocked once they're already at the 2-chat limit — checked
+// here, not just by turning availability off reactively, since a new
+// request could already be pending before that kicks in.
+function acceptChatRequest(uid, chatId) {
+  countActiveChats(uid, function (count) {
+    if (count >= MAX_CONCURRENT_CHATS) {
+      showPendingMessage('You already have ' + MAX_CONCURRENT_CHATS + ' active chats. End one before accepting another.');
+      return;
+    }
+
+    firebase
+      .firestore()
+      .collection('chats')
+      .doc(chatId)
+      .update({ status: 'active' })
+      .catch(function () {
+        showPendingMessage('Could not accept that chat. Please try again.');
+      });
+  });
+}
+
+function declineChatRequest(chatId) {
+  firebase
+    .firestore()
+    .collection('chats')
+    .doc(chatId)
+    .update({ status: 'declined' })
+    .catch(function () {
+      showPendingMessage('Could not decline that chat. Please try again.');
+    });
+}
+
+function renderPendingRequests(uid) {
+  var list = document.getElementById('pending-requests');
+  if (!list) return;
+
+  firebase
+    .firestore()
+    .collection('chats')
+    .where('listenerId', '==', uid)
+    .where('status', '==', 'pending')
+    .onSnapshot(function (snapshot) {
+      list.innerHTML = '';
+
+      if (snapshot.empty) {
+        list.innerHTML = '<li>No incoming requests right now.</li>';
+        return;
+      }
+
+      snapshot.forEach(function (docSnap) {
+        var chatId = docSnap.id;
+        var topic = docSnap.data().topic || 'no topic';
+
+        var item = document.createElement('li');
+        var label = document.createElement('span');
+        label.textContent = 'Request (' + topic + ') ';
+        item.appendChild(label);
+
+        var acceptButton = document.createElement('button');
+        acceptButton.type = 'button';
+        acceptButton.textContent = 'Accept';
+        acceptButton.addEventListener('click', function () {
+          acceptChatRequest(uid, chatId);
+        });
+        item.appendChild(acceptButton);
+
+        var declineButton = document.createElement('button');
+        declineButton.type = 'button';
+        declineButton.textContent = 'Decline';
+        declineButton.addEventListener('click', function () {
+          declineChatRequest(chatId);
+        });
+        item.appendChild(declineButton);
+
+        list.appendChild(item);
+      });
+    });
+}
+
 function setUpAvailabilityToggle(uid, listener) {
   var toggle = document.getElementById('available-toggle');
   if (!toggle) return;
@@ -91,6 +188,7 @@ function startDashboard(uid) {
       'Approved' + (listener.clearedForMinors ? ', cleared to talk with 16-17 year olds.' : '.')
     );
     setUpAvailabilityToggle(uid, listener);
+    renderPendingRequests(uid);
     renderActiveChats(uid);
   });
 }
