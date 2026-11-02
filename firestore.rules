@@ -80,6 +80,36 @@ service cloud.firestore {
         flag.messageId == messageId;
     }
 
+    // Helper: does this flag/report update carry a matching auditLog
+    // entry in the same batch (same actor, same item)? Mirrors
+    // hasMatchingCrisisFlag — a moderator action and its audit trail are
+    // written together or not at all (FR 6.9, FR 7.3).
+    function hasMatchingAuditEntry(auditLogId, itemType, itemId) {
+      let entry = getAfter(/databases/$(database)/documents/auditLog/$(auditLogId)).data;
+      return entry.actorId == request.auth.uid &&
+        entry.itemType == itemType &&
+        entry.itemId == itemId;
+    }
+
+    // Helper: does this account's suspend/reinstate carry a matching
+    // auditLog entry (same actor, same batch) that names this account as
+    // the target, AND does the flag/report that entry points at actually
+    // name this account as its subject (the flag's sender, or the
+    // report's reportedId)? A moderator can only ever change the status
+    // of the specific person a flag or report is actually about, never
+    // any other account, and the chain can't be faked by pointing at an
+    // unrelated audit entry or an unrelated flag/report.
+    function auditedModerationOf(uid, auditLogId) {
+      let entry = getAfter(/databases/$(database)/documents/auditLog/$(auditLogId)).data;
+      let itemCollection = entry.itemType == 'flag' ? 'flags' : 'reports';
+      let item = getAfter(/databases/$(database)/documents/$(itemCollection)/$(entry.itemId)).data;
+      let itemSubject = entry.itemType == 'flag' ? item.senderId : item.reportedId;
+      return entry.actorId == request.auth.uid &&
+        (entry.action == 'suspend' || entry.action == 'reinstate') &&
+        entry.targetUid == uid &&
+        itemSubject == uid;
+    }
+
     // Fixed, non-editable crisis-language check (FR 6.2). Deliberately
     // small — this is a backstop, not the primary detector.
     function hasCrisisLanguage(text) {
@@ -101,11 +131,15 @@ service cloud.firestore {
     // A user can write most of their own account, but never their own
     // role or status (BR 7 — a suspended account can't just un-suspend
     // itself). An admin can change role and status on any account
-    // (approving a listener for moderator duty, for example); a
-    // moderator can change status only, for suspend/reinstate (FR 6.8).
-    // Admins and moderators can also read any account, since safety work
-    // means seeing who applied or who was flagged — just their
-    // pseudonym, never real identity, and never chat content (BR 4).
+    // (approving a listener for moderator duty, for example). A
+    // moderator can change status only (FR 6.8), and only as the
+    // audited, same-batch resolution of a flag or report that actually
+    // names this account (auditedModerationOf) — never an unrelated
+    // account, and never an admin or another moderator, so a moderator
+    // can't silence oversight of their own work. Admins and moderators
+    // can also read any account, since safety work means seeing who
+    // applied or who was flagged — just their pseudonym, never real
+    // identity, and never chat content (BR 4).
     match /accounts/{uid} {
       allow read: if request.auth != null &&
         (request.auth.uid == uid || hasRole('admin') || hasRole('moderator'));
@@ -121,7 +155,9 @@ service cloud.firestore {
         (hasRole('admin') &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'status'])) ||
         (hasRole('moderator') &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+          resource.data.role == 'user' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'lastAuditLogId']) &&
+          auditedModerationOf(uid, request.resource.data.lastAuditLogId))
       );
 
       allow delete: if request.auth != null && request.auth.uid == uid;
@@ -224,7 +260,11 @@ service cloud.firestore {
     // chat participant — since Security Rules can only allow or deny a
     // write, never create data on their own. Only moderators work the
     // queue (FR 6.7, BR 3); this is safety data, so admins don't read it
-    // either, matching BR 4's spirit.
+    // either, matching BR 4's spirit. A moderator's update (dismiss,
+    // warn, suspend, reinstate, escalate — FR 7.3) must bring its own
+    // matching auditLog entry in the same batch, same as the crisis
+    // message/flag pairing above — an action with no audit trail is
+    // refused outright, not silently applied unlogged (FR 6.9).
     match /flags/{flagId} {
       allow create: if request.auth != null &&
         request.resource.data.senderId == request.auth.uid &&
@@ -232,7 +272,8 @@ service cloud.firestore {
 
       allow read: if hasRole('moderator');
 
-      allow update: if hasRole('moderator');
+      allow update: if hasRole('moderator') &&
+        hasMatchingAuditEntry(request.resource.data.auditLogId, 'flag', flagId);
     }
 
     // reports/{reportId} — a participant reporting a chat or the other
@@ -240,7 +281,8 @@ service cloud.firestore {
     // on creation is fixed at 2 (not crisis-level 3) — a reporter hasn't
     // been through moderation, so they can't self-assign high priority;
     // a moderator reviewing the report can still re-triage it freely
-    // once it's in the queue (the update rule below isn't restricted).
+    // once it's in the queue. As with flags, a moderator's update must
+    // carry its own matching auditLog entry in the same batch.
     match /reports/{reportId} {
       allow create: if request.auth != null &&
         request.resource.data.reporterId == request.auth.uid &&
@@ -249,7 +291,8 @@ service cloud.firestore {
 
       allow read: if hasRole('moderator');
 
-      allow update: if hasRole('moderator');
+      allow update: if hasRole('moderator') &&
+        hasMatchingAuditEntry(request.resource.data.auditLogId, 'report', reportId);
     }
 
     // chatFlagged/{chatId} — a marker saying "at least one flag or
