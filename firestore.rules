@@ -236,11 +236,16 @@ service cloud.firestore {
     }
 
     // reports/{reportId} — a participant reporting a chat or the other
-    // person, with a reason (FR 6.5). Same visibility as flags.
+    // person, with a reason (FR 6.5). Same visibility as flags. Severity
+    // on creation is fixed at 2 (not crisis-level 3) — a reporter hasn't
+    // been through moderation, so they can't self-assign high priority;
+    // a moderator reviewing the report can still re-triage it freely
+    // once it's in the queue (the update rule below isn't restricted).
     match /reports/{reportId} {
       allow create: if request.auth != null &&
         request.resource.data.reporterId == request.auth.uid &&
-        isChatParticipant(request.resource.data.chatId, request.auth.uid);
+        isChatParticipant(request.resource.data.chatId, request.auth.uid) &&
+        request.resource.data.severity == 2;
 
       allow read: if hasRole('moderator');
 

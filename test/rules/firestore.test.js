@@ -806,6 +806,18 @@ describe('flags and reports', () => {
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(getDoc(doc(db, 'reports/report-1')));
   });
+
+  test('a reporter cannot set a high severity on their own report', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'reports/report-1'), {
+        chatId: 'chat-1', reporterId: 'alice', reportedId: 'grace',
+        reason: 'Made me uncomfortable', severity: 3, status: 'open',
+      })
+    );
+  });
 });
 
 describe('moderator access to chat content (BR 3, BR 4)', () => {
