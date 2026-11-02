@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Case — Spill</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Case</h1>
+    <p><a href="moderator-queue.html">&larr; Back to queue</a></p>
+  </header>
+
+  <main>
+    <p id="case-message" class="message"></p>
+
+    <section id="case-details" class="card" hidden>
+      <h2>What was flagged</h2>
+      <p id="item-summary"></p>
+    </section>
+
+    <section id="case-transcript" class="card" hidden>
+      <h2>Chat transcript</h2>
+      <ul id="transcript-list" class="plain-list"></ul>
+    </section>
+
+    <form id="action-form" class="card" hidden>
+      <h2>Take an action</h2>
+
+      <label for="actionSelect">Action</label>
+      <select id="actionSelect" name="actionSelect" required>
+        <option value="dismiss">Dismiss — no issue found</option>
+        <option value="warn">Warn</option>
+        <option value="suspend">Suspend the other person's account</option>
+        <option value="reinstate">Reinstate the other person's account</option>
+        <option value="escalate">Escalate for closer review</option>
+      </select>
+
+      <label for="actionReason">Reason</label>
+      <textarea id="actionReason" name="actionReason" rows="3" maxlength="500" required></textarea>
+
+      <button type="submit">Apply action</button>
+    </form>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/moderator.js"></script>
+  <script src="js/moderator-case.js"></script>
+  <script src="js/crisis-card.js"></script>
+</body>
+</html>

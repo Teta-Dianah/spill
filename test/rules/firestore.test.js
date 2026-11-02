@@ -859,6 +859,32 @@ describe('moderator access to chat content (BR 3, BR 4)', () => {
     const db = testEnv.authenticatedContext('admin1').firestore();
     await assertFails(getDoc(doc(db, 'chats/chat-1')));
   });
+
+  test('a moderator can read a chat\'s messages once a case exists for it', async () => {
+    await seedCasedChat('chat-1');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'messages/msg-1'), {
+        chatId: 'chat-1', senderId: 'alice', text: 'hello', createdAt: { seconds: 1, nanoseconds: 0 },
+      });
+    });
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertSucceeds(getDoc(doc(db, 'messages/msg-1')));
+  });
+
+  test('a moderator cannot read a chat\'s messages with no case opened for it', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/mod1'), {
+        pseudonym: 'Mod', role: 'moderator', status: 'active', blockedUids: [],
+      });
+      await setDoc(doc(context.firestore(), 'messages/msg-2'), {
+        chatId: 'chat-2', senderId: 'alice', text: 'hello', createdAt: { seconds: 1, nanoseconds: 0 },
+      });
+    });
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertFails(getDoc(doc(db, 'messages/msg-2')));
+  });
 });
 
 describe('auditLog', () => {
