@@ -50,6 +50,13 @@ Every chat message is checked for crisis language and attempts to share contact 
 
 So an admin editing the term lists can make Spill *more* responsive to new phrasing, but can never turn off the underlying safety net.
 
+`test/unit/screening.test.js` measures `screenMessage()` against two sets (NFR 21):
+
+- A 45-message labelled set, used while writing the term lists and patterns: 100% precision and recall on crisis, contact-sharing and abusive language.
+- A held-out set of 16 messages never used while tuning, including Kinyarwanda and mixed Kinyarwanda/English, measuring how the English-only term lists actually generalise: crisis recall 0.125, abusive-language recall 0, contact-sharing recall 1.0 (contact-sharing is pattern-based — phone numbers, platform names — not an English phrase list, so it holds up far better across languages).
+
+The crisis and abuse drop on the held-out set is the English-only limitation the SRS already documents (section 2.5), not a bug — Kinyarwanda text and reworded English rarely match a fixed English phrase list. It's reported here rather than tuned away because `firestore.rules` is the actual backstop regardless of what this file catches.
+
 ## Setup
 
 You'll need Node.js and a JDK 21 or newer (the Firebase emulators run on Java).
@@ -99,6 +106,8 @@ _To be filled in during Sprint 4._
 ```bash
 firebase deploy
 ```
+
+`firebase.json` sets `Cache-Control: no-cache` on every `.js` and `.css` file, so a deploy that fixes a safety bug (screening, chat) takes effect immediately for everyone instead of waiting out a browser's cached copy. This only applies on a real deploy — the local Hosting emulator doesn't implement custom headers, so you won't see it in `curl` or dev tools while running `npm run emulators`.
 
 ## A note on what Spill is not
 

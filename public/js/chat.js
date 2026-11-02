@@ -3,10 +3,13 @@
 // it's sent (FR 6.1-6.4). Needs screening.js loaded first.
 //
 // firestore.rules independently re-checks crisis/contact-sharing with
-// its own small, fixed patterns — so what this file decides is not the
-// final word. The "clean" path below has a fallback for exactly that
-// case: if a plain write is refused, the rules caught something this
-// file's screening missed, and we retry rather than just failing.
+// its own small, fixed patterns too, so what this file decides is not
+// the final word on whether a write is accepted. But a flag is only
+// ever created for what this file's own screening actually found — if
+// a message this file considered clean is refused anyway, that's shown
+// as a plain error, not guessed at and retried as a crisis or blocked
+// attempt. Guessing risks raising a flag (crisis, especially) for a
+// message that was refused for some unrelated reason.
 
 function getChatId() {
   return new URLSearchParams(window.location.search).get('chatId');
@@ -327,35 +330,20 @@ function screenAndSendMessage(chatId, user, text, isListener, form) {
     return;
   }
 
-  // Looks clean to this file's screening. firestore.rules checks crisis
-  // and contact-sharing wording again, independently, with its own fixed
-  // patterns — if a plain write is refused, that's what happened, and a
-  // crisis message must still get through somehow (it is never allowed
-  // to be silently blocked), so we retry as a crisis batch before giving
-  // up and treating it as a blocked contact-sharing attempt.
+  // Looks clean to this file's screening, so it's sent as a plain
+  // message. If the write is refused anyway (firestore.rules has its
+  // own independent, fixed crisis/contact-sharing check), that's not
+  // retried as a crisis or blocked-attempt flag — this file's own
+  // screening didn't find crisis wording here, so raising a crisis flag
+  // would be a guess, not a fact. Just show the error.
   sendPlainMessage(chatId, user, text)
     .then(function () {
       form.reset();
       showChatMessage('');
     })
-    .catch(function () {
-      sendCrisisMessage(chatId, user, text)
-        .then(function () {
-          form.reset();
-          showChatMessage('');
-          showCrisisCard();
-        })
-        .catch(function () {
-          sendBlockedAttempt(chatId, user, text, isListener, false)
-            .then(function () {
-              form.reset();
-              showChatMessage("That message wasn't sent — don't share phone numbers, emails, links or other ways to contact you here. Everything stays on Spill.");
-            })
-            .catch(function (error) {
-              showChatMessage('Could not send that message. Please try again.');
-              console.error(error);
-            });
-        });
+    .catch(function (error) {
+      showChatMessage('Could not send that message. Please try again.');
+      console.error(error);
     });
 }
 
