@@ -767,20 +767,132 @@ describe('flags and reports', () => {
     await assertFails(getDoc(doc(db, 'flags/flag-1')));
   });
 
-  test('a moderator can read a flag and resolve it with a reason (FR 6.8)', async () => {
-    await seedChat('chat-1', 'alice', 'grace');
-    await seedModerator('mod1');
+  async function seedFlag(flagId, chatId, senderId, overrides = {}) {
     await testEnv.withSecurityRulesDisabled(async (context) => {
-      await setDoc(doc(context.firestore(), 'flags/flag-1'), {
-        type: 'crisis', chatId: 'chat-1', senderId: 'alice', severity: 3, status: 'open',
+      await setDoc(doc(context.firestore(), `flags/${flagId}`), {
+        type: 'crisis', chatId, senderId, severity: 3, status: 'open', ...overrides,
       });
     });
+  }
+
+  async function seedReport(reportId, chatId, reporterId, reportedId, overrides = {}) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `reports/${reportId}`), {
+        chatId, reporterId, reportedId, reason: 'test', severity: 2, status: 'open', ...overrides,
+      });
+    });
+  }
+
+  // Mirrors what applyModeratorAction actually writes: the item update
+  // and the audit entry (and, for suspend/reinstate, the account
+  // update) all in one batch, linked by the audit entry's own id.
+  async function resolveItem(modUid, itemType, itemId, action, reason, targetUid) {
+    const db = testEnv.authenticatedContext(modUid).firestore();
+    const batch = writeBatch(db);
+    const auditRef = doc(db, `auditLog/audit-${itemType}-${itemId}-${action}`);
+    const itemRef = doc(db, `${itemType === 'flag' ? 'flags' : 'reports'}/${itemId}`);
+
+    batch.update(itemRef, {
+      status: action === 'escalate' ? 'escalated' : 'resolved',
+      action, reason, auditLogId: auditRef.id,
+    });
+    if ((action === 'suspend' || action === 'reinstate') && targetUid) {
+      batch.update(doc(db, `accounts/${targetUid}`), {
+        status: action === 'suspend' ? 'suspended' : 'active',
+        lastAuditLogId: auditRef.id,
+      });
+    }
+    batch.set(auditRef, {
+      actorId: modUid, action, chatId: 'chat-1', itemType, itemId, targetUid: targetUid || null, reason,
+    });
+
+    return batch.commit();
+  }
+
+  test('a moderator can read a flag and resolve it with a reason, paired with its audit entry (FR 6.8, FR 6.9)', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    await seedModerator('mod1');
+    await seedFlag('flag-1', 'chat-1', 'alice');
 
     const db = testEnv.authenticatedContext('mod1').firestore();
     await assertSucceeds(getDoc(doc(db, 'flags/flag-1')));
-    await assertSucceeds(
-      updateDoc(doc(db, 'flags/flag-1'), { status: 'reviewed', action: 'dismiss', reason: 'Not needed' })
+    await assertSucceeds(resolveItem('mod1', 'flag', 'flag-1', 'dismiss', 'Not needed'));
+  });
+
+  test('a moderator action on a flag is refused without a matching audit entry (FR 6.9)', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    await seedModerator('mod1');
+    await seedFlag('flag-1', 'chat-1', 'alice');
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertFails(
+      updateDoc(doc(db, 'flags/flag-1'), { status: 'resolved', action: 'dismiss', reason: 'Not needed' })
     );
+  });
+
+  test('a moderator can warn a flag\'s sender', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    await seedModerator('mod1');
+    await seedFlag('flag-1', 'chat-1', 'alice', { type: 'abusive-language', severity: 1 });
+
+    await assertSucceeds(resolveItem('mod1', 'flag', 'flag-1', 'warn', 'First warning'));
+  });
+
+  test('a moderator can escalate a report for closer review', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    await seedModerator('mod1');
+    await seedReport('report-1', 'chat-1', 'alice', 'grace');
+
+    await assertSucceeds(resolveItem('mod1', 'report', 'report-1', 'escalate', 'Needs a second opinion'));
+
+    const modDb = testEnv.authenticatedContext('mod1').firestore();
+    const updated = await getDoc(doc(modDb, 'reports/report-1'));
+    expect(updated.data().status).toBe('escalated');
+  });
+
+  test('a moderator can reinstate the account a report names, once suspended', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    await seedModerator('mod1');
+    await seedReport('report-1', 'chat-1', 'alice', 'grace');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/grace'), {
+        pseudonym: 'Grace', role: 'user', status: 'suspended', blockedUids: [],
+      });
+    });
+
+    await assertSucceeds(resolveItem('mod1', 'report', 'report-1', 'reinstate', 'Appeal upheld', 'grace'));
+
+    const modDb = testEnv.authenticatedContext('mod1').firestore();
+    const account = await getDoc(doc(modDb, 'accounts/grace'));
+    expect(account.data().status).toBe('active');
+  });
+
+  test('a moderator cannot suspend an account that is not the subject of the flag/report', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    await seedModerator('mod1');
+    await seedFlag('flag-1', 'chat-1', 'alice');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/carol'), {
+        pseudonym: 'Carol', role: 'user', status: 'active', blockedUids: [],
+      });
+    });
+
+    // flag-1's sender is alice, not carol — targeting carol must fail
+    // even though the audit entry itself looks otherwise legitimate.
+    await assertFails(resolveItem('mod1', 'flag', 'flag-1', 'suspend', 'Wrong target on purpose', 'carol'));
+  });
+
+  test('a moderator cannot suspend an admin or another moderator, even via a genuine flag', async () => {
+    await seedChat('chat-1', 'admin1', 'grace');
+    await seedModerator('mod1');
+    await seedFlag('flag-1', 'chat-1', 'admin1');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/admin1'), {
+        pseudonym: 'Admin', role: 'admin', status: 'active', blockedUids: [],
+      });
+    });
+
+    await assertFails(resolveItem('mod1', 'flag', 'flag-1', 'suspend', 'Trying to silence oversight', 'admin1'));
   });
 
   test('a participant can report their chat', async () => {
@@ -858,6 +970,32 @@ describe('moderator access to chat content (BR 3, BR 4)', () => {
 
     const db = testEnv.authenticatedContext('admin1').firestore();
     await assertFails(getDoc(doc(db, 'chats/chat-1')));
+  });
+
+  test('a moderator can read a chat\'s messages once a case exists for it', async () => {
+    await seedCasedChat('chat-1');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'messages/msg-1'), {
+        chatId: 'chat-1', senderId: 'alice', text: 'hello', createdAt: { seconds: 1, nanoseconds: 0 },
+      });
+    });
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertSucceeds(getDoc(doc(db, 'messages/msg-1')));
+  });
+
+  test('a moderator cannot read a chat\'s messages with no case opened for it', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/mod1'), {
+        pseudonym: 'Mod', role: 'moderator', status: 'active', blockedUids: [],
+      });
+      await setDoc(doc(context.firestore(), 'messages/msg-2'), {
+        chatId: 'chat-2', senderId: 'alice', text: 'hello', createdAt: { seconds: 1, nanoseconds: 0 },
+      });
+    });
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    await assertFails(getDoc(doc(db, 'messages/msg-2')));
   });
 });
 
@@ -947,11 +1085,35 @@ describe('admin and moderator account updates', () => {
     await assertFails(updateDoc(doc(db, 'accounts/bob'), { pseudonym: 'Renamed' }));
   });
 
-  test('a moderator can suspend an account (status only, FR 6.8)', async () => {
+  test('a moderator can suspend an account, as the audited resolution of a flag naming them (FR 6.8)', async () => {
+    await seedAccounts();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'chats/chat-1'), { userId: 'bob', listenerId: 'grace', status: 'active' });
+      await setDoc(doc(context.firestore(), 'flags/flag-1'), {
+        type: 'abusive-language', chatId: 'chat-1', senderId: 'bob', severity: 1, status: 'open',
+      });
+    });
+
+    const db = testEnv.authenticatedContext('mod1').firestore();
+    const batch = writeBatch(db);
+    const auditRef = doc(db, 'auditLog/audit-suspend-bob');
+    batch.update(doc(db, 'flags/flag-1'), {
+      status: 'resolved', action: 'suspend', reason: 'Repeated abuse', auditLogId: auditRef.id,
+    });
+    batch.update(doc(db, 'accounts/bob'), { status: 'suspended', lastAuditLogId: auditRef.id });
+    batch.set(auditRef, {
+      actorId: 'mod1', action: 'suspend', chatId: 'chat-1', itemType: 'flag', itemId: 'flag-1', targetUid: 'bob',
+      reason: 'Repeated abuse',
+    });
+
+    await assertSucceeds(batch.commit());
+  });
+
+  test('a moderator cannot change an account\'s status without a matching audit entry', async () => {
     await seedAccounts();
 
     const db = testEnv.authenticatedContext('mod1').firestore();
-    await assertSucceeds(updateDoc(doc(db, 'accounts/bob'), { status: 'suspended' }));
+    await assertFails(updateDoc(doc(db, 'accounts/bob'), { status: 'suspended' }));
   });
 
   test('a moderator cannot change role', async () => {
