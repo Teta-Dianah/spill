@@ -17,6 +17,13 @@ const LABELLED_MESSAGES = [
   { text: 'SUICIDE is all I think about', crisis: true, contact: false, abuse: false },
   { text: 'i wanna d1e', crisis: true, contact: false, abuse: false },
 
+  // Combined: crisis wording and contact-sharing in the same message.
+  // chat.js must still catch both at once (see the dedicated describe
+  // block below) — firestore.rules always rejects the contact details,
+  // so the message itself is never delivered, but the crisis flag and
+  // card still need to happen.
+  { text: 'I want to kill myself, call me at 0788123456', crisis: true, contact: true, abuse: false },
+
   // Contact-sharing — positive cases
   { text: 'call me at 0788123456', crisis: false, contact: true, abuse: false },
   { text: 'my email is test@example.com', crisis: false, contact: true, abuse: false },
@@ -103,6 +110,21 @@ describe('screenMessage against labelled sample messages (NFR 21)', () => {
     console.log('Abusive language —', score);
     expect(score.recall).toBeGreaterThanOrEqual(0.9);
     expect(score.precision).toBeGreaterThanOrEqual(0.9);
+  });
+});
+
+// A message can contain both crisis wording and contact details at
+// once. chat.js's screenAndSendMessage() routes on hasContactSharing
+// first, so the message is always rejected — but it must still notice
+// the crisis wording too, so sendBlockedAttempt() knows to raise a
+// crisis flag and show the crisis card alongside the blocked-attempt
+// flag (FR 6.2, FR 6.3; see the matching Rules test in
+// test/rules/firestore.test.js for the actual write behaviour).
+describe('screenMessage on a combined crisis + contact-sharing message', () => {
+  test('both hasCrisisLanguage and hasContactSharing are true at once', () => {
+    const screened = screenMessage('I want to kill myself, call me at 0788123456');
+    expect(screened.hasCrisisLanguage).toBe(true);
+    expect(screened.hasContactSharing).toBe(true);
   });
 });
 

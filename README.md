@@ -57,6 +57,12 @@ So an admin editing the term lists can make Spill *more* responsive to new phras
 
 The crisis and abuse drop on the held-out set is the English-only limitation the SRS already documents (section 2.5), not a bug — Kinyarwanda text and reworded English rarely match a fixed English phrase list. It's reported here rather than tuned away because `firestore.rules` is the actual backstop regardless of what this file catches.
 
+## How matching avoids duplicate requests
+
+A user can only ever have one pending chat request outstanding (FR 4.1). `request-chat.js` claims a `pendingChats/{uid}` marker in the same atomic batch as the `chats` document it creates, and `firestore.rules` requires that pairing on every chat create — since `pendingChats` has no update rule, a second chat can never get its own claim while the first one's still stands.
+
+Whether nobody's free right now or the matched listener declines, the user sees the identical wait status and the search retries automatically, giving up after 10 minutes of nobody being free. The marker is released whenever the search genuinely ends — matched, declined (then re-claimed for the retry), cancelled by the user, given up on, or found stale (older than that same 10 minutes) the next time the page loads — so a user is never locked out of starting a fresh request, even after an abandoned tab or a browser crash.
+
 ## Setup
 
 You'll need Node.js and a JDK 21 or newer (the Firebase emulators run on Java).

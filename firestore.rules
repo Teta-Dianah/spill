@@ -210,16 +210,24 @@ service cloud.firestore {
     // chats/{chatId} — one document per chat session (FR 4, FR 5.5). Only
     // a user can start a chat (FR 4.4), and only with a listener who is
     // actually eligible right now (BR 1, BR 7, FR 6.6 — see
-    // isEligibleListener). A new chat always starts "pending" — the
-    // listener accepts or declines it (FR 5.5) before any messages can
-    // flow. The two participants can always read or change it; a
+    // isEligibleListener), and only alongside a pendingChats claim
+    // naming this exact chat in the same batch (FR 4.1 — see that
+    // collection below, and hasMatchingCrisisFlag above for the same
+    // pairing pattern). pendingChats has no update rule, so a second
+    // chat can never be created while the first claim still stands —
+    // that's what actually stops a user ending up with two pending
+    // chats at once, even from a tampered client that skips
+    // request-chat.js entirely. A new chat always starts "pending" —
+    // the listener accepts or declines it (FR 5.5) before any messages
+    // can flow. The two participants can always read or change it; a
     // moderator can read it too, but only once a case exists for it
     // (BR 3) — an admin never can (BR 4).
     match /chats/{chatId} {
       allow create: if request.auth != null &&
         request.resource.data.userId == request.auth.uid &&
         request.resource.data.status == 'pending' &&
-        isEligibleListener(request.resource.data.listenerId, request.auth.uid);
+        isEligibleListener(request.resource.data.listenerId, request.auth.uid) &&
+        getAfter(/databases/$(database)/documents/pendingChats/$(request.auth.uid)).data.chatId == chatId;
 
       allow read: if request.auth != null &&
         (resource.data.userId == request.auth.uid ||
@@ -231,6 +239,21 @@ service cloud.firestore {
         request.resource.data.userId == resource.data.userId &&
         request.resource.data.listenerId == resource.data.listenerId &&
         request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    // pendingChats/{uid} — a marker naming the one chat this user
+    // currently has outstanding (FR 4.1). request-chat.js creates it in
+    // the same batch as each chats/{chatId} it creates (first attempt,
+    // or a retry after a decline) and deletes it once matched, declined
+    // and about to retry, or old enough that the client would have
+    // given up anyway. There's deliberately no update rule: Firestore
+    // treats a second create-style write to an existing document as an
+    // update, so a second chat can never get its own claim in here
+    // while the first one's claim still stands — a user can only ever
+    // hold one at a time, for exactly one chat.
+    match /pendingChats/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid;
     }
 
     // messages/{messageId} — one document per chat message (FR 4.3,

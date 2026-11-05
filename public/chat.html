@@ -48,7 +48,7 @@
       <button type="button" id="cancel-block-button">Cancel</button>
     </div>
 
-    <form id="end-chat-form" class="card" hidden>
+    <form id="mood-after-form" class="card" hidden>
       <h2>Before you go</h2>
 
       <label for="moodAfter">How are you feeling now? (1 = rough, 5 = great)</label>
@@ -60,7 +60,13 @@
         <option value="5">5 — Great</option>
       </select>
 
-      <label>Was this chat helpful? (optional)</label>
+      <button type="submit">Continue</button>
+    </form>
+
+    <form id="rating-form" class="card" hidden>
+      <h2>Was this chat helpful?</h2>
+      <p>This step is optional — skip it if you'd rather not say.</p>
+
       <label><input type="radio" name="rating" value="helpful" style="width:auto;display:inline-block;"> Helpful</label>
       <label><input type="radio" name="rating" value="not-helpful" style="width:auto;display:inline-block;"> Not helpful</label>
 
@@ -68,6 +74,7 @@
       <textarea id="ratingComment" name="ratingComment" rows="3" maxlength="280"></textarea>
 
       <button type="submit">Finish</button>
+      <button type="button" id="skip-rating-button">Skip</button>
     </form>
   </main>
 

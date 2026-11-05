@@ -150,8 +150,10 @@ function blockPerson(chatId, user, otherUid) {
 }
 
 // FR 4.5: either side can end a chat any time, no reason needed.
-// FR 3.2 / FR 4.6: only the user (not the listener) records a mood-after
-// and an optional rating, since those describe how the chat felt to them.
+// FR 3.2: only the user (not the listener) records a mood-after, since
+// that describes how the chat felt to them — the chat is already ended
+// by the time this runs, moodAfter included, so it's never optional or
+// separable from ending the chat the way the rating is (see saveRating).
 function endChat(chatId, updates) {
   return firebase
     .firestore()
@@ -166,6 +168,17 @@ function endChat(chatId, updates) {
         updates
       )
     );
+}
+
+// FR 4.6: a separate, optional step after the chat has already ended
+// and the mood check-in is already stored — rating can be skipped
+// without skipping the (required) mood check-in that came before it.
+function saveRating(chatId, rating, ratingComment) {
+  return firebase
+    .firestore()
+    .collection('chats')
+    .doc(chatId)
+    .update({ rating: rating, ratingComment: ratingComment });
 }
 
 function markChatFlagged(batch, chatId) {
@@ -454,7 +467,9 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   var endChatButton = document.getElementById('end-chat-button');
-  var endChatForm = document.getElementById('end-chat-form');
+  var moodAfterForm = document.getElementById('mood-after-form');
+  var ratingForm = document.getElementById('rating-form');
+  var skipRatingButton = document.getElementById('skip-rating-button');
 
   if (endChatButton) {
     endChatButton.addEventListener('click', function () {
@@ -470,33 +485,55 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
 
-      // The user's side: capture a mood-after and optional rating first.
+      // FR 3.2: the user's side always goes through a required mood
+      // check-in first. The rating is a separate, optional step after
+      // that, not part of the same form — it can be skipped on its own
+      // without skipping the mood check-in.
       endChatButton.hidden = true;
-      if (endChatForm) endChatForm.hidden = false;
+      if (moodAfterForm) moodAfterForm.hidden = false;
     });
   }
 
-  if (endChatForm) {
-    endChatForm.addEventListener('submit', function (event) {
+  if (moodAfterForm) {
+    moodAfterForm.addEventListener('submit', function (event) {
       event.preventDefault();
 
-      var moodAfter = parseInt(endChatForm.moodAfter.value, 10);
-      var ratingInput = endChatForm.querySelector('input[name="rating"]:checked');
-      var rating = ratingInput ? ratingInput.value : null;
-      var ratingComment = endChatForm.ratingComment.value.trim();
+      var moodAfter = parseInt(moodAfterForm.moodAfter.value, 10);
 
-      endChat(chatId, {
-        moodAfter: moodAfter,
-        rating: rating,
-        ratingComment: ratingComment,
-      })
+      endChat(chatId, { moodAfter: moodAfter })
         .then(function () {
-          window.location.href = 'dashboard.html';
+          moodAfterForm.hidden = true;
+          if (ratingForm) ratingForm.hidden = false;
         })
         .catch(function (error) {
           showChatMessage('Could not finish the chat. Please try again.');
           console.error(error);
         });
+    });
+  }
+
+  if (ratingForm) {
+    ratingForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+
+      var ratingInput = ratingForm.querySelector('input[name="rating"]:checked');
+      var rating = ratingInput ? ratingInput.value : null;
+      var ratingComment = ratingForm.ratingComment.value.trim();
+
+      saveRating(chatId, rating, ratingComment)
+        .then(function () {
+          window.location.href = 'dashboard.html';
+        })
+        .catch(function (error) {
+          showChatMessage('Could not save that. Please try again.');
+          console.error(error);
+        });
+    });
+  }
+
+  if (skipRatingButton) {
+    skipRatingButton.addEventListener('click', function () {
+      window.location.href = 'dashboard.html';
     });
   }
 });

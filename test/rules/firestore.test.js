@@ -9,7 +9,7 @@ const {
   assertSucceeds,
   assertFails,
 } = require('@firebase/rules-unit-testing');
-const { doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch } = require('firebase/firestore');
+const { doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, arrayUnion } = require('firebase/firestore');
 
 let testEnv;
 
@@ -274,9 +274,23 @@ describe('chats', () => {
     });
   }
 
+  // FR 4.1: a chat can only ever be created alongside a pendingChats
+  // claim naming that exact chat (see pendingChats below) — this is
+  // what stops a user ending up with two pending chats at once. Every
+  // chat-creation test below needs this claimed first, same as the
+  // real client (request-chat.js) always does in the same batch.
+  async function seedPendingSlot(uid, chatId) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `pendingChats/${uid}`), {
+        chatId, createdAt: { seconds: 1, nanoseconds: 0 },
+      });
+    });
+  }
+
   test('a user can request a chat with an approved, available listener', async () => {
     await seedAccount('alice', '18-25');
     await seedApprovedListener('grace');
+    await seedPendingSlot('alice', 'chat-1');
 
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertSucceeds(
@@ -287,6 +301,7 @@ describe('chats', () => {
   test('a new chat cannot be created already active (must start pending, FR 5.5)', async () => {
     await seedAccount('alice', '18-25');
     await seedApprovedListener('grace');
+    await seedPendingSlot('alice', 'chat-1');
 
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(
@@ -294,8 +309,19 @@ describe('chats', () => {
     );
   });
 
+  test('a user cannot request a chat without first claiming a pending slot (FR 4.1)', async () => {
+    await seedAccount('alice', '18-25');
+    await seedApprovedListener('grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'chats/chat-1'), { userId: 'alice', listenerId: 'grace', status: 'pending' })
+    );
+  });
+
   test('a user cannot request a chat with a listener who is not approved', async () => {
     await seedAccount('alice', '18-25');
+    await seedPendingSlot('alice', 'chat-1');
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), 'listeners/grace'), {
         status: 'pending',
@@ -314,6 +340,7 @@ describe('chats', () => {
   test('a user cannot request a chat with a listener who is unavailable', async () => {
     await seedAccount('alice', '18-25');
     await seedApprovedListener('grace', { available: false });
+    await seedPendingSlot('alice', 'chat-1');
 
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(
@@ -324,6 +351,7 @@ describe('chats', () => {
   test('a 16-17 user cannot match with a listener not cleared for minors (BR 1)', async () => {
     await seedAccount('young-alice', '16-17');
     await seedApprovedListener('grace', { clearedForMinors: false });
+    await seedPendingSlot('young-alice', 'chat-1');
 
     const db = testEnv.authenticatedContext('young-alice').firestore();
     await assertFails(
@@ -334,6 +362,7 @@ describe('chats', () => {
   test('a 16-17 user can match with a listener cleared for minors (BR 1)', async () => {
     await seedAccount('young-alice', '16-17');
     await seedApprovedListener('grace', { clearedForMinors: true });
+    await seedPendingSlot('young-alice', 'chat-1');
 
     const db = testEnv.authenticatedContext('young-alice').firestore();
     await assertSucceeds(
@@ -373,6 +402,26 @@ describe('chats', () => {
     );
   });
 
+  // FR 4.1: the requester can cancel their own still-pending request —
+  // this is how request-chat.js's cancelRequest() takes a chat out of
+  // the matched listener's incoming-requests list rather than leaving
+  // it there for someone who's no longer waiting.
+  test('a user can cancel their own pending chat before the listener responds', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'chats/chat-1'), {
+        userId: 'alice',
+        listenerId: 'grace',
+        status: 'pending',
+        createdAt: { seconds: 1, nanoseconds: 0 },
+      });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'chats/chat-1'), { status: 'cancelled' })
+    );
+  });
+
   test('someone outside the chat cannot read it', async () => {
     await seedAccount('alice', '18-25');
     await testEnv.withSecurityRulesDisabled(async (context) => {
@@ -407,9 +456,42 @@ describe('chats', () => {
     );
   });
 
+  // FR 3.2, FR 4.6: mood check-in and rating are two distinct steps —
+  // ending the chat with a required moodAfter, then (optionally) a
+  // separate rating written afterward. Each write must succeed on its
+  // own, and skipping the rating entirely must be fine too.
+  test('the post-chat mood check-in and rating are two separate updates, and the rating can be skipped', async () => {
+    const createdAt = { seconds: 1, nanoseconds: 0 };
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'chats/chat-1'), {
+        userId: 'alice', listenerId: 'grace', status: 'active', createdAt,
+      });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+
+    // Step 1: ending the chat always stores the required mood check-in.
+    await assertSucceeds(
+      updateDoc(doc(db, 'chats/chat-1'), { status: 'ended', moodAfter: 2 })
+    );
+
+    const afterMood = await getDoc(doc(db, 'chats/chat-1'));
+    expect(afterMood.data().status).toBe('ended');
+    expect(afterMood.data().moodAfter).toBe(2);
+    expect(afterMood.data().rating).toBeUndefined();
+
+    // Step 2: a later, separate write adds the optional rating — never
+    // sending this update at all is just as valid, since skipping it
+    // must not be blocked.
+    await assertSucceeds(
+      updateDoc(doc(db, 'chats/chat-1'), { rating: 'helpful', ratingComment: 'Thanks' })
+    );
+  });
+
   test('a suspended user cannot request a chat (BR 7)', async () => {
     await seedAccount('alice', '18-25', { status: 'suspended' });
     await seedApprovedListener('grace');
+    await seedPendingSlot('alice', 'chat-1');
 
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(
@@ -420,6 +502,7 @@ describe('chats', () => {
   test('a user cannot request a chat with a suspended listener (BR 7)', async () => {
     await seedAccount('alice', '18-25');
     await seedApprovedListener('grace');
+    await seedPendingSlot('alice', 'chat-1');
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), 'accounts/grace'), {
         pseudonym: 'Grace', role: 'user', ageBand: '18-25', status: 'suspended', blockedUids: [],
@@ -435,6 +518,7 @@ describe('chats', () => {
   test('a user cannot request a chat with a listener they have blocked (FR 6.6)', async () => {
     await seedAccount('alice', '18-25', { blockedUids: ['grace'] });
     await seedApprovedListener('grace');
+    await seedPendingSlot('alice', 'chat-1');
 
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(
@@ -445,6 +529,7 @@ describe('chats', () => {
   test('a user cannot request a chat with a listener who has blocked them (FR 6.6)', async () => {
     await seedAccount('alice', '18-25');
     await seedApprovedListener('grace', {});
+    await seedPendingSlot('alice', 'chat-1');
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), 'accounts/grace'), {
         pseudonym: 'Grace', role: 'user', ageBand: '18-25', status: 'active', blockedUids: ['alice'],
@@ -455,6 +540,118 @@ describe('chats', () => {
     await assertFails(
       setDoc(doc(db, 'chats/chat-1'), { userId: 'alice', listenerId: 'grace', status: 'pending' })
     );
+  });
+
+  test('a user cannot create a second pending chat while already holding a pending slot (FR 4.1)', async () => {
+    await seedAccount('alice', '18-25');
+    await seedApprovedListener('grace');
+    await seedApprovedListener('henry');
+    await seedPendingSlot('alice', 'chat-1');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'chats/chat-1'), {
+        userId: 'alice', listenerId: 'grace', status: 'pending', createdAt: { seconds: 1, nanoseconds: 0 },
+      });
+    });
+
+    // The marker is still there (not released until matched), so a
+    // second chat — even with a different listener — must be refused.
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'chats/chat-2'), { userId: 'alice', listenerId: 'henry', status: 'pending' })
+    );
+  });
+});
+
+// FR 4.1: at most one pending request per user. There's no update rule
+// here, only create — Firestore treats a second create-style write to
+// an existing document as an update, so a user can never hold more
+// than one of these at once, which is what the chats create rule above
+// relies on.
+describe('pendingChats', () => {
+  test('a user can claim their own pending slot', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'pendingChats/alice'), { createdAt: { seconds: 1, nanoseconds: 0 } })
+    );
+  });
+
+  test('a user cannot claim a second pending slot while one already exists', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'pendingChats/alice'), {
+        createdAt: { seconds: 1, nanoseconds: 0 },
+      });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'pendingChats/alice'), { createdAt: { seconds: 2, nanoseconds: 0 } })
+    );
+  });
+
+  test('a user cannot claim a pending slot for someone else', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'pendingChats/bob'), { createdAt: { seconds: 1, nanoseconds: 0 } })
+    );
+  });
+
+  test('a user can release their own pending slot', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'pendingChats/alice'), {
+        createdAt: { seconds: 1, nanoseconds: 0 },
+      });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(deleteDoc(doc(db, 'pendingChats/alice')));
+  });
+
+  test('a user cannot release someone else\'s pending slot', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'pendingChats/alice'), {
+        createdAt: { seconds: 1, nanoseconds: 0 },
+      });
+    });
+
+    const db = testEnv.authenticatedContext('bob').firestore();
+    await assertFails(deleteDoc(doc(db, 'pendingChats/alice')));
+  });
+
+  // FR 4.1: a user can never be permanently locked out of starting a
+  // new request. A stale marker left behind by an abandoned session
+  // (closed tab, browser crash — chatId pointing at a chat nobody's
+  // watching any more) can always be released by its own owner, and a
+  // fresh claim + chat can always follow — this is what
+  // clearStalePendingSlot() in request-chat.js relies on.
+  test('a user is never locked out: a stale marker can be cleared and a fresh request claimed', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/alice'), {
+        pseudonym: 'Alice', role: 'user', ageBand: '18-25', status: 'active', blockedUids: [],
+      });
+      await setDoc(doc(context.firestore(), 'accounts/grace'), {
+        pseudonym: 'Grace', role: 'user', ageBand: '18-25', status: 'active', blockedUids: [],
+      });
+      await setDoc(doc(context.firestore(), 'listeners/grace'), {
+        status: 'approved', clearedForMinors: false, available: true, trainingComplete: true,
+      });
+      // A marker from a long-abandoned session, naming a chat that was
+      // never actually created (or is otherwise irrelevant now).
+      await setDoc(doc(context.firestore(), 'pendingChats/alice'), {
+        chatId: 'stale-chat', createdAt: { seconds: 1, nanoseconds: 0 },
+      });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+
+    await assertSucceeds(deleteDoc(doc(db, 'pendingChats/alice')));
+
+    const batch = writeBatch(db);
+    const newChatRef = doc(db, 'chats/fresh-chat');
+    batch.set(doc(db, 'pendingChats/alice'), {
+      chatId: 'fresh-chat', createdAt: { seconds: 2, nanoseconds: 0 },
+    });
+    batch.set(newChatRef, { userId: 'alice', listenerId: 'grace', status: 'pending' });
+    await assertSucceeds(batch.commit());
   });
 });
 
@@ -623,6 +820,80 @@ describe('messages', () => {
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(
       setDoc(doc(db, 'messages/msg-5'), { chatId: 'chat-1', senderId: 'alice', text: 'call me at 0788123456' })
+    );
+  });
+
+  // FR 6.2 + FR 6.3 together: a message with both crisis wording and
+  // contact details is still never delivered (contact-sharing always
+  // wins), but the client's recovery path — a blocked-attempt flag and
+  // a separate crisis flag, no message — must still succeed, mirroring
+  // sendBlockedAttempt(..., alsoHasCrisis: true) in chat.js.
+  test('combined case: crisis wording plus contact details is refused as a message, but both flags can be saved', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    const db = testEnv.authenticatedContext('alice').firestore();
+    const combinedText = 'I want to kill myself, call me at 0788123456';
+
+    await assertFails(
+      setDoc(doc(db, 'messages/msg-combined'), { chatId: 'chat-1', senderId: 'alice', text: combinedText })
+    );
+
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'flags/flag-combined-contact'), {
+      type: 'contact-sharing', chatId: 'chat-1', senderId: 'alice',
+      blockedText: combinedText, severity: 2, status: 'open',
+    });
+    batch.set(doc(db, 'flags/flag-combined-crisis'), {
+      type: 'crisis', chatId: 'chat-1', senderId: 'alice', severity: 3, status: 'open',
+    });
+    batch.set(doc(db, 'chatFlagged/chat-1'), { chatId: 'chat-1' });
+    await assertSucceeds(batch.commit());
+  });
+});
+
+// Report, block and end chat must all work from the moment a chat goes
+// active — not just after the first message, and not only once the
+// chat is about to end (BR 5). None of these three writes depend on
+// any message existing, so a chat with zero messages must behave
+// exactly the same as one with messages already in it.
+describe('safety actions work before any message has been sent', () => {
+  async function seedActiveChat(chatId, userId, listenerId) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `chats/${chatId}`), {
+        userId, listenerId, status: 'active', createdAt: { seconds: 1, nanoseconds: 0 },
+      });
+      await setDoc(doc(context.firestore(), `accounts/${userId}`), {
+        pseudonym: 'Alice', role: 'user', status: 'active', blockedUids: [],
+      });
+    });
+  }
+
+  test('a participant can report a chat with zero messages', async () => {
+    await seedActiveChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'reports/report-1'), {
+        chatId: 'chat-1', reporterId: 'alice', reportedId: 'grace',
+        reason: 'Uncomfortable already', severity: 2, status: 'open',
+      })
+    );
+  });
+
+  test('a participant can block the other person in a chat with zero messages', async () => {
+    await seedActiveChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'accounts/alice'), { blockedUids: arrayUnion('grace') })
+    );
+  });
+
+  test('a participant can end a chat with zero messages', async () => {
+    await seedActiveChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'chats/chat-1'), { status: 'ended' })
     );
   });
 });
