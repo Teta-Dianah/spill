@@ -9,7 +9,7 @@ const {
   assertSucceeds,
   assertFails,
 } = require('@firebase/rules-unit-testing');
-const { doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch } = require('firebase/firestore');
+const { doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, arrayUnion } = require('firebase/firestore');
 
 let testEnv;
 
@@ -407,6 +407,38 @@ describe('chats', () => {
     );
   });
 
+  // FR 3.2, FR 4.6: mood check-in and rating are two distinct steps —
+  // ending the chat with a required moodAfter, then (optionally) a
+  // separate rating written afterward. Each write must succeed on its
+  // own, and skipping the rating entirely must be fine too.
+  test('the post-chat mood check-in and rating are two separate updates, and the rating can be skipped', async () => {
+    const createdAt = { seconds: 1, nanoseconds: 0 };
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'chats/chat-1'), {
+        userId: 'alice', listenerId: 'grace', status: 'active', createdAt,
+      });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+
+    // Step 1: ending the chat always stores the required mood check-in.
+    await assertSucceeds(
+      updateDoc(doc(db, 'chats/chat-1'), { status: 'ended', moodAfter: 2 })
+    );
+
+    const afterMood = await getDoc(doc(db, 'chats/chat-1'));
+    expect(afterMood.data().status).toBe('ended');
+    expect(afterMood.data().moodAfter).toBe(2);
+    expect(afterMood.data().rating).toBeUndefined();
+
+    // Step 2: a later, separate write adds the optional rating — never
+    // sending this update at all is just as valid, since skipping it
+    // must not be blocked.
+    await assertSucceeds(
+      updateDoc(doc(db, 'chats/chat-1'), { rating: 'helpful', ratingComment: 'Thanks' })
+    );
+  });
+
   test('a suspended user cannot request a chat (BR 7)', async () => {
     await seedAccount('alice', '18-25', { status: 'suspended' });
     await seedApprovedListener('grace');
@@ -623,6 +655,80 @@ describe('messages', () => {
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(
       setDoc(doc(db, 'messages/msg-5'), { chatId: 'chat-1', senderId: 'alice', text: 'call me at 0788123456' })
+    );
+  });
+
+  // FR 6.2 + FR 6.3 together: a message with both crisis wording and
+  // contact details is still never delivered (contact-sharing always
+  // wins), but the client's recovery path — a blocked-attempt flag and
+  // a separate crisis flag, no message — must still succeed, mirroring
+  // sendBlockedAttempt(..., alsoHasCrisis: true) in chat.js.
+  test('combined case: crisis wording plus contact details is refused as a message, but both flags can be saved', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    const db = testEnv.authenticatedContext('alice').firestore();
+    const combinedText = 'I want to kill myself, call me at 0788123456';
+
+    await assertFails(
+      setDoc(doc(db, 'messages/msg-combined'), { chatId: 'chat-1', senderId: 'alice', text: combinedText })
+    );
+
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'flags/flag-combined-contact'), {
+      type: 'contact-sharing', chatId: 'chat-1', senderId: 'alice',
+      blockedText: combinedText, severity: 2, status: 'open',
+    });
+    batch.set(doc(db, 'flags/flag-combined-crisis'), {
+      type: 'crisis', chatId: 'chat-1', senderId: 'alice', severity: 3, status: 'open',
+    });
+    batch.set(doc(db, 'chatFlagged/chat-1'), { chatId: 'chat-1' });
+    await assertSucceeds(batch.commit());
+  });
+});
+
+// Report, block and end chat must all work from the moment a chat goes
+// active — not just after the first message, and not only once the
+// chat is about to end (BR 5). None of these three writes depend on
+// any message existing, so a chat with zero messages must behave
+// exactly the same as one with messages already in it.
+describe('safety actions work before any message has been sent', () => {
+  async function seedActiveChat(chatId, userId, listenerId) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `chats/${chatId}`), {
+        userId, listenerId, status: 'active', createdAt: { seconds: 1, nanoseconds: 0 },
+      });
+      await setDoc(doc(context.firestore(), `accounts/${userId}`), {
+        pseudonym: 'Alice', role: 'user', status: 'active', blockedUids: [],
+      });
+    });
+  }
+
+  test('a participant can report a chat with zero messages', async () => {
+    await seedActiveChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'reports/report-1'), {
+        chatId: 'chat-1', reporterId: 'alice', reportedId: 'grace',
+        reason: 'Uncomfortable already', severity: 2, status: 'open',
+      })
+    );
+  });
+
+  test('a participant can block the other person in a chat with zero messages', async () => {
+    await seedActiveChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'accounts/alice'), { blockedUids: arrayUnion('grace') })
+    );
+  });
+
+  test('a participant can end a chat with zero messages', async () => {
+    await seedActiveChat('chat-1', 'alice', 'grace');
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'chats/chat-1'), { status: 'ended' })
     );
   });
 });

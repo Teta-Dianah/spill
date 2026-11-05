@@ -1,6 +1,14 @@
 // Wires up the chat request form: picks a topic, captures the
 // before-chat mood, and matches with a listener who then has to accept
 // (FR 3.2, FR 4.1, FR 4.2, FR 5.5). Needs listeners.js loaded first.
+//
+// Whether nobody's free right now, or the listener who was found
+// declines, the user sees the exact same wait status (self-help
+// resources are always on this page below the form either way) and the
+// request is retried automatically — neither path is a dead end.
+
+var RETRY_DELAY_MS = 15000;
+var WAITING_MESSAGE = 'Waiting for a listener to accept your request...';
 
 function showRequestMessage(text) {
   var box = document.getElementById('request-message');
@@ -32,14 +40,24 @@ function watchPendingChat(chatId, user, ageBand, topic, moodBefore, declinedList
         return;
       }
 
-      showRequestMessage('Waiting for a listener to accept your request...');
+      showRequestMessage(WAITING_MESSAGE);
     });
 }
 
+// Whether this is the very first attempt or a retry after a decline,
+// "nobody's free right now" gets exactly the same wait status as
+// "someone's been asked and we're waiting for them to accept" — the
+// user has no reason to see a different, more alarming message just
+// because the retry mechanics underneath happen to differ. Either way,
+// this quietly tries again shortly rather than leaving the request
+// stuck (FR 4.1, FR 5.5).
 function requestChat(user, ageBand, topic, moodBefore, declinedListenerIds) {
   findEligibleListener(ageBand, declinedListenerIds, function (listenerId) {
     if (!listenerId) {
-      showRequestMessage('No listener is available right now. Please try again soon, or see the resources below.');
+      showRequestMessage(WAITING_MESSAGE);
+      setTimeout(function () {
+        requestChat(user, ageBand, topic, moodBefore, declinedListenerIds);
+      }, RETRY_DELAY_MS);
       return;
     }
 
@@ -55,7 +73,7 @@ function requestChat(user, ageBand, topic, moodBefore, declinedListenerIds) {
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       })
       .then(function (chatRef) {
-        showRequestMessage('Waiting for a listener to accept your request...');
+        showRequestMessage(WAITING_MESSAGE);
         watchPendingChat(chatRef.id, user, ageBand, topic, moodBefore, declinedListenerIds);
       })
       .catch(function (error) {
