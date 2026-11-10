@@ -322,8 +322,11 @@ describe('applyTermChange (admin add, edit, remove)', () => {
 // or rule is changed to make a set score better.
 const SEED_TERMS = require('../../scripts/term-lists-seed.json');
 
-// A second held-out set (test/data/screening-held-out-2.txt), written
-// separately and never used to choose or change terms. Each line is
+// A second set (test/data/screening-held-out-2.txt), written separately
+// from the other sets. It started as held-out, but the term fixes after
+// its first run (kwipfira, six English crisis phrases, and removing
+// "nzakubona" and "va hano") came from its misses and false positives,
+// so it now counts as TUNED, not held-out. Each line is
 // "label | message | language", with one label per message: crisis,
 // abuse, contact or normal.
 function loadHeldOutSet2() {
@@ -373,7 +376,7 @@ describe('before and after adding the seed terms (FR 7.1, NFR 21)', () => {
   const SETS = [
     ['tuned set', LABELLED_MESSAGES],
     ['previous held-out set', HELD_OUT_MESSAGES],
-    ['second held-out set', HELD_OUT_SET_2],
+    ['second set (tuned after the term fixes)', HELD_OUT_SET_2],
   ];
 
   test.each(SETS)('%s: precision and recall before and after', (name, messages) => {
@@ -398,10 +401,10 @@ describe('before and after adding the seed terms (FR 7.1, NFR 21)', () => {
   });
 });
 
-// Detail for the second held-out set: scores per language, and every
-// miss and false positive, with and without the seed terms. Reported
-// only — nothing here may be used to change terms.
-describe('second held-out set in detail (NFR 21)', () => {
+// Detail for the second set: scores per language, and every miss and
+// false positive, with and without the seed terms. Since the term fixes
+// these numbers are on a tuned set, not a held-out one.
+describe('second set in detail, tuned after the term fixes (NFR 21)', () => {
   function showScore(score) {
     const precision = score.truePositive + score.falsePositive === 0 ? 'n/a' : score.precision.toFixed(2);
     const recall = score.truePositive + score.falseNegative === 0 ? 'n/a' : score.recall.toFixed(2);
@@ -444,5 +447,33 @@ describe('second held-out set in detail (NFR 21)', () => {
     });
     console.log(lines.join('\n'));
     expect(lines.length).toBeGreaterThan(0);
+  });
+});
+
+// Term fixes after the second set's first run (FR 7.1).
+describe('term fixes: new crisis terms and removed abuse terms', () => {
+  test.each([
+    ['kwipfira', 'Ndumva nshaka kwipfira'],
+    ['no point in going on', 'there is no point in going on like this'],
+    ['better off without me', 'my family would be better off without me'],
+    ['end it all', 'I want to end it all tonight'],
+    ['disappear forever', 'I wish I could disappear forever'],
+    ['never wake up', 'I hope I never wake up'],
+    ['life has no worth', 'my life has no worth'],
+  ])('the new crisis term "%s" is caught', (term, message) => {
+    expect(SEED_TERMS.crisis).toContain(term);
+    expect(screenMessage(message, SEED_TERMS).hasCrisisLanguage).toBe(true);
+    expect(screenMessage(message).hasCrisisLanguage).toBe(false);
+  });
+
+  test('"nzakubona ejo" and "kuva hano" are not flagged', () => {
+    expect(SEED_TERMS.abuse).not.toContain('nzakubona');
+    expect(SEED_TERMS.abuse).not.toContain('va hano');
+    ['Nzakubona ejo', 'Kuva hano ni kure'].forEach((message) => {
+      const screened = screenMessage(message, SEED_TERMS);
+      expect(screened.hasAbusiveLanguage).toBe(false);
+      expect(screened.hasCrisisLanguage).toBe(false);
+      expect(screened.hasContactSharing).toBe(false);
+    });
   });
 });
