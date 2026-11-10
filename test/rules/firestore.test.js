@@ -1405,3 +1405,166 @@ describe('admin and moderator account updates', () => {
     await assertFails(updateDoc(doc(db, 'accounts/bob'), { status: 'active' }));
   });
 });
+
+// FR 7.1: admin-editable screening term lists. Any signed-in user can
+// read them; only an admin can write, and every write must bring its
+// own new auditLog entry in the same batch (FR 6.9).
+describe('termLists (FR 7.1)', () => {
+  async function seedAccount(uid, role) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `accounts/${uid}`), {
+        pseudonym: uid, role, status: 'active', blockedUids: [],
+      });
+    });
+  }
+
+  // The list write and its audit entry, together in one batch, the same
+  // way admin-terms.js writes them.
+  function auditedListWrite(db, uid, category, terms, options = {}) {
+    const auditId = options.auditId || `audit-${category}`;
+    const batch = writeBatch(db);
+    batch.set(doc(db, `termLists/${category}`), {
+      terms,
+      lastAuditLogId: auditId,
+      updatedBy: uid,
+      ...(options.extraListFields || {}),
+    });
+    if (!options.skipAudit) {
+      batch.set(doc(db, `auditLog/${auditId}`), {
+        actorId: uid,
+        action: 'add_term',
+        itemType: 'termList',
+        itemId: options.auditItemId || category,
+      });
+    }
+    return batch.commit();
+  }
+
+  test('any signed-in user can read a term list', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(getDoc(doc(db, 'termLists/crisis')));
+  });
+
+  test('a signed-out visitor cannot read a term list', async () => {
+    const db = testEnv.unauthenticatedContext().firestore();
+    await assertFails(getDoc(doc(db, 'termLists/crisis')));
+  });
+
+  test('an admin can save a list together with its audit entry', async () => {
+    await seedAccount('ada', 'admin');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertSucceeds(auditedListWrite(db, 'ada', 'crisis', ['fade away forever']));
+  });
+
+  test('an admin can edit and remove terms, each with a new audit entry', async () => {
+    await seedAccount('ada', 'admin');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertSucceeds(auditedListWrite(db, 'ada', 'abuse', ['one term', 'two term'], { auditId: 'audit-add' }));
+    await assertSucceeds(auditedListWrite(db, 'ada', 'abuse', ['new term', 'two term'], { auditId: 'audit-edit' }));
+    await assertSucceeds(auditedListWrite(db, 'ada', 'abuse', ['two term'], { auditId: 'audit-remove' }));
+  });
+
+  test('an admin change without an audit entry is refused', async () => {
+    await seedAccount('ada', 'admin');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(auditedListWrite(db, 'ada', 'crisis', ['fade away forever'], { skipAudit: true }));
+  });
+
+  test('an admin cannot reuse an old audit entry for a new change', async () => {
+    await seedAccount('ada', 'admin');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'auditLog/old-entry'), {
+        actorId: 'ada', action: 'add_term', itemType: 'termList', itemId: 'crisis',
+      });
+    });
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(
+      setDoc(doc(db, 'termLists/crisis'), { terms: ['sneaky term'], lastAuditLogId: 'old-entry', updatedBy: 'ada' })
+    );
+  });
+
+  test('an audit entry about a different list does not count', async () => {
+    await seedAccount('ada', 'admin');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(auditedListWrite(db, 'ada', 'crisis', ['fade away forever'], { auditItemId: 'abuse' }));
+  });
+
+  test('a regular user cannot write a term list, even with an audit entry', async () => {
+    await seedAccount('alice', 'user');
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(auditedListWrite(db, 'alice', 'crisis', ['anything here']));
+  });
+
+  test('a moderator cannot write a term list', async () => {
+    await seedAccount('mo', 'moderator');
+    const db = testEnv.authenticatedContext('mo').firestore();
+    await assertFails(auditedListWrite(db, 'mo', 'abuse', ['anything here']));
+  });
+
+  test('an admin cannot create a list outside crisis, abuse and contact', async () => {
+    await seedAccount('ada', 'admin');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(auditedListWrite(db, 'ada', 'other', ['anything here']));
+  });
+
+  test('an admin cannot save more than 200 terms', async () => {
+    await seedAccount('ada', 'admin');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    const tooMany = Array.from({ length: 201 }, (_, i) => `term ${i}`);
+    await assertFails(auditedListWrite(db, 'ada', 'abuse', tooMany));
+  });
+
+  test('an admin cannot add other fields to a term list', async () => {
+    await seedAccount('ada', 'admin');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(auditedListWrite(db, 'ada', 'abuse', ['one term'], { extraListFields: { note: 'x' } }));
+  });
+
+  test('nobody can delete a term list, not even an admin', async () => {
+    await seedAccount('ada', 'admin');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'termLists/abuse'), { terms: ['one term'] });
+    });
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(deleteDoc(doc(db, 'termLists/abuse')));
+  });
+});
+
+// The term lists only change what the chat screen catches in the
+// browser. The fixed checks in firestore.rules stay exactly the same,
+// whatever an admin saves (FR 6.2, FR 6.3, FR 7.1).
+describe('the fixed Rules checks still apply whatever the term lists say', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'chats/chat-1'), { userId: 'alice', listenerId: 'grace', status: 'active' });
+      // An admin has added one unrelated crisis term and left contact empty.
+      await setDoc(doc(db, 'termLists/crisis'), { terms: ['fade away forever'] });
+      await setDoc(doc(db, 'termLists/contact'), { terms: [] });
+    });
+  });
+
+  test('a crisis message with no matching flag is still refused', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'messages/msg-1'), { chatId: 'chat-1', senderId: 'alice', text: 'I want to kill myself' })
+    );
+  });
+
+  test('contact sharing is still refused, even with an empty contact list', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'messages/msg-2'), { chatId: 'chat-1', senderId: 'alice', text: 'whatsapp me later' })
+    );
+    await assertFails(
+      setDoc(doc(db, 'messages/msg-3'), { chatId: 'chat-1', senderId: 'alice', text: 'call me at 0788123456' })
+    );
+  });
+
+  test('an admin-added term does not change what the Rules accept', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'messages/msg-4'), { chatId: 'chat-1', senderId: 'alice', text: 'I want to fade away forever' })
+    );
+  });
+});

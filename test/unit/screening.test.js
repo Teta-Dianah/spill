@@ -1,4 +1,12 @@
-const { screenMessage, normalise } = require('../../public/js/screening.js');
+const {
+  screenMessage,
+  normalise,
+  cleanTerm,
+  cleanTermList,
+  applyTermChange,
+  DEFAULT_TERM_LISTS,
+  MAX_TERMS_PER_LIST,
+} = require('../../public/js/screening.js');
 
 // Labelled sample messages for NFR 21 (at least 40, precision and recall
 // reported). Each message says what it SHOULD be flagged as — crisis,
@@ -205,5 +213,105 @@ describe('normalise', () => {
 
   test('strips punctuation', () => {
     expect(normalise("Hi, how's it going?!")).toBe('hi hows it going');
+  });
+});
+
+// FR 7.1: terms an admin adds through admin-terms.html, stored in
+// Firestore and passed to screenMessage() as its second argument.
+// Makes n different terms using letters only. normalise() turns digits
+// into letters and collapses repeats, so "term 1" style names could end
+// up as duplicates of each other.
+function distinctTerms(n) {
+  const letters = 'abcdefghijklmnopqrstuvwxyz';
+  const terms = [];
+  for (let i = 0; i < n; i++) {
+    terms.push('term ' + letters[Math.floor(i / 26) % 26] + letters[i % 26]);
+  }
+  return terms;
+}
+
+describe('admin-added terms (FR 7.1)', () => {
+  test('a crisis term added through the lists is caught', () => {
+    const extra = { crisis: ['fade away forever'] };
+    expect(screenMessage('some days I just want to fade away forever', extra).hasCrisisLanguage).toBe(true);
+    expect(screenMessage('some days I just want to fade away forever').hasCrisisLanguage).toBe(false);
+  });
+
+  test('an abuse term and a contact phrase added through the lists are caught', () => {
+    const extra = { abuse: ['useless clown'], contact: ['find me outside'] };
+    expect(screenMessage('you useless clown', extra).hasAbusiveLanguage).toBe(true);
+    expect(screenMessage('find me outside after school', extra).hasContactSharing).toBe(true);
+  });
+
+  test('matching ignores capitals and accents, like messages', () => {
+    const extra = { crisis: ['Fade Away Forever'] };
+    expect(screenMessage('I want to FÄDE away forever', extra).hasCrisisLanguage).toBe(true);
+  });
+
+  test('admin terms add to the built-in lists, never replace them', () => {
+    const extra = { crisis: ['fade away forever'], contact: ['find me outside'] };
+    expect(screenMessage('I want to kill myself', extra).hasCrisisLanguage).toBe(true);
+    expect(screenMessage('call me at 0788123456', extra).hasContactSharing).toBe(true);
+    expect(screenMessage('whatsapp me later', extra).hasContactSharing).toBe(true);
+  });
+
+  test('missing, empty or broken lists fall back to the built-in terms', () => {
+    [null, {}, { crisis: [] }, { crisis: 'not a list' }, { crisis: [42, null] }].forEach((extra) => {
+      expect(screenMessage('I want to kill myself', extra).hasCrisisLanguage).toBe(true);
+      expect(screenMessage('Hi, how are you today?', extra).hasCrisisLanguage).toBe(false);
+    });
+  });
+
+  test('terms are plain text, never a regex', () => {
+    expect(cleanTerm('.*')).toBe('');
+    const extra = { abuse: ['bad|word'] };
+    expect(screenMessage('that was bad', extra).hasAbusiveLanguage).toBe(false);
+    expect(screenMessage('that was bad word', extra).hasAbusiveLanguage).toBe(true);
+  });
+
+  test('terms that are too short or too long are ignored', () => {
+    expect(cleanTerm('hi')).toBe('');
+    expect(cleanTerm('a'.repeat(61))).toBe('');
+    expect(screenMessage('hi there', { abuse: ['hi'] }).hasAbusiveLanguage).toBe(false);
+  });
+
+  test('a saved list is capped and de-duplicated when loaded', () => {
+    expect(cleanTermList(distinctTerms(MAX_TERMS_PER_LIST + 50)).length).toBe(MAX_TERMS_PER_LIST);
+    expect(cleanTermList(['Same Term', 'same term', 'SAME TERM!'])).toEqual(['same term']);
+  });
+});
+
+describe('applyTermChange (admin add, edit, remove)', () => {
+  test('adds a cleaned term', () => {
+    expect(applyTermChange('crisis', [], 'add', null, '  Fade Away Forever ')).toEqual({ terms: ['fade away forever'] });
+  });
+
+  test('edits a term in place', () => {
+    const result = applyTermChange('abuse', ['one term', 'two term'], 'edit', 'one term', 'new term');
+    expect(result).toEqual({ terms: ['new term', 'two term'] });
+  });
+
+  test('removes a term', () => {
+    expect(applyTermChange('abuse', ['one term', 'two term'], 'remove', 'one term')).toEqual({ terms: ['two term'] });
+  });
+
+  test('refuses a duplicate, including a built-in term', () => {
+    expect(applyTermChange('abuse', ['one term'], 'add', null, 'ONE TERM').error).toBeDefined();
+    expect(applyTermChange('crisis', [], 'add', null, DEFAULT_TERM_LISTS.crisis[0]).error).toBeDefined();
+  });
+
+  test('refuses a term that is too short or too long', () => {
+    expect(applyTermChange('abuse', [], 'add', null, 'hi').error).toBeDefined();
+    expect(applyTermChange('abuse', [], 'add', null, 'a'.repeat(61)).error).toBeDefined();
+  });
+
+  test('refuses to add once the list is full', () => {
+    const full = distinctTerms(MAX_TERMS_PER_LIST);
+    expect(applyTermChange('abuse', full, 'add', null, 'one more').error).toBeDefined();
+  });
+
+  test('refuses to edit or remove a term that is no longer there', () => {
+    expect(applyTermChange('abuse', [], 'remove', 'gone term').error).toBeDefined();
+    expect(applyTermChange('abuse', [], 'edit', 'gone term', 'new term').error).toBeDefined();
   });
 });

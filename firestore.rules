@@ -13,7 +13,8 @@ rules_version = '2';
 // admin-editable set of term lists (FR 7.1) that the app uses for the
 // actual chat experience (showing the crisis card promptly, warning
 // messages, etc.) — editing those lists changes the app's behaviour, not
-// what the database will actually accept.
+// what the database will actually accept. Admin terms are only ever
+// added on top of the built-in lists (see termLists below).
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -110,6 +111,20 @@ service cloud.firestore {
         itemSubject == uid;
     }
 
+    // Helper: is this term list write paired with a NEW auditLog entry
+    // written in the same batch, by this admin, about this list (FR 7.1,
+    // FR 6.9)? The entry must not exist before the write, so an admin
+    // can't point at an old entry and make an unlogged change.
+    function hasNewTermListAuditEntry(category) {
+      let auditLogId = request.resource.data.lastAuditLogId;
+      let entry = getAfter(/databases/$(database)/documents/auditLog/$(auditLogId)).data;
+      return !exists(/databases/$(database)/documents/auditLog/$(auditLogId)) &&
+        entry.actorId == request.auth.uid &&
+        entry.itemType == 'termList' &&
+        entry.itemId == category &&
+        entry.action in ['add_term', 'edit_term', 'remove_term'];
+    }
+
     // Fixed, non-editable crisis-language check (FR 6.2). Deliberately
     // small — this is a backstop, not the primary detector.
     function hasCrisisLanguage(text) {
@@ -169,6 +184,28 @@ service cloud.firestore {
     match /resources/{resourceId} {
       allow read: if true;
       allow write: if hasRole('admin');
+    }
+
+    // termLists/{category} — extra screening terms an admin adds for
+    // crisis, abuse or contact-sharing (FR 7.1), as { terms: [...] }.
+    // Any signed-in user can read them, since screening runs in each
+    // person's own browser while they chat. Only an admin can write,
+    // only to these three lists, at most 200 terms, and every change
+    // must come with its own auditLog entry in the same batch. Rules
+    // can't loop over a list, so the length of each term is checked by
+    // screening.js when the list is loaded, not here. These lists never
+    // change what this file accepts: the fixed hasCrisisLanguage and
+    // hasContactSharing checks above stay the same whatever is saved.
+    match /termLists/{category} {
+      allow read: if request.auth != null;
+
+      allow create, update: if hasRole('admin') &&
+        category in ['crisis', 'abuse', 'contact'] &&
+        request.resource.data.keys().hasOnly(['terms', 'lastAuditLogId', 'updatedBy', 'updatedAt']) &&
+        request.resource.data.terms is list &&
+        request.resource.data.terms.size() <= 200 &&
+        request.resource.data.updatedBy == request.auth.uid &&
+        hasNewTermListAuditEntry(category);
     }
 
     // moods/{moodId} — one document per mood check-in (FR 3). A user can
