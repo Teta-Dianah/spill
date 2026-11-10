@@ -63,24 +63,28 @@ So an admin editing the term lists can make Spill *more* responsive to new phras
 
 - A 45-message labelled set, used while writing the built-in term lists and patterns.
 - A held-out set of 16 messages never used while tuning, including Kinyarwanda and mixed Kinyarwanda/English.
-- A second held-out set of 47 messages (`test/data/screening-held-out-2.txt`): 14 crisis, 9 abuse, 10 contact and 14 normal, in Kinyarwanda, English and mixed. It was run once and was never used to choose or change terms.
+- A second set of 47 messages (`test/data/screening-held-out-2.txt`): 14 crisis, 9 abuse, 10 contact and 14 normal, in Kinyarwanda, English and mixed. It was held out for its first run only. The seed terms were then changed based on its misses and false positives, so **it is now tuned after this change** and its current numbers are not held-out results.
 
-Each set is scored with the built-in lists only ("before") and with the Kinyarwanda terms in `scripts/term-lists-seed.json` added ("after"). Precision (P) and recall (R), before → after:
+Each set is scored with the built-in lists only ("before") and with the terms in `scripts/term-lists-seed.json` added ("after"). Precision (P) and recall (R), before → after:
 
 | Set | Crisis | Contact | Abuse |
 |---|---|---|---|
 | Tuned set (45) | P 1.00 → 1.00, R 1.00 → 1.00 | P 1.00 → 1.00, R 1.00 → 1.00 | P 1.00 → 1.00, R 1.00 → 1.00 |
 | Previous held-out (16) | P 1.00 → 1.00, R 0.13 → 0.38 | P 1.00 → 1.00, R 1.00 → 1.00 | P 1.00 → 1.00, R 0.00 → 0.50 |
-| Second held-out (47) | P n/a → 1.00, R 0.00 → 0.64 | P 1.00 → 1.00, R 0.60 → 0.90 | P 1.00 → 0.82, R 0.44 → 1.00 |
+| Second set (47), first run, held-out | P n/a → 1.00, R 0.00 → 0.64 | P 1.00 → 1.00, R 0.60 → 0.90 | P 1.00 → 0.82, R 0.44 → 1.00 |
+| Second set (47), tuned after this change | P n/a → 1.00, R 0.00 → 1.00 | P 1.00 → 1.00, R 0.60 → 0.90 | P 1.00 → 1.00, R 0.44 → 1.00 |
 
-On the second held-out set, with the seed terms added:
+The first-run row is the honest held-out result for the second set. After that run, "kwipfira" and seven English crisis phrases were added ("point in going on", "better off without me", "end it all", "ending it all", "disappear forever", "never wake up", "life has no worth"), and "nzakubona" and "va hano" were removed from the abuse list because they matched everyday messages ("Nzakubona ejo", "Kuva hano"). The tuned row only shows that those changes did what they were meant to. A fresh, unseen set is needed for a new held-out number.
 
-- All 4 English crisis messages are missed. They're reworded away from the built-in English phrases ("ending it all", "better off without me").
-- Two mixed messages are missed: a crisis message using "kwipfira", which isn't on the list, and a contact message offering money without a listed phrase.
-- Two normal Kinyarwanda messages are flagged as abuse: "Nzakubona ejo kuri kaminuza" (matches "nzakubona") and "Kuva hano ni kure cyane" (matches "va hano" inside "kuva hano").
-- Most Kinyarwanda messages in this set use the seed phrases word for word, so their perfect Kinyarwanda recall shows the terms work when the phrasing matches, not that they generalise.
+On the second set, after the change, one message is still missed: "njye nagufasha muri uwo mubabaro uzaze unsure that i also give you some money" (see below). Matching is literal, so the English phrases were added in the forms the set used: "point in going on" rather than "no point in going on" (the message says "the point"), and "ending it all" next to "end it all".
 
-These gaps are the phrase-list limitation the SRS already documents (section 2.5), not a bug: reworded text rarely matches a fixed phrase list. They're reported here rather than tuned away because `firestore.rules` is the actual backstop regardless of what this file catches.
+Most Kinyarwanda messages in this set use the seed phrases word for word, so their perfect Kinyarwanda recall shows the terms work when the phrasing matches, not that they generalise.
+
+### Known limit of term matching
+
+Term matching only finds a listed phrase written the same way. It can't see what a message *means*. The contact message above, roughly "I can help you with that pain, come and see me, and I'll also give you some money", is an attempt to meet in person with an offer of money, which is a grooming pattern. But it uses no listed phrase, no phone number, link or platform name, and its words ("uzaze", "unsure", "give you some money") are too common to add as terms without blocking everyday messages. So it gets through. Adding more phrases can't fully close this kind of gap. That's why the report and block buttons, the moderator queue and listener training still matter for these cases.
+
+These gaps are the phrase-list limitation the SRS already documents (section 2.5), not a bug: reworded text rarely matches a fixed phrase list. `firestore.rules` stays the actual backstop regardless of what this file catches.
 
 ## How matching avoids duplicate requests
 
@@ -112,13 +116,13 @@ To add some sample helplines and clinics to try the resources page, run in anoth
 npm run seed
 ```
 
-To add the starter Kinyarwanda screening terms in `scripts/term-lists-seed.json` to the admin term lists (FR 7.1):
+To add the starter screening terms in `scripts/term-lists-seed.json` (mostly Kinyarwanda, plus a few English crisis phrases) to the admin term lists (FR 7.1):
 
 ```bash
 npm run seed:terms
 ```
 
-Each term goes through the same checks as `admin-terms.html`, and each one added gets its own `auditLog` entry. Terms already on a list are skipped, so it's safe to run again.
+Each term goes through the same checks as `admin-terms.html`, and each one added gets its own `auditLog` entry. Terms already on a list are skipped, so it's safe to run again. The script only adds terms: removing a term from the seed file doesn't remove it from a database that was already seeded. Remove it on `admin-terms.html` instead, so the removal is logged too.
 
 ## Testing
 
