@@ -3,7 +3,7 @@
 // firebase-config.js is gitignored on purpose — never commit real project
 // keys, especially for the pilot project.
 
-export const firebaseConfig = {
+var firebaseConfig = {
   apiKey: 'REPLACE_ME',
   authDomain: 'REPLACE_ME.firebaseapp.com',
   projectId: 'REPLACE_ME',
