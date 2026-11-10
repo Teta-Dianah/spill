@@ -315,3 +315,134 @@ describe('applyTermChange (admin add, edit, remove)', () => {
     expect(applyTermChange('abuse', [], 'edit', 'gone term', 'new term').error).toBeDefined();
   });
 });
+
+// FR 7.1, NFR 21: the same sets scored with the built-in lists only
+// ("before") and with the terms in scripts/term-lists-seed.json added
+// ("after"), as an admin would add them. Reported, not tuned: no term
+// or rule is changed to make a set score better.
+const SEED_TERMS = require('../../scripts/term-lists-seed.json');
+
+// A second held-out set (test/data/screening-held-out-2.txt), written
+// separately and never used to choose or change terms. Each line is
+// "label | message | language", with one label per message: crisis,
+// abuse, contact or normal.
+function loadHeldOutSet2() {
+  const text = require('fs').readFileSync(require('path').join(__dirname, '../data/screening-held-out-2.txt'), 'utf8');
+  return text
+    .split(/\r?\n/)
+    .slice(1)
+    .filter((line) => line.trim())
+    .map((line) => {
+      const [label, message, language] = line.split(' | ').map((part) => part.trim());
+      return {
+        text: message,
+        language,
+        label,
+        crisis: label === 'crisis',
+        contact: label === 'contact',
+        abuse: label === 'abuse',
+      };
+    });
+}
+const HELD_OUT_SET_2 = loadHeldOutSet2();
+const CATEGORIES = { crisis: 'hasCrisisLanguage', contact: 'hasContactSharing', abuse: 'hasAbusiveLanguage' };
+
+function scoreSet(messages, extraTerms) {
+  const scores = {};
+  Object.keys(CATEGORIES).forEach((category) => {
+    scores[category] = scoreCategory(messages, category, (text) => screenMessage(text, extraTerms)[CATEGORIES[category]]);
+  });
+  return scores;
+}
+
+function formatScores(name, before, after) {
+  const lines = [name];
+  Object.keys(CATEGORIES).forEach((category) => {
+    const b = before[category];
+    const a = after[category];
+    lines.push(
+      `  ${category.padEnd(8)} precision ${b.precision.toFixed(2)} -> ${a.precision.toFixed(2)}, ` +
+      `recall ${b.recall.toFixed(2)} -> ${a.recall.toFixed(2)} ` +
+      `(TP ${b.truePositive}->${a.truePositive}, FP ${b.falsePositive}->${a.falsePositive}, FN ${b.falseNegative}->${a.falseNegative})`
+    );
+  });
+  return lines.join('\n');
+}
+
+describe('before and after adding the seed terms (FR 7.1, NFR 21)', () => {
+  const SETS = [
+    ['tuned set', LABELLED_MESSAGES],
+    ['previous held-out set', HELD_OUT_MESSAGES],
+    ['second held-out set', HELD_OUT_SET_2],
+  ];
+
+  test.each(SETS)('%s: precision and recall before and after', (name, messages) => {
+    const before = scoreSet(messages);
+    const after = scoreSet(messages, SEED_TERMS);
+    console.log(formatScores(name, before, after));
+
+    // Seed terms only ever add to the built-in lists, so nothing caught
+    // before can be missed after.
+    Object.keys(CATEGORIES).forEach((category) => {
+      expect(after[category].truePositive).toBeGreaterThanOrEqual(before[category].truePositive);
+    });
+  });
+
+  test('every seed term is valid and is caught when sent on its own', () => {
+    Object.keys(CATEGORIES).forEach((category) => {
+      SEED_TERMS[category].forEach((term) => {
+        expect(cleanTerm(term)).not.toBe('');
+        expect(screenMessage(term, SEED_TERMS)[CATEGORIES[category]]).toBe(true);
+      });
+    });
+  });
+});
+
+// Detail for the second held-out set: scores per language, and every
+// miss and false positive, with and without the seed terms. Reported
+// only — nothing here may be used to change terms.
+describe('second held-out set in detail (NFR 21)', () => {
+  function showScore(score) {
+    const precision = score.truePositive + score.falsePositive === 0 ? 'n/a' : score.precision.toFixed(2);
+    const recall = score.truePositive + score.falseNegative === 0 ? 'n/a' : score.recall.toFixed(2);
+    return `P ${precision} R ${recall} (TP ${score.truePositive}, FP ${score.falsePositive}, FN ${score.falseNegative})`;
+  }
+
+  function mistakes(messages, extraTerms) {
+    const lines = [];
+    messages.forEach((message) => {
+      const screened = screenMessage(message.text, extraTerms);
+      Object.keys(CATEGORIES).forEach((category) => {
+        const predicted = screened[CATEGORIES[category]];
+        if (message[category] && !predicted) lines.push(`  MISS ${category} [${message.language}] ${message.text}`);
+        if (!message[category] && predicted) lines.push(`  FALSE POSITIVE ${category} (labelled ${message.label}) [${message.language}] ${message.text}`);
+      });
+    });
+    return lines.length ? lines.join('\n') : '  none';
+  }
+
+  test('the set loads as expected', () => {
+    expect(HELD_OUT_SET_2.length).toBe(47);
+    HELD_OUT_SET_2.forEach((message) => {
+      expect(['crisis', 'abuse', 'contact', 'normal']).toContain(message.label);
+      expect(['kinyarwanda', 'english', 'mixed']).toContain(message.language);
+    });
+  });
+
+  test('per language, and every miss and false positive, before and after', () => {
+    const lines = [];
+    [['before (built-in lists only)', undefined], ['after (seed terms added)', SEED_TERMS]].forEach(([name, extraTerms]) => {
+      lines.push(name);
+      ['kinyarwanda', 'english', 'mixed'].forEach((language) => {
+        const subset = HELD_OUT_SET_2.filter((message) => message.language === language);
+        const scores = scoreSet(subset, extraTerms);
+        Object.keys(CATEGORIES).forEach((category) => {
+          lines.push(`  ${language.padEnd(11)} ${category.padEnd(8)} ${showScore(scores[category])}`);
+        });
+      });
+      lines.push(mistakes(HELD_OUT_SET_2, extraTerms));
+    });
+    console.log(lines.join('\n'));
+    expect(lines.length).toBeGreaterThan(0);
+  });
+});
