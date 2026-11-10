@@ -59,12 +59,28 @@ An admin can add, edit and remove extra terms for the crisis, abuse and contact 
 
 So an admin editing the term lists can make Spill *more* responsive to new phrasing, but can never turn off the underlying safety net in `firestore.rules`.
 
-`test/unit/screening.test.js` measures `screenMessage()` against two sets (NFR 21):
+`test/unit/screening.test.js` measures `screenMessage()` against three sets (NFR 21):
 
-- A 45-message labelled set, used while writing the term lists and patterns: 100% precision and recall on crisis, contact-sharing and abusive language.
-- A held-out set of 16 messages never used while tuning, including Kinyarwanda and mixed Kinyarwanda/English, measuring how the English-only term lists actually generalise: crisis recall 0.125, abusive-language recall 0, contact-sharing recall 1.0 (contact-sharing is pattern-based — phone numbers, platform names — not an English phrase list, so it holds up far better across languages).
+- A 45-message labelled set, used while writing the built-in term lists and patterns.
+- A held-out set of 16 messages never used while tuning, including Kinyarwanda and mixed Kinyarwanda/English.
+- A second held-out set of 47 messages (`test/data/screening-held-out-2.txt`): 14 crisis, 9 abuse, 10 contact and 14 normal, in Kinyarwanda, English and mixed. It was run once and was never used to choose or change terms.
 
-The crisis and abuse drop on the held-out set is the English-only limitation the SRS already documents (section 2.5), not a bug — Kinyarwanda text and reworded English rarely match a fixed English phrase list. It's reported here rather than tuned away because `firestore.rules` is the actual backstop regardless of what this file catches.
+Each set is scored with the built-in lists only ("before") and with the Kinyarwanda terms in `scripts/term-lists-seed.json` added ("after"). Precision (P) and recall (R), before → after:
+
+| Set | Crisis | Contact | Abuse |
+|---|---|---|---|
+| Tuned set (45) | P 1.00 → 1.00, R 1.00 → 1.00 | P 1.00 → 1.00, R 1.00 → 1.00 | P 1.00 → 1.00, R 1.00 → 1.00 |
+| Previous held-out (16) | P 1.00 → 1.00, R 0.13 → 0.38 | P 1.00 → 1.00, R 1.00 → 1.00 | P 1.00 → 1.00, R 0.00 → 0.50 |
+| Second held-out (47) | P n/a → 1.00, R 0.00 → 0.64 | P 1.00 → 1.00, R 0.60 → 0.90 | P 1.00 → 0.82, R 0.44 → 1.00 |
+
+On the second held-out set, with the seed terms added:
+
+- All 4 English crisis messages are missed. They're reworded away from the built-in English phrases ("ending it all", "better off without me").
+- Two mixed messages are missed: a crisis message using "kwipfira", which isn't on the list, and a contact message offering money without a listed phrase.
+- Two normal Kinyarwanda messages are flagged as abuse: "Nzakubona ejo kuri kaminuza" (matches "nzakubona") and "Kuva hano ni kure cyane" (matches "va hano" inside "kuva hano").
+- Most Kinyarwanda messages in this set use the seed phrases word for word, so their perfect Kinyarwanda recall shows the terms work when the phrasing matches, not that they generalise.
+
+These gaps are the phrase-list limitation the SRS already documents (section 2.5), not a bug: reworded text rarely matches a fixed phrase list. They're reported here rather than tuned away because `firestore.rules` is the actual backstop regardless of what this file catches.
 
 ## How matching avoids duplicate requests
 
