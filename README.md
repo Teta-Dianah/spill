@@ -72,15 +72,11 @@ Each set is scored with the built-in lists only ("before") and with the terms in
 | Tuned set (45) | P 1.00 → 1.00, R 1.00 → 1.00 | P 1.00 → 1.00, R 1.00 → 1.00 | P 1.00 → 1.00, R 1.00 → 1.00 |
 | Previous held-out (16) | P 1.00 → 1.00, R 0.13 → 0.38 | P 1.00 → 1.00, R 1.00 → 1.00 | P 1.00 → 1.00, R 0.00 → 0.50 |
 | Second set (47), first run, held-out | P n/a → 1.00, R 0.00 → 0.64 | P 1.00 → 1.00, R 0.60 → 0.90 | P 1.00 → 0.82, R 0.44 → 1.00 |
-| Second set (47), tuned after this change | P n/a → 1.00, R 0.00 → 0.86 | P 1.00 → 1.00, R 0.60 → 0.90 | P 1.00 → 1.00, R 0.44 → 1.00 |
+| Second set (47), tuned after this change | P n/a → 1.00, R 0.00 → 1.00 | P 1.00 → 1.00, R 0.60 → 0.90 | P 1.00 → 1.00, R 0.44 → 1.00 |
 
-The first-run row is the honest held-out result for the second set. After that run, "kwipfira" and six English crisis phrases were added, and "nzakubona" and "va hano" were removed from the abuse list because they matched everyday messages ("Nzakubona ejo", "Kuva hano"). The tuned row only shows that those changes did what they were meant to. A fresh, unseen set is needed for a new held-out number.
+The first-run row is the honest held-out result for the second set. After that run, "kwipfira" and seven English crisis phrases were added ("point in going on", "better off without me", "end it all", "ending it all", "disappear forever", "never wake up", "life has no worth"), and "nzakubona" and "va hano" were removed from the abuse list because they matched everyday messages ("Nzakubona ejo", "Kuva hano"). The tuned row only shows that those changes did what they were meant to. A fresh, unseen set is needed for a new held-out number.
 
-On the second set, after the change, these are still missed:
-
-- "I don't see the point in going on anymore." The term is "no point in going on", and matching is literal, so "the point" doesn't match "no point".
-- "I've been thinking about ending it all." The term "end it all" doesn't match "ending it all".
-- "njye nagufasha muri uwo mubabaro uzaze unsure that i also give you some money" (see below).
+On the second set, after the change, one message is still missed: "njye nagufasha muri uwo mubabaro uzaze unsure that i also give you some money" (see below). Matching is literal, so the English phrases were added in the forms the set used: "point in going on" rather than "no point in going on" (the message says "the point"), and "ending it all" next to "end it all".
 
 Most Kinyarwanda messages in this set use the seed phrases word for word, so their perfect Kinyarwanda recall shows the terms work when the phrasing matches, not that they generalise.
 

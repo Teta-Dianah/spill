@@ -454,9 +454,10 @@ describe('second set in detail, tuned after the term fixes (NFR 21)', () => {
 describe('term fixes: new crisis terms and removed abuse terms', () => {
   test.each([
     ['kwipfira', 'Ndumva nshaka kwipfira'],
-    ['no point in going on', 'there is no point in going on like this'],
+    ['point in going on', 'there is no point in going on like this'],
     ['better off without me', 'my family would be better off without me'],
     ['end it all', 'I want to end it all tonight'],
+    ['ending it all', 'I keep thinking about ending it all'],
     ['disappear forever', 'I wish I could disappear forever'],
     ['never wake up', 'I hope I never wake up'],
     ['life has no worth', 'my life has no worth'],
@@ -464,6 +465,13 @@ describe('term fixes: new crisis terms and removed abuse terms', () => {
     expect(SEED_TERMS.crisis).toContain(term);
     expect(screenMessage(message, SEED_TERMS).hasCrisisLanguage).toBe(true);
     expect(screenMessage(message).hasCrisisLanguage).toBe(false);
+  });
+
+  test.each([
+    "I don't see the point in going on anymore.",
+    "I've been thinking about ending it all.",
+  ])('the second set\'s English crisis message "%s" is now flagged as crisis', (message) => {
+    expect(screenMessage(message, SEED_TERMS).hasCrisisLanguage).toBe(true);
   });
 
   test('"nzakubona ejo" and "kuva hano" are not flagged', () => {
