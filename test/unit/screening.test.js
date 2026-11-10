@@ -315,3 +315,60 @@ describe('applyTermChange (admin add, edit, remove)', () => {
     expect(applyTermChange('abuse', [], 'edit', 'gone term', 'new term').error).toBeDefined();
   });
 });
+
+// FR 7.1, NFR 21: the same sets scored with the built-in lists only
+// ("before") and with the terms in scripts/term-lists-seed.json added
+// ("after"), as an admin would add them. Reported, not tuned: no term
+// or rule is changed to make a set score better.
+const SEED_TERMS = require('../../scripts/term-lists-seed.json');
+const CATEGORIES = { crisis: 'hasCrisisLanguage', contact: 'hasContactSharing', abuse: 'hasAbusiveLanguage' };
+
+function scoreSet(messages, extraTerms) {
+  const scores = {};
+  Object.keys(CATEGORIES).forEach((category) => {
+    scores[category] = scoreCategory(messages, category, (text) => screenMessage(text, extraTerms)[CATEGORIES[category]]);
+  });
+  return scores;
+}
+
+function formatScores(name, before, after) {
+  const lines = [name];
+  Object.keys(CATEGORIES).forEach((category) => {
+    const b = before[category];
+    const a = after[category];
+    lines.push(
+      `  ${category.padEnd(8)} precision ${b.precision.toFixed(2)} -> ${a.precision.toFixed(2)}, ` +
+      `recall ${b.recall.toFixed(2)} -> ${a.recall.toFixed(2)} ` +
+      `(TP ${b.truePositive}->${a.truePositive}, FP ${b.falsePositive}->${a.falsePositive}, FN ${b.falseNegative}->${a.falseNegative})`
+    );
+  });
+  return lines.join('\n');
+}
+
+describe('before and after adding the seed terms (FR 7.1, NFR 21)', () => {
+  const SETS = [
+    ['tuned set', LABELLED_MESSAGES],
+    ['previous held-out set', HELD_OUT_MESSAGES],
+  ];
+
+  test.each(SETS)('%s: precision and recall before and after', (name, messages) => {
+    const before = scoreSet(messages);
+    const after = scoreSet(messages, SEED_TERMS);
+    console.log(formatScores(name, before, after));
+
+    // Seed terms only ever add to the built-in lists, so nothing caught
+    // before can be missed after.
+    Object.keys(CATEGORIES).forEach((category) => {
+      expect(after[category].truePositive).toBeGreaterThanOrEqual(before[category].truePositive);
+    });
+  });
+
+  test('every seed term is valid and is caught when sent on its own', () => {
+    Object.keys(CATEGORIES).forEach((category) => {
+      SEED_TERMS[category].forEach((term) => {
+        expect(cleanTerm(term)).not.toBe('');
+        expect(screenMessage(term, SEED_TERMS)[CATEGORIES[category]]).toBe(true);
+      });
+    });
+  });
+});

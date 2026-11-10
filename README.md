@@ -96,6 +96,14 @@ To add some sample helplines and clinics to try the resources page, run in anoth
 npm run seed
 ```
 
+To add the starter Kinyarwanda screening terms in `scripts/term-lists-seed.json` to the admin term lists (FR 7.1):
+
+```bash
+npm run seed:terms
+```
+
+Each term goes through the same checks as `admin-terms.html`, and each one added gets its own `auditLog` entry. Terms already on a list are skipped, so it's safe to run again.
+
 ## Testing
 
 ```bash
