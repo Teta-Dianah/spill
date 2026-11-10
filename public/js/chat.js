@@ -76,6 +76,32 @@ function listenForMessages(chatId, myUid) {
 
 var currentChat = null;
 
+// Admin-added screening terms (FR 7.1), loaded once per chat session.
+// Until they load, or if loading fails, screening still uses the
+// built-in lists in screening.js.
+var extraScreeningTerms = null;
+
+function loadExtraScreeningTerms() {
+  var db = firebase.firestore();
+  var categories = ['crisis', 'abuse', 'contact'];
+
+  Promise.all(
+    categories.map(function (category) {
+      return db.collection('termLists').doc(category).get();
+    })
+  )
+    .then(function (docs) {
+      var lists = {};
+      categories.forEach(function (category, index) {
+        lists[category] = docs[index].exists ? docs[index].data().terms : [];
+      });
+      extraScreeningTerms = lists;
+    })
+    .catch(function (error) {
+      console.error(error);
+    });
+}
+
 function listenForChatStatus(chatId) {
   firebase
     .firestore()
@@ -300,7 +326,7 @@ function sendAbuseFlaggedMessage(chatId, user, text) {
 
 // Screens the message, then sends it the right way (FR 6.1-6.4).
 function screenAndSendMessage(chatId, user, text, isListener, form) {
-  var screened = screenMessage(text);
+  var screened = screenMessage(text, extraScreeningTerms);
 
   if (screened.hasContactSharing) {
     sendBlockedAttempt(chatId, user, text, isListener, screened.hasCrisisLanguage)
@@ -375,6 +401,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     listenForChatStatus(chatId);
     listenForMessages(chatId, user.uid);
+    loadExtraScreeningTerms();
   });
 
   var form = document.getElementById('message-form');

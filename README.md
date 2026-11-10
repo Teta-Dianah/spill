@@ -46,9 +46,18 @@ Everything runs on Firebase's free Spark plan — no billing account, no paid se
 Every chat message is checked for crisis language and attempts to share contact details before it's delivered. This happens in two layers, on purpose:
 
 - **`firestore.rules`** has its own small, fixed set of crisis and contact-sharing patterns, hardcoded and not editable without a redeploy. This is the real safety backstop — it's enforced at write time no matter what any client does, tampered or not.
-- **`public/js/screening.js`** has a richer, normalised set of term lists that an admin can edit from the admin pages without redeploying anything. This drives the actual chat experience (showing the crisis card promptly, warning messages about blocked contact-sharing attempts) — editing these lists changes the app's behaviour, not what the database will actually accept.
+- **`public/js/screening.js`** has a richer, normalised set of built-in term lists and contact-sharing patterns. This drives the actual chat experience (showing the crisis card promptly, warning messages about blocked contact-sharing attempts). It changes the app's behaviour, not what the database will actually accept.
 
-So an admin editing the term lists can make Spill *more* responsive to new phrasing, but can never turn off the underlying safety net.
+### Admin-added terms (FR 7.1)
+
+An admin can add, edit and remove extra terms for the crisis, abuse and contact lists on `admin-terms.html`, without a redeploy (for example, Kinyarwanda words). They're stored in `termLists/{crisis,abuse,contact}` as `{ terms: [...] }`, and the chat screen loads them once per chat.
+
+- Admin terms are only ever **added** to the built-in lists. The built-in terms and contact patterns (phone numbers, emails, links, @handles, app names) always stay on, so an admin can't make screening weaker by mistake.
+- Terms are plain text, not patterns. They're normalised the same way as messages (lower case, no accents or punctuation), must be 3 to 60 characters, and each list holds at most 200. Lists read from Firestore are cleaned again when loaded, so a bad saved value can't break screening.
+- Any signed-in user can read the lists. Only an admin can write them, and `firestore.rules` refuses any change that doesn't come with its own new `auditLog` entry in the same write.
+- If the lists can't be loaded, screening falls back to the built-in lists.
+
+So an admin editing the term lists can make Spill *more* responsive to new phrasing, but can never turn off the underlying safety net in `firestore.rules`.
 
 `test/unit/screening.test.js` measures `screenMessage()` against two sets (NFR 21):
 
