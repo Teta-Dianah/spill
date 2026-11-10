@@ -80,7 +80,7 @@ You'll need Node.js and a JDK 21 or newer (the Firebase emulators run on Java).
 npm install
 ```
 
-Copy `public/js/firebase-config.example.js` to `public/js/firebase-config.js` and fill in your Firebase project's values. For local development against the emulators only, the committed `public/js/firebase-config.js` already points at a fake "demo-spill-dev" project, so this step is only needed once you connect to a real Firebase project.
+Copy `public/js/firebase-config.example.js` to `public/js/firebase-config.js`. That file is gitignored, so it never gets committed. For local development against the emulators, set `projectId` to `demo-spill-dev` and leave the other values as placeholders: the emulators never check them. Fill in real values only when you connect to a real Firebase project.
 
 ## Running locally
 
