@@ -4,6 +4,8 @@ const {
   cleanTerm,
   cleanTermList,
   applyTermChange,
+  parseModelAnswer,
+  addModelLevels,
   DEFAULT_TERM_LISTS,
   MAX_TERMS_PER_LIST,
 } = require('../../public/js/screening.js');
@@ -313,6 +315,80 @@ describe('applyTermChange (admin add, edit, remove)', () => {
   test('refuses to edit or remove a term that is no longer there', () => {
     expect(applyTermChange('abuse', [], 'remove', 'gone term').error).toBeDefined();
     expect(applyTermChange('abuse', [], 'edit', 'gone term', 'new term').error).toBeDefined();
+  });
+});
+
+// The model check's answer is combined with the term-list result. The
+// model itself is never called from these tests: they cover what the
+// app does with an answer, a broken answer, or no answer.
+describe('model check: reading the answer', () => {
+  test('a well-formed answer becomes three levels', () => {
+    expect(parseModelAnswer('{"crisis":3,"abuse":0,"contact":1}')).toEqual({ crisis: 3, abuse: 0, contact: 1 });
+  });
+
+  test('levels are rounded and kept between 0 and 3', () => {
+    expect(parseModelAnswer('{"crisis":7,"abuse":-2,"contact":1.6}')).toEqual({ crisis: 3, abuse: 0, contact: 2 });
+  });
+
+  test('an answer that is not JSON, or not an object, is unusable', () => {
+    expect(parseModelAnswer('sorry, I cannot rate that')).toBeNull();
+    expect(parseModelAnswer('')).toBeNull();
+    expect(parseModelAnswer('null')).toBeNull();
+    expect(parseModelAnswer('3')).toBeNull();
+    expect(parseModelAnswer(undefined)).toBeNull();
+  });
+
+  test('an answer with a missing or non-number level is unusable', () => {
+    expect(parseModelAnswer('{"crisis":3,"abuse":0}')).toBeNull();
+    expect(parseModelAnswer('{"crisis":"3","abuse":0,"contact":0}')).toBeNull();
+    expect(parseModelAnswer('{"crisis":null,"abuse":0,"contact":0}')).toBeNull();
+  });
+});
+
+describe('model check: adding to the term-list result', () => {
+  const clean = { hasCrisisLanguage: false, hasContactSharing: false, hasAbusiveLanguage: false };
+  const none = { crisis: 0, abuse: 0, contact: 0 };
+
+  test('"likely" or "clear" crisis from the model adds a crisis finding', () => {
+    expect(addModelLevels(clean, { ...none, crisis: 2 }).hasCrisisLanguage).toBe(true);
+    expect(addModelLevels(clean, { ...none, crisis: 3 }).hasCrisisLanguage).toBe(true);
+  });
+
+  test('"likely" or "clear" abuse from the model adds an abuse finding', () => {
+    expect(addModelLevels(clean, { ...none, abuse: 2 }).hasAbusiveLanguage).toBe(true);
+    expect(addModelLevels(clean, { ...none, abuse: 3 }).hasAbusiveLanguage).toBe(true);
+  });
+
+  test('"no" and "unsure" add nothing', () => {
+    expect(addModelLevels(clean, none)).toEqual(clean);
+    expect(addModelLevels(clean, { crisis: 1, abuse: 1, contact: 1 })).toEqual(clean);
+  });
+
+  test('the model can never remove what the term lists found', () => {
+    const found = { hasCrisisLanguage: true, hasContactSharing: true, hasAbusiveLanguage: true };
+    expect(addModelLevels(found, none)).toEqual(found);
+  });
+
+  test("the model's contact level never blocks a message", () => {
+    expect(addModelLevels(clean, { ...none, contact: 3 }).hasContactSharing).toBe(false);
+  });
+
+  test('with no usable answer the term-list result stands', () => {
+    expect(addModelLevels(clean, null)).toEqual(clean);
+    expect(addModelLevels(clean, undefined)).toEqual(clean);
+    expect(addModelLevels(clean, {})).toEqual(clean);
+  });
+
+  test('a message the term lists miss is flagged once the model says so', () => {
+    const screened = screenMessage('I keep thinking nobody needs me here');
+    expect(screened.hasCrisisLanguage).toBe(false);
+    expect(addModelLevels(screened, parseModelAnswer('{"crisis":3,"abuse":0,"contact":0}')).hasCrisisLanguage).toBe(true);
+  });
+
+  test('the term-list result passed in is not changed', () => {
+    const screened = { ...clean };
+    addModelLevels(screened, { crisis: 3, abuse: 3, contact: 3 });
+    expect(screened).toEqual(clean);
   });
 });
 

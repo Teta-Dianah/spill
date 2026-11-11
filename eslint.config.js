@@ -31,6 +31,13 @@ module.exports = [
     },
   },
 
+  // The one browser file that is a module: the Firebase library it uses
+  // is only published as a module, so it has to use import.
+  {
+    files: ['public/js/model-check.js'],
+    languageOptions: { sourceType: 'module' },
+  },
+
   // Node code: the seed script and config files, using require/module.exports.
   {
     files: ['scripts/**/*.js', '*.config.js'],

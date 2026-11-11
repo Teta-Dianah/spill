@@ -2,6 +2,10 @@
 // polling (FR 4.3, FR 4.7, NFR 2), with every message screened before
 // it's sent (FR 6.1-6.4). Needs screening.js loaded first.
 //
+// Screening here is the term lists in screening.js, plus a second
+// opinion from the model check in model-check.js when it's available.
+// The chat works the same without it, on the term lists alone.
+//
 // firestore.rules independently re-checks crisis/contact-sharing with
 // its own small, fixed patterns too, so what this file decides is not
 // the final word on whether a write is accepted. But a flag is only
@@ -324,10 +328,65 @@ function sendAbuseFlaggedMessage(chatId, user, text) {
   return batch.commit();
 }
 
+// How long to wait for the model check before sending anyway.
+var MODEL_WAIT_MS = 3000;
+
+// Asks the model check (model-check.js) for a second opinion on a
+// message. Always answers within MODEL_WAIT_MS: with the model's levels,
+// or with null if it isn't loaded, fails or is too slow. It never
+// rejects, so a problem here can never stop a message being sent.
+function askModel(text) {
+  if (typeof window.checkMessageWithModel !== 'function') {
+    return Promise.resolve(null);
+  }
+
+  var tooSlow = new Promise(function (resolve) {
+    setTimeout(function () {
+      resolve(null);
+    }, MODEL_WAIT_MS);
+  });
+  var answer = Promise.resolve()
+    .then(function () {
+      return window.checkMessageWithModel(text);
+    })
+    .catch(function (error) {
+      console.error(error);
+      return null;
+    });
+
+  return Promise.race([answer, tooSlow]);
+}
+
+// While waiting for the model check, the message can't be sent twice or
+// changed. readOnly (not disabled) keeps the keyboard open on a phone.
+function setWaitingToSend(form, isWaiting) {
+  form.messageText.readOnly = isWaiting;
+  form.querySelector('button[type="submit"]').disabled = isWaiting;
+}
+
 // Screens the message, then sends it the right way (FR 6.1-6.4).
 function screenAndSendMessage(chatId, user, text, isListener, form) {
   var screened = screenMessage(text, extraScreeningTerms);
 
+  // The term lists have already decided these two. Contact details are
+  // blocked, and are never passed on to the model. Crisis wording is
+  // sent at once, so the crisis card isn't held up.
+  if (screened.hasContactSharing || screened.hasCrisisLanguage) {
+    sendScreenedMessage(chatId, user, text, isListener, form, screened);
+    return;
+  }
+
+  // Otherwise the model check gets a say. It can only add a crisis or
+  // abuse finding to what the term lists found (see addModelLevels).
+  setWaitingToSend(form, true);
+  askModel(text).then(function (levels) {
+    setWaitingToSend(form, false);
+    sendScreenedMessage(chatId, user, text, isListener, form, addModelLevels(screened, levels));
+  });
+}
+
+// Sends a message the right way for what screening found (FR 6.1-6.4).
+function sendScreenedMessage(chatId, user, text, isListener, form, screened) {
   if (screened.hasContactSharing) {
     sendBlockedAttempt(chatId, user, text, isListener, screened.hasCrisisLanguage)
       .then(function () {
