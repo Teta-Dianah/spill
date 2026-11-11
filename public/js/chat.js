@@ -218,6 +218,7 @@ function markChatFlagged(batch, chatId) {
 
 // FR 6.1: a plain, unflagged message. This is also the fallback target
 // for the retry below — the happy path for almost every message sent.
+// Resolves to the new message's id.
 function sendPlainMessage(chatId, user, text) {
   return firebase
     .firestore()
@@ -227,6 +228,9 @@ function sendPlainMessage(chatId, user, text) {
       senderId: user.uid,
       text: text,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    })
+    .then(function (messageRef) {
+      return messageRef.id;
     });
 }
 
@@ -302,6 +306,7 @@ function sendBlockedAttempt(chatId, user, text, isListener, alsoHasCrisis) {
 
 // FR 6.4: abusive language is flagged, but still delivered — the
 // recipient can already end the chat at any time if they need to.
+// Resolves to the new message's id.
 function sendAbuseFlaggedMessage(chatId, user, text) {
   var db = firebase.firestore();
   var messageRef = db.collection('messages').doc();
@@ -325,16 +330,19 @@ function sendAbuseFlaggedMessage(chatId, user, text) {
   });
   markChatFlagged(batch, chatId);
 
-  return batch.commit();
+  return batch.commit().then(function () {
+    return messageRef.id;
+  });
 }
 
-// How long to wait for the model check before sending anyway.
-var MODEL_WAIT_MS = 3000;
+// How long to wait for the model check's answer before giving up on it.
+// An answer usually takes a few seconds.
+var MODEL_WAIT_MS = 20000;
 
 // Asks the model check (model-check.js) for a second opinion on a
 // message. Always answers within MODEL_WAIT_MS: with the model's levels,
 // or with null if it isn't loaded, fails or is too slow. It never
-// rejects, so a problem here can never stop a message being sent.
+// rejects.
 function askModel(text) {
   if (typeof window.checkMessageWithModel !== 'function') {
     return Promise.resolve(null);
@@ -357,36 +365,56 @@ function askModel(text) {
   return Promise.race([answer, tooSlow]);
 }
 
-// While waiting for the model check, the message can't be sent twice or
-// changed. readOnly (not disabled) keeps the keyboard open on a phone.
-function setWaitingToSend(form, isWaiting) {
-  form.messageText.readOnly = isWaiting;
-  form.querySelector('button[type="submit"]').disabled = isWaiting;
+// The model check's flag for a message that has already been sent: the
+// flag and the chatFlagged marker in one batch. Same flag types and
+// severities as the term lists use (FR 6.2, FR 6.4).
+function sendModelFlag(chatId, user, messageId, finding) {
+  var db = firebase.firestore();
+  var batch = db.batch();
+
+  batch.set(db.collection('flags').doc(), {
+    type: finding === 'crisis' ? 'crisis' : 'abusive-language',
+    chatId: chatId,
+    senderId: user.uid,
+    messageId: messageId,
+    severity: finding === 'crisis' ? 3 : 1,
+    status: 'open',
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+  markChatFlagged(batch, chatId);
+
+  return batch.commit();
+}
+
+// Runs after a message has been sent. The model check never holds a
+// message back, because its answer can take several seconds. It can
+// only add a crisis or abuse flag to a message that is already
+// delivered (see modelFinding in screening.js). For crisis, the sender
+// is shown the crisis card then too. Nothing here can undo or fail the
+// message itself.
+function checkSentMessageWithModel(chatId, user, text, messageId, screened) {
+  askModel(text)
+    .then(function (levels) {
+      var finding = modelFinding(screened, levels);
+      if (!finding) return null;
+
+      if (finding === 'crisis') showCrisisCard();
+      return sendModelFlag(chatId, user, messageId, finding);
+    })
+    .catch(function (error) {
+      console.error(error);
+    });
 }
 
 // Screens the message, then sends it the right way (FR 6.1-6.4).
+//
+// The term lists decide how the message is sent. Contact details are
+// blocked and crisis wording is flagged at once, and neither is passed
+// on to the model. Any other message is sent straight away and then
+// checked by the model as well.
 function screenAndSendMessage(chatId, user, text, isListener, form) {
   var screened = screenMessage(text, extraScreeningTerms);
 
-  // The term lists have already decided these two. Contact details are
-  // blocked, and are never passed on to the model. Crisis wording is
-  // sent at once, so the crisis card isn't held up.
-  if (screened.hasContactSharing || screened.hasCrisisLanguage) {
-    sendScreenedMessage(chatId, user, text, isListener, form, screened);
-    return;
-  }
-
-  // Otherwise the model check gets a say. It can only add a crisis or
-  // abuse finding to what the term lists found (see addModelLevels).
-  setWaitingToSend(form, true);
-  askModel(text).then(function (levels) {
-    setWaitingToSend(form, false);
-    sendScreenedMessage(chatId, user, text, isListener, form, addModelLevels(screened, levels));
-  });
-}
-
-// Sends a message the right way for what screening found (FR 6.1-6.4).
-function sendScreenedMessage(chatId, user, text, isListener, form, screened) {
   if (screened.hasContactSharing) {
     sendBlockedAttempt(chatId, user, text, isListener, screened.hasCrisisLanguage)
       .then(function () {
@@ -417,9 +445,10 @@ function sendScreenedMessage(chatId, user, text, isListener, form, screened) {
 
   if (screened.hasAbusiveLanguage) {
     sendAbuseFlaggedMessage(chatId, user, text)
-      .then(function () {
+      .then(function (messageId) {
         form.reset();
         showChatMessage('');
+        checkSentMessageWithModel(chatId, user, text, messageId, screened);
       })
       .catch(function (error) {
         showChatMessage('Could not send that message. Please try again.');
@@ -435,9 +464,10 @@ function sendScreenedMessage(chatId, user, text, isListener, form, screened) {
   // screening didn't find crisis wording here, so raising a crisis flag
   // would be a guess, not a fact. Just show the error.
   sendPlainMessage(chatId, user, text)
-    .then(function () {
+    .then(function (messageId) {
       form.reset();
       showChatMessage('');
+      checkSentMessageWithModel(chatId, user, text, messageId, screened);
     })
     .catch(function (error) {
       showChatMessage('Could not send that message. Please try again.');

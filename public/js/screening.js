@@ -162,22 +162,20 @@ function parseModelAnswer(answerText) {
   return levels;
 }
 
-// Adds the model's opinion to the term-list result from screenMessage().
+// Works out what the model check adds to the term-list result from
+// screenMessage(): 'crisis', 'abuse', or '' for nothing new.
+//
 // The model can only ADD a crisis or abuse finding, never remove one,
-// and with no usable answer (levels is null) the term-list result stands
-// as it is. Contact-sharing is left to the term lists and patterns: it
-// blocks a message, and the model's contact verdict isn't used for that.
-function addModelLevels(screened, levels) {
-  var result = {
-    hasCrisisLanguage: screened.hasCrisisLanguage,
-    hasContactSharing: screened.hasContactSharing,
-    hasAbusiveLanguage: screened.hasAbusiveLanguage,
-  };
-  if (!levels) return result;
+// and with no usable answer (levels is null) it adds nothing. If it
+// finds both, crisis comes first. Its contact level isn't used here:
+// contact-sharing blocks a message, and that is left to the term lists
+// and patterns.
+function modelFinding(screened, levels) {
+  if (!levels) return '';
 
-  if (levels.crisis >= MODEL_FLAG_LEVEL) result.hasCrisisLanguage = true;
-  if (levels.abuse >= MODEL_FLAG_LEVEL) result.hasAbusiveLanguage = true;
-  return result;
+  if (levels.crisis >= MODEL_FLAG_LEVEL && !screened.hasCrisisLanguage) return 'crisis';
+  if (levels.abuse >= MODEL_FLAG_LEVEL && !screened.hasAbusiveLanguage) return 'abuse';
+  return '';
 }
 
 // Works out an admin's add, edit or remove on one term list (FR 7.1),
@@ -221,7 +219,7 @@ if (typeof module !== 'undefined') {
     cleanTermList: cleanTermList,
     applyTermChange: applyTermChange,
     parseModelAnswer: parseModelAnswer,
-    addModelLevels: addModelLevels,
+    modelFinding: modelFinding,
     DEFAULT_TERM_LISTS: DEFAULT_TERM_LISTS,
     MAX_TERM_LENGTH: MAX_TERM_LENGTH,
     MAX_TERMS_PER_LIST: MAX_TERMS_PER_LIST,

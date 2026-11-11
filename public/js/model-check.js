@@ -2,11 +2,13 @@
 // term lists in screening.js.
 //
 // It asks a hosted language model, through Firebase, to rate one message
-// for crisis, abuse and contact-sharing. chat.js uses the answer only to
-// ADD a crisis or abuse flag to what the term lists found. It never
-// removes a flag and never blocks a message. If this file doesn't load,
-// or the model fails or is slow, chat.js carries on with the term lists
-// alone. firestore.rules is unchanged and stays the fixed backstop.
+// for crisis, abuse and contact-sharing. An answer can take several
+// seconds, so chat.js sends the message first and asks afterwards. It
+// uses the answer only to ADD a crisis or abuse flag to what the term
+// lists found. It never removes a flag and never blocks a message. If
+// this file doesn't load, or the model fails or is too slow, the term
+// lists alone stand. firestore.rules is unchanged and stays the fixed
+// backstop.
 //
 // Messages rated here leave Spill for an outside service, so this is for
 // test data and consenting volunteers only (NFR 14).

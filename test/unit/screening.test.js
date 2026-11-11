@@ -5,7 +5,7 @@ const {
   cleanTermList,
   applyTermChange,
   parseModelAnswer,
-  addModelLevels,
+  modelFinding,
   DEFAULT_TERM_LISTS,
   MAX_TERMS_PER_LIST,
 } = require('../../public/js/screening.js');
@@ -318,9 +318,9 @@ describe('applyTermChange (admin add, edit, remove)', () => {
   });
 });
 
-// The model check's answer is combined with the term-list result. The
-// model itself is never called from these tests: they cover what the
-// app does with an answer, a broken answer, or no answer.
+// The model check can add a finding to the term-list result. The model
+// itself is never called from these tests: they cover what the app does
+// with an answer, a broken answer, or no answer.
 describe('model check: reading the answer', () => {
   test('a well-formed answer becomes three levels', () => {
     expect(parseModelAnswer('{"crisis":3,"abuse":0,"contact":1}')).toEqual({ crisis: 3, abuse: 0, contact: 1 });
@@ -345,49 +345,57 @@ describe('model check: reading the answer', () => {
   });
 });
 
-describe('model check: adding to the term-list result', () => {
+describe('model check: what it adds to the term-list result', () => {
   const clean = { hasCrisisLanguage: false, hasContactSharing: false, hasAbusiveLanguage: false };
   const none = { crisis: 0, abuse: 0, contact: 0 };
 
-  test('"likely" or "clear" crisis from the model adds a crisis finding', () => {
-    expect(addModelLevels(clean, { ...none, crisis: 2 }).hasCrisisLanguage).toBe(true);
-    expect(addModelLevels(clean, { ...none, crisis: 3 }).hasCrisisLanguage).toBe(true);
+  test('"likely" or "clear" crisis from the model is a crisis finding', () => {
+    expect(modelFinding(clean, { ...none, crisis: 2 })).toBe('crisis');
+    expect(modelFinding(clean, { ...none, crisis: 3 })).toBe('crisis');
   });
 
-  test('"likely" or "clear" abuse from the model adds an abuse finding', () => {
-    expect(addModelLevels(clean, { ...none, abuse: 2 }).hasAbusiveLanguage).toBe(true);
-    expect(addModelLevels(clean, { ...none, abuse: 3 }).hasAbusiveLanguage).toBe(true);
+  test('"likely" or "clear" abuse from the model is an abuse finding', () => {
+    expect(modelFinding(clean, { ...none, abuse: 2 })).toBe('abuse');
+    expect(modelFinding(clean, { ...none, abuse: 3 })).toBe('abuse');
   });
 
   test('"no" and "unsure" add nothing', () => {
-    expect(addModelLevels(clean, none)).toEqual(clean);
-    expect(addModelLevels(clean, { crisis: 1, abuse: 1, contact: 1 })).toEqual(clean);
+    expect(modelFinding(clean, none)).toBe('');
+    expect(modelFinding(clean, { crisis: 1, abuse: 1, contact: 1 })).toBe('');
   });
 
-  test('the model can never remove what the term lists found', () => {
-    const found = { hasCrisisLanguage: true, hasContactSharing: true, hasAbusiveLanguage: true };
-    expect(addModelLevels(found, none)).toEqual(found);
+  test('crisis comes first when the model finds both', () => {
+    expect(modelFinding(clean, { crisis: 3, abuse: 3, contact: 0 })).toBe('crisis');
   });
 
-  test("the model's contact level never blocks a message", () => {
-    expect(addModelLevels(clean, { ...none, contact: 3 }).hasContactSharing).toBe(false);
+  test('nothing is added twice: what the term lists already found is not repeated', () => {
+    const abuseFound = { ...clean, hasAbusiveLanguage: true };
+    expect(modelFinding(abuseFound, { ...none, abuse: 3 })).toBe('');
+    expect(modelFinding(abuseFound, { ...none, crisis: 3 })).toBe('crisis');
+
+    const crisisFound = { ...clean, hasCrisisLanguage: true };
+    expect(modelFinding(crisisFound, { ...none, crisis: 3 })).toBe('');
   });
 
-  test('with no usable answer the term-list result stands', () => {
-    expect(addModelLevels(clean, null)).toEqual(clean);
-    expect(addModelLevels(clean, undefined)).toEqual(clean);
-    expect(addModelLevels(clean, {})).toEqual(clean);
+  test("the model's contact level is never a finding", () => {
+    expect(modelFinding(clean, { ...none, contact: 3 })).toBe('');
   });
 
-  test('a message the term lists miss is flagged once the model says so', () => {
+  test('with no usable answer nothing is added', () => {
+    expect(modelFinding(clean, null)).toBe('');
+    expect(modelFinding(clean, undefined)).toBe('');
+    expect(modelFinding(clean, {})).toBe('');
+  });
+
+  test('a message the term lists miss is a crisis finding once the model says so', () => {
     const screened = screenMessage('I keep thinking nobody needs me here');
     expect(screened.hasCrisisLanguage).toBe(false);
-    expect(addModelLevels(screened, parseModelAnswer('{"crisis":3,"abuse":0,"contact":0}')).hasCrisisLanguage).toBe(true);
+    expect(modelFinding(screened, parseModelAnswer('{"crisis":3,"abuse":0,"contact":0}'))).toBe('crisis');
   });
 
   test('the term-list result passed in is not changed', () => {
     const screened = { ...clean };
-    addModelLevels(screened, { crisis: 3, abuse: 3, contact: 3 });
+    modelFinding(screened, { crisis: 3, abuse: 3, contact: 3 });
     expect(screened).toEqual(clean);
   });
 });
