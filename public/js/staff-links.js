@@ -1,5 +1,5 @@
 // Works out which staff pages to link to on the dashboard, from the
-// account's role and whether the person has applied as a listener.
+// account's role and whether the person is an approved listener.
 // These links only save typing the address. Access is still decided by
 // firestore.rules, so showing or hiding a link protects nothing by itself.
 // This file has no Firebase in it, so it is easy to unit test on its own.
@@ -20,10 +20,11 @@ var ADMIN_LINKS = [
 ];
 
 // role is the account's role ('user', 'moderator' or 'admin').
-// hasListenerRecord is true once the person has applied as a listener.
-function staffLinksFor(role, hasListenerRecord) {
+// isApprovedListener is true once an admin has approved the person's
+// listener application. Someone who has only applied gets no links.
+function staffLinksFor(role, isApprovedListener) {
   var links = [];
-  if (hasListenerRecord) links = links.concat(LISTENER_LINKS);
+  if (isApprovedListener) links = links.concat(LISTENER_LINKS);
   if (role === 'moderator') links = links.concat(MODERATOR_LINKS);
   if (role === 'admin') links = links.concat(ADMIN_LINKS);
   return links;

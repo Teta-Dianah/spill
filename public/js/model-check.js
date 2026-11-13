@@ -15,7 +15,8 @@
 //
 // This is a module (type="module" in chat.html) because this Firebase
 // library has no "compat" build like the other scripts. It needs
-// firebase-config.js and screening.js loaded first.
+// firebase-config.js, model-check-settings.js and screening.js loaded
+// first.
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 import {
@@ -55,12 +56,12 @@ const SAFETY_SETTINGS = [
   return { category: category, threshold: HarmBlockThreshold.BLOCK_NONE };
 });
 
-// Emulator-only "demo-" projects have no real services behind them, so
-// there is no model to ask (local development and CI). chat.js then
-// finds no checkMessageWithModel and uses the term lists alone.
-const isDemoProject = String(firebaseConfig.projectId || '').indexOf('demo-') === 0;
-
-if (!isDemoProject) {
+// The model check is off unless firebase-config.js turns it on AND the
+// project is the development project (see model-check-settings.js). It
+// is off in the config template, on the emulators and in CI. When it is
+// off, chat.js finds no checkMessageWithModel and uses the term lists
+// alone.
+if (isModelCheckOnHere()) {
   // A second, separately named app: the pages' main app comes from the
   // "compat" scripts, which this library can't share.
   const app = initializeApp(firebaseConfig, 'model-check');

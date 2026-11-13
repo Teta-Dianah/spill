@@ -43,7 +43,7 @@ Everything runs on Firebase's free Spark plan — no billing account, no paid se
 
 ## How message screening works
 
-Every chat message is checked for crisis language and attempts to share contact details before it's delivered. This happens in two layers, on purpose:
+Every chat message is checked for crisis language and attempts to share contact details before it's delivered. This happens in two layers, on purpose (a third, the model check, is a demo prototype described further down):
 
 - **`firestore.rules`** has its own small, fixed set of crisis and contact-sharing patterns, hardcoded and not editable without a redeploy. This is the real safety backstop — it's enforced at write time no matter what any client does, tampered or not.
 - **`public/js/screening.js`** has a richer, normalised set of built-in term lists and contact-sharing patterns. This drives the actual chat experience (showing the crisis card promptly, warning messages about blocked contact-sharing attempts). It changes the app's behaviour, not what the database will actually accept.
@@ -90,6 +90,39 @@ Term matching only finds a listed phrase written the same way. It can't see what
 
 These gaps are the phrase-list limitation the SRS already documents (section 2.5), not a bug: reworded text rarely matches a fixed phrase list. `firestore.rules` stays the actual backstop regardless of what this file catches.
 
+### Model check (demo prototype)
+
+Because term matching can't see meaning, Spill has a third layer that can: after a message is sent, the chat page can ask an AI service (Google Gemini, through Firebase AI Logic) to rate it for crisis and abuse. **This is a demo prototype. It is not ready for real users, and nothing here claims it is safe for them.**
+
+How it works:
+
+- The message is screened by the term lists and delivered exactly as before. Nothing waits for the model.
+- Straight afterwards, the page asks the model to rate the message from 0 to 3 for crisis and for abuse. A 2 or 3 counts.
+- The answer can only **add** a crisis or abuse flag for the moderators. For crisis, the sender is also shown the crisis card. It never blocks a message and never removes a flag.
+- If the model is off, fails, is rate-limited or takes longer than 20 seconds, nothing changes: the term lists and `firestore.rules` alone stand.
+- Messages blocked for contact-sharing, and messages the term lists already flag as crisis, are never sent to the model.
+
+It is off by default. It runs only when both of these are true:
+
+1. `public/js/firebase-config.js` sets `modelCheckEnabled` to `true`. The template sets it to `false`.
+2. The project is on the list in `public/js/model-check-settings.js`, which holds only the development project. The setting is ignored for any other project, so the model check can't turn itself on anywhere else.
+
+So it is off on the emulators, in CI and in the pilot project, and on only in the development project, for the demo.
+
+When it is on, `request-chat.html` shows a small "Safety check" notice once, before the person's first chat, with "Agree" and "No thanks". The choice is remembered in that browser for that account. The chat works the same either way. Only the messages of someone who agreed are sent to the model; for everyone else screening is the term lists alone. When the model check is off, the notice never appears.
+
+On the third set, which is held-out, the term lists caught 2 of the 15 crisis messages. The model, measured separately on the same 42 messages, caught all 15 with no false alarms. The set is small, so this shows the gap the model can close, not a guaranteed rate.
+
+**Before any real user's messages go through it, the project needs:**
+
+- **A provider or terms that fit Spill's users.** The prototype uses Google's free tier. Its terms require users to be 18 or older, say not to submit sensitive or personal information, and allow Google to use the messages to improve its products, including review by people. Spill's users are 16 to 25 and their messages are sensitive, so the free tier can't be used for them.
+- **A proper consent step.** The notice is a first version. Real use needs consent that fits Rwanda's data protection law and the legal review in NFR 14, kept with the account rather than in the browser.
+- **App Check.** Google is making it a requirement for this service. Without it the model check stops working after 21 January 2027, and screening goes back to the term lists alone.
+
+**If you are testing the demo, use made-up messages only.** Don't type anything real or personal while the model check is on.
+
+Two more limits to know about: the model's flag is written a few seconds after the message, not in the same write as it, and it is lost if the sender closes the page before the answer arrives. `docs/SRS_change_notes.md` lists where this differs from the SRS.
+
 ## How matching avoids duplicate requests
 
 A user can only ever have one pending chat request outstanding (FR 4.1). `request-chat.js` claims a `pendingChats/{uid}` marker in the same atomic batch as the `chats` document it creates, and `firestore.rules` requires that pairing on every chat create — since `pendingChats` has no update rule, a second chat can never get its own claim while the first one's still stands.
@@ -106,7 +139,7 @@ The app's code is on the `develop` branch until it is merged into `main`.
 npm install
 ```
 
-Copy `public/js/firebase-config.example.js` to `public/js/firebase-config.js`. That file is gitignored, so it never gets committed. The copy works with the local emulators as it is: its `projectId` is `demo-spill-dev`, an emulator-only project, and the emulators never check the other values. Fill in real values only when you connect to a real Firebase project.
+Copy `public/js/firebase-config.example.js` to `public/js/firebase-config.js`. That file is gitignored, so it never gets committed. The copy works with the local emulators as it is: its `projectId` is `demo-spill-dev`, an emulator-only project, and the emulators never check the other values. Fill in real values only when you connect to a real Firebase project. Leave `modelCheckEnabled` as `false`; see "Model check (demo prototype)" above.
 
 ## Running locally
 
@@ -151,7 +184,7 @@ These accounts are for the emulators only. The script uses the emulator-only pro
 | Moderator queue, case view | `/moderator-queue.html`, `/moderator-case.html` | Moderator |
 | Admin pages | `/admin-listeners.html`, `/admin-terms.html`, `/admin-resources.html` | Admin |
 
-To reach the staff pages, sign in and look at the dashboard. A listener, moderator or admin sees a "Your Spill pages" section there with links to their own pages. An ordinary user doesn't see it, and no public page links to a staff page. The links are only a shortcut: `firestore.rules` decides who can read or change anything, so opening a staff page's address without the role shows nothing.
+To reach the staff pages, sign in and look at the dashboard. An approved listener, a moderator or an admin sees a "Your Spill pages" section there with links to their own pages. An ordinary user doesn't see it, and no public page links to a staff page. The links are only a shortcut: `firestore.rules` decides who can read or change anything, so opening a staff page's address without the role shows nothing.
 
 ### Trying a chat
 

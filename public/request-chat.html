@@ -37,6 +37,14 @@
       <button type="button" id="cancel-request-button" hidden>Cancel request</button>
     </form>
 
+    <!-- Shown only when the model check is on and this person has not
+         answered yet (model-check-notice.js). -->
+    <div id="model-check-notice" class="quiet-notice" role="region" aria-label="Safety check" hidden>
+      <p><strong>Safety check.</strong> To help keep chats safe, messages may be checked automatically by an AI service (Google Gemini) for crisis or harmful wording.</p>
+      <button type="button" id="model-check-agree">Agree</button>
+      <button type="button" id="model-check-decline" class="quiet-button">No thanks</button>
+    </div>
+
     <p>Not ready to wait? <a href="index.html">See helplines and self-help resources</a>.</p>
   </main>
 
@@ -47,6 +55,8 @@
   <script src="js/firebase-init.js"></script>
   <script src="js/listeners.js"></script>
   <script src="js/request-chat.js"></script>
+  <script src="js/model-check-settings.js"></script>
+  <script src="js/model-check-notice.js"></script>
   <script src="js/crisis-card.js"></script>
 </body>
 </html>
