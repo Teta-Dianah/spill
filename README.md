@@ -61,7 +61,7 @@ So an admin editing the term lists can make Spill *more* responsive to new phras
 
 `test/unit/screening.test.js` measures `screenMessage()` against three sets (NFR 21):
 
-- A 45-message labelled set, used while writing the built-in term lists and patterns.
+- A 46-message labelled set, used while writing the built-in term lists and patterns.
 - A held-out set of 16 messages never used while tuning, including Kinyarwanda and mixed Kinyarwanda/English.
 - A second set of 47 messages (`test/data/screening-held-out-2.txt`): 14 crisis, 9 abuse, 10 contact and 14 normal, in Kinyarwanda, English and mixed. It was held out for its first run only. The seed terms were then changed based on its misses and false positives, so **it is now tuned after this change** and its current numbers are not held-out results.
 
@@ -69,7 +69,7 @@ Each set is scored with the built-in lists only ("before") and with the terms in
 
 | Set | Crisis | Contact | Abuse |
 |---|---|---|---|
-| Tuned set (45) | P 1.00 → 1.00, R 1.00 → 1.00 | P 1.00 → 1.00, R 1.00 → 1.00 | P 1.00 → 1.00, R 1.00 → 1.00 |
+| Tuned set (46) | P 1.00 → 1.00, R 1.00 → 1.00 | P 1.00 → 1.00, R 1.00 → 1.00 | P 1.00 → 1.00, R 1.00 → 1.00 |
 | Previous held-out (16) | P 1.00 → 1.00, R 0.13 → 0.38 | P 1.00 → 1.00, R 1.00 → 1.00 | P 1.00 → 1.00, R 0.00 → 0.50 |
 | Second set (47), first run, held-out | P n/a → 1.00, R 0.00 → 0.64 | P 1.00 → 1.00, R 0.60 → 0.90 | P 1.00 → 0.82, R 0.44 → 1.00 |
 | Second set (47), tuned after this change | P n/a → 1.00, R 0.00 → 1.00 | P 1.00 → 1.00, R 0.60 → 0.90 | P 1.00 → 1.00, R 0.44 → 1.00 |
@@ -94,13 +94,15 @@ Whether nobody's free right now or the matched listener declines, the user sees 
 
 ## Setup
 
-You'll need Node.js and a JDK 21 or newer (the Firebase emulators run on Java).
+You'll need Node.js 20 or newer and a JDK 21 or newer (the Firebase emulators run on Java).
+
+The app's code is on the `develop` branch until it is merged into `main`.
 
 ```bash
 npm install
 ```
 
-Copy `public/js/firebase-config.example.js` to `public/js/firebase-config.js`. That file is gitignored, so it never gets committed. For local development against the emulators, set `projectId` to `demo-spill-dev` and leave the other values as placeholders: the emulators never check them. Fill in real values only when you connect to a real Firebase project.
+Copy `public/js/firebase-config.example.js` to `public/js/firebase-config.js`. That file is gitignored, so it never gets committed. The copy works with the local emulators as it is: its `projectId` is `demo-spill-dev`, an emulator-only project, and the emulators never check the other values. Fill in real values only when you connect to a real Firebase project.
 
 ## Running locally
 
@@ -108,21 +110,58 @@ Copy `public/js/firebase-config.example.js` to `public/js/firebase-config.js`. T
 npm run emulators
 ```
 
-This starts the Firestore and Auth emulators plus Hosting, serving the app at `http://localhost:5000`. The emulator UI (for inspecting data) is at `http://localhost:4000`.
+This starts the Firestore and Auth emulators plus Hosting, serving the app at `http://localhost:5000`. The emulator UI (for inspecting data) is at `http://localhost:4000`. Everything stays on your computer and is wiped when the emulators stop.
 
-To add some sample helplines and clinics to try the resources page, run in another terminal while the emulators are running:
-
-```bash
-npm run seed
-```
-
-To add the starter screening terms in `scripts/term-lists-seed.json` (mostly Kinyarwanda, plus a few English crisis phrases) to the admin term lists (FR 7.1):
+Then, in another terminal while the emulators are running, add the sample data:
 
 ```bash
-npm run seed:terms
+npm run seed            # sample helplines and clinics for the resources page
+npm run seed:terms      # starter screening terms (FR 7.1)
+npm run seed:accounts   # one demo account per role
 ```
 
-Each term goes through the same checks as `admin-terms.html`, and each one added gets its own `auditLog` entry. Terms already on a list are skipped, so it's safe to run again. The script only adds terms: removing a term from the seed file doesn't remove it from a database that was already seeded. Remove it on `admin-terms.html` instead, so the removal is logged too.
+### Demo accounts
+
+Sign-up only ever creates an ordinary user, so `npm run seed:accounts` creates one account for each role. They all use the password `spill-demo-123`.
+
+| Role | Email | What to try |
+|---|---|---|
+| User | `user@spill.test` | Mood check-in, "Talk to a listener" |
+| Listener | `listener@spill.test` | Listener dashboard: accept a chat request. Already approved, trained and available |
+| Moderator | `moderator@spill.test` | Moderator queue: open a case, record an action |
+| Admin | `admin@spill.test` | Listener applications, screening terms, helplines and clinics |
+
+These accounts are for the emulators only. The script uses the emulator-only project and refuses to run if it is pointed at anything other than the emulators on your computer. Never create accounts with a published password in a real Firebase project.
+
+### Pages
+
+| Page | Address | Who can use it |
+|---|---|---|
+| Resources and crisis card | `/` | Anyone, no account |
+| Sign up, sign in | `/signup.html`, `/signin.html` | Anyone |
+| Dashboard | `/dashboard.html` | Any signed-in account |
+| Talk to a listener | `/request-chat.html` | User |
+| Chat | `/chat.html` (opened from a request or the listener dashboard) | The two people in the chat |
+| Apply as a listener | `/listener-apply.html` | User |
+| Listener dashboard, training | `/listener-dashboard.html`, `/listener-training.html` | Listener |
+| Moderator queue, case view | `/moderator-queue.html`, `/moderator-case.html` | Moderator |
+| Admin pages | `/admin-listeners.html`, `/admin-terms.html`, `/admin-resources.html` | Admin |
+
+To reach the staff pages, sign in and look at the dashboard. A listener, moderator or admin sees a "Your Spill pages" section there with links to their own pages. An ordinary user doesn't see it, and no public page links to a staff page. The links are only a shortcut: `firestore.rules` decides who can read or change anything, so opening a staff page's address without the role shows nothing.
+
+### Trying a chat
+
+1. In one browser window, sign in as the listener and open the listener dashboard.
+2. In a private window (or another browser), sign in as the user and choose "Talk to a listener".
+3. Accept the request on the listener dashboard, then open the chat from "Your active chats".
+4. Send an ordinary message, then a crisis one (for example "I want to kill myself") to see the crisis card, then one with a phone number to see it blocked.
+5. Sign in as the moderator to see both flags in the queue.
+
+### About the seed scripts
+
+`npm run seed:terms` adds the terms in `scripts/term-lists-seed.json` (mostly Kinyarwanda, plus a few English crisis phrases) to the admin term lists. Each term goes through the same checks as `admin-terms.html`, and each one added gets its own `auditLog` entry. Terms already on a list are skipped, so it's safe to run again. The script only adds terms: removing a term from the seed file doesn't remove it from a database that was already seeded. Remove it on `admin-terms.html` instead, so the removal is logged too.
+
+All three seed scripts write to the emulators only.
 
 ## Testing
 
@@ -130,10 +169,12 @@ Each term goes through the same checks as `admin-terms.html`, and each one added
 npm test
 ```
 
-This runs the plain Jest unit tests. The Firestore Security Rules tests need the emulator running first:
+This starts the Firestore emulator, runs every test (the unit tests and the Firestore Security Rules tests) and stops the emulator again. Stop `npm run emulators` first if it is running, because both use the same port.
+
+To run only the unit tests, which need no emulator:
 
 ```bash
-npx firebase emulators:exec --project demo-spill-dev "npm test"
+npm run test:unit
 ```
 
 ## Linting
@@ -144,11 +185,34 @@ npm run lint
 
 ## Deployment
 
-_To be filled in during Sprint 4._
+Spill deploys to Firebase Hosting and Cloud Firestore on the free Spark plan. `.firebaserc` names two projects: `dev` (development) and `pilot`. Nothing below needs a key or secret in the repository.
+
+**One-time setup in the Firebase console, per project**
+
+1. Authentication > Sign-in method: turn on Email/Password.
+2. Firestore Database: create the database.
+3. Authentication > Settings > Authorised domains: check the Hosting domain (`<project-id>.web.app`) is listed.
+4. Project settings > General > Your apps: copy the web app's config values into your local `public/js/firebase-config.js`. The file is gitignored; it is uploaded with the site but never committed.
+
+**Deploy**
 
 ```bash
-firebase deploy
+npx firebase login
+npx firebase use dev
+npm test
+npm run lint
+npx firebase deploy --only hosting,firestore
 ```
+
+`--only hosting,firestore` uploads the `public/` folder, `firestore.rules` and the indexes in `firestore.indexes.json`. To deploy one part only, use `--only hosting`, `--only firestore:rules` or `--only firestore:indexes`.
+
+Check which project `public/js/firebase-config.js` points at before every deploy: the site talks to whichever project that file names, not the one chosen with `firebase use`.
+
+**After the first deploy**
+
+- **Staff accounts.** Sign up on the deployed site with each person's own email and a private password. Then, in the Firebase console, open Firestore > `accounts` > that person's document and change `role` to `moderator` or `admin`. A listener applies on `listener-apply.html` and is approved by an admin on `admin-listeners.html`. Don't run `npm run seed:accounts` here: it refuses, and its password is public.
+- **Helplines and clinics.** An admin adds the verified ones on `admin-resources.html`.
+- **Screening terms.** The seed scripts write to the emulators only. On a deployed project an admin adds the terms from `scripts/term-lists-seed.json` on `admin-terms.html`, which logs each one. Until then screening uses the built-in lists and the fixed patterns in `firestore.rules`.
 
 `firebase.json` sets `Cache-Control: no-cache` on every `.js` and `.css` file, so a deploy that fixes a safety bug (screening, chat) takes effect immediately for everyone instead of waiting out a browser's cached copy. This only applies on a real deploy — the local Hosting emulator doesn't implement custom headers, so you won't see it in `curl` or dev tools while running `npm run emulators`.
 

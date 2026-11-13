@@ -25,6 +25,41 @@ function renderPseudonym(uid) {
     });
 }
 
+// Shows links to the listener, moderator or admin pages, but only to
+// someone signed in with that role. Ordinary users never see this
+// section. The links are a shortcut only: firestore.rules decides who
+// can actually read or change anything on those pages.
+function renderStaffLinks(uid) {
+  var section = document.getElementById('staff-links-section');
+  var list = document.getElementById('staff-links');
+  if (!section || !list) return;
+
+  var db = firebase.firestore();
+  Promise.all([
+    db.collection('accounts').doc(uid).get(),
+    db.collection('listeners').doc(uid).get(),
+  ])
+    .then(function (docs) {
+      var role = docs[0].exists ? docs[0].data().role : null;
+      var links = staffLinksFor(role, docs[1].exists);
+      if (links.length === 0) return;
+
+      list.innerHTML = '';
+      links.forEach(function (link) {
+        var item = document.createElement('li');
+        var anchor = document.createElement('a');
+        anchor.href = link.href;
+        anchor.textContent = link.label;
+        item.appendChild(anchor);
+        list.appendChild(item);
+      });
+      section.hidden = false;
+    })
+    .catch(function (error) {
+      console.error('Could not load staff links', error);
+    });
+}
+
 // FR 3.4: a private "how has this month been" summary. Off by default in
 // the sense that it only ever shows to the signed-in user themselves —
 // there's no sharing feature at all in version 1.0.
@@ -81,6 +116,7 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
     renderPseudonym(user.uid);
+    renderStaffLinks(user.uid);
     renderMoodHistory(user.uid);
   });
 
