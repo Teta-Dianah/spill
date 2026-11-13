@@ -1,12 +1,16 @@
-// Copy this file to firebase-config.js and fill in the real values from
-// your Firebase project settings (Project settings > General > Your apps).
-// firebase-config.js is gitignored on purpose — never commit real project
-// keys, especially for the pilot project.
+// Copy this file to firebase-config.js. As it is, it works with the local
+// emulators: "demo-spill-dev" is an emulator-only project, and the
+// emulators never check the other values.
+//
+// To connect to a real Firebase project, replace every value with the
+// ones from Project settings > General > Your apps in the Firebase
+// console. firebase-config.js is gitignored on purpose: never commit
+// real project values, especially for the pilot project.
 
 var firebaseConfig = {
   apiKey: 'REPLACE_ME',
   authDomain: 'REPLACE_ME.firebaseapp.com',
-  projectId: 'REPLACE_ME',
+  projectId: 'demo-spill-dev',
   storageBucket: 'REPLACE_ME.appspot.com',
   messagingSenderId: 'REPLACE_ME',
   appId: 'REPLACE_ME',

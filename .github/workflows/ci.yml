@@ -23,6 +23,7 @@ jobs:
 
       - run: npm run lint
 
-      # Runs the test suite against a local, fake Firebase project
-      # ("demo-" prefix) so CI never needs real project credentials.
-      - run: npx firebase emulators:exec --project demo-spill-dev "npm test"
+      # "npm test" starts the Firestore emulator itself, under a local,
+      # fake Firebase project ("demo-" prefix), so CI never needs real
+      # project credentials.
+      - run: npm test

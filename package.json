@@ -4,10 +4,12 @@
   "private": true,
   "description": "Spill: an anonymous peer-listener web app for young people in Rwanda",
   "scripts": {
-    "test": "jest",
+    "test": "firebase emulators:exec --project demo-spill-dev --only firestore jest",
+    "test:unit": "jest test/unit",
     "lint": "eslint .",
     "seed": "node scripts/seed-resources.js",
     "seed:terms": "node scripts/seed-term-lists.js",
+    "seed:accounts": "node scripts/seed-demo-accounts.js",
     "emulators": "firebase emulators:start --project demo-spill-dev"
   },
   "devDependencies": {

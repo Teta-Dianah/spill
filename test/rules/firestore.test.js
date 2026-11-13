@@ -1,7 +1,6 @@
 // Tests for firestore.rules — these run against the Firestore emulator,
-// never against the real Spill database. Run them with:
-//   firebase emulators:exec "npm test"
-// so the emulator is up before Jest starts.
+// never against the real Spill database. "npm test" starts the emulator
+// before Jest and stops it afterwards.
 
 const fs = require('fs');
 const {
