@@ -1,8 +1,9 @@
-// Shows the "Safety check" notice on request-chat.html, once, before a
-// person's first chat. Only when the model check is on (see
+// Shows the "Safety check" notice once, before a person's first chat:
+// to a user on request-chat.html and to a listener on
+// listener-dashboard.html. Only when the model check is on (see
 // model-check-settings.js). The chat works the same whatever they
-// choose: "Agree" lets their messages be checked by the model as well,
-// "No thanks" keeps their screening to the term lists alone.
+// choose: "Agree" lets their own messages be checked by the model as
+// well, "No thanks" keeps their screening to the term lists alone.
 // Needs firebase-init.js and model-check-settings.js loaded first.
 
 document.addEventListener('DOMContentLoaded', function () {

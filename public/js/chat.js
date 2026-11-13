@@ -393,8 +393,9 @@ function sendModelFlag(chatId, user, messageId, finding) {
 // is shown the crisis card then too. Nothing here can undo or fail the
 // message itself.
 function checkSentMessageWithModel(chatId, user, text, messageId, screened) {
-  // Only for a sender who pressed "Agree" on the Safety check notice
-  // (model-check-settings.js). For anyone else the message is never
+  // Only for a sender, user or listener, who pressed "Agree" on the
+  // Safety check notice (model-check-settings.js). Each side answers
+  // for their own messages. For anyone else the message is never
   // sent to the model, and the term lists alone stand.
   var choice = readModelCheckChoice(window.localStorage, user.uid);
   if (!canUseModelCheck(isModelCheckOnHere(), choice)) return;

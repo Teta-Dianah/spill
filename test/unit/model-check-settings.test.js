@@ -123,3 +123,52 @@ describe('the notice', () => {
     expect(canUseModelCheck(true, choice)).toBe(false);
   });
 });
+
+// The notice is the same on the two pages that show it: request-chat.html
+// for a user and listener-dashboard.html for a listener.
+describe('the notice on the user and listener pages', () => {
+  const NOTICE_TEXT =
+    'Safety check. To help keep chats safe, messages may be checked automatically by an AI service (Google Gemini) for crisis or harmful wording.';
+  const PAGES = ['public/request-chat.html', 'public/listener-dashboard.html'];
+
+  // The text of the notice's paragraph, without the HTML tags.
+  function noticeText(html) {
+    const paragraph = html.match(/<div id="model-check-notice"[^>]*>\s*<p>([\s\S]*?)<\/p>/);
+    return paragraph ? paragraph[1].replace(/<[^>]+>/g, '') : '';
+  }
+
+  test.each(PAGES)('%s has the notice, hidden until it is needed', (page) => {
+    const html = fs.readFileSync(page, 'utf8');
+    expect(html).toMatch(/<div id="model-check-notice"[^>]* hidden>/);
+    expect(noticeText(html)).toBe(NOTICE_TEXT);
+  });
+
+  test.each(PAGES)('%s has both buttons', (page) => {
+    const html = fs.readFileSync(page, 'utf8');
+    expect(html).toMatch(/id="model-check-agree">Agree</);
+    expect(html).toMatch(/id="model-check-decline"[^>]*>No thanks</);
+  });
+
+  test.each(PAGES)('%s loads the settings before the notice script', (page) => {
+    const html = fs.readFileSync(page, 'utf8');
+    const settings = html.indexOf('js/model-check-settings.js');
+    const notice = html.indexOf('js/model-check-notice.js');
+    expect(settings).toBeGreaterThan(-1);
+    expect(notice).toBeGreaterThan(settings);
+  });
+
+  test('a listener and a user in the same chat each answer for themselves', () => {
+    const storage = fakeStorage();
+    saveModelCheckChoice(storage, 'listener-grace', 'agreed');
+    saveModelCheckChoice(storage, 'user-alice', 'declined');
+    expect(canUseModelCheck(true, readModelCheckChoice(storage, 'listener-grace'))).toBe(true);
+    expect(canUseModelCheck(true, readModelCheckChoice(storage, 'user-alice'))).toBe(false);
+  });
+
+  test('a listener who has not answered is asked, and is not checked until they agree', () => {
+    const storage = fakeStorage();
+    const choice = readModelCheckChoice(storage, 'listener-grace');
+    expect(shouldShowModelCheckNotice(true, choice)).toBe(true);
+    expect(canUseModelCheck(true, choice)).toBe(false);
+  });
+});

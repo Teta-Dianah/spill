@@ -25,6 +25,15 @@
       <p id="availability-note" class="message"></p>
     </section>
 
+    <!-- The same notice a user sees on request-chat.html. Shown only when
+         the model check is on and this listener has not answered yet
+         (model-check-notice.js). -->
+    <div id="model-check-notice" class="quiet-notice" role="region" aria-label="Safety check" hidden>
+      <p><strong>Safety check.</strong> To help keep chats safe, messages may be checked automatically by an AI service (Google Gemini) for crisis or harmful wording.</p>
+      <button type="button" id="model-check-agree">Agree</button>
+      <button type="button" id="model-check-decline" class="quiet-button">No thanks</button>
+    </div>
+
     <section class="card">
       <h2>Incoming requests</h2>
       <p id="pending-message" class="message"></p>
@@ -49,6 +58,8 @@
   <script src="js/auth.js"></script>
   <script src="js/listeners.js"></script>
   <script src="js/listener-dashboard.js"></script>
+  <script src="js/model-check-settings.js"></script>
+  <script src="js/model-check-notice.js"></script>
   <script src="js/crisis-card.js"></script>
 </body>
 </html>

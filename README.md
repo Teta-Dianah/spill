@@ -109,7 +109,7 @@ It is off by default. It runs only when both of these are true:
 
 So it is off on the emulators, in CI and in the pilot project, and on only in the development project, for the demo.
 
-When it is on, `request-chat.html` shows a small "Safety check" notice once, before the person's first chat, with "Agree" and "No thanks". The choice is remembered in that browser for that account. The chat works the same either way. Only the messages of someone who agreed are sent to the model; for everyone else screening is the term lists alone. When the model check is off, the notice never appears.
+When it is on, a small "Safety check" notice is shown once, before the person's first chat, with "Agree" and "No thanks": to a user on `request-chat.html` and to a listener on `listener-dashboard.html`. The choice is remembered in that browser for that account. The chat works the same either way. Each side answers for their own messages only: a listener who agreed has their messages checked exactly like a user's (after sending, flags only), whatever the user in that chat chose, and the other way round. For anyone who has not answered or said no, screening is the term lists and `firestore.rules` alone. When the model check is off, the notice never appears.
 
 On the third set, which is held-out, the term lists caught 2 of the 15 crisis messages. The model, measured separately on the same 42 messages, caught all 15 with no false alarms. The set is small, so this shows the gap the model can close, not a guaranteed rate.
 
