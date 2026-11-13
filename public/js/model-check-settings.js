@@ -7,8 +7,9 @@
 // So it can never turn itself on for another project, even if someone
 // copies a config file with the setting left on.
 //
-// Even when it is on, it is used only for a person who pressed "Agree"
-// on the notice. For everyone else, screening is the term lists alone.
+// Even when it is on, it is used only for a person, user or listener,
+// who pressed "Agree" on the notice. For everyone else, screening is the
+// term lists alone.
 // This file has no Firebase in it, so it is easy to unit test on its own.
 
 // The only projects where the model check is allowed: the development
