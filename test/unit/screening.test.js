@@ -401,10 +401,10 @@ describe('model check: what it adds to the term-list result', () => {
 });
 
 // FR 7.1, NFR 21: the same sets scored with the built-in lists only
-// ("before") and with the terms in scripts/term-lists-seed.json added
+// ("before") and with the terms in public/data/term-lists-seed.json added
 // ("after"), as an admin would add them. Reported, not tuned: no term
 // or rule is changed to make a set score better.
-const SEED_TERMS = require('../../scripts/term-lists-seed.json');
+const SEED_TERMS = require('../../public/data/term-lists-seed.json');
 
 // Labelled sets kept as files in test/data/. Each line is
 // "label | message | language", with one label per message: crisis,
@@ -596,5 +596,79 @@ describe('term fixes: new crisis terms and removed abuse terms', () => {
       expect(screened.hasCrisisLanguage).toBe(false);
       expect(screened.hasContactSharing).toBe(false);
     });
+  });
+});
+
+// The "Import starter terms" button on admin-terms.html (FR 7.1). The
+// import may only ever add terms, and must skip what is already there.
+describe('planStarterTermImport (admin import of the starter terms)', () => {
+  const { planStarterTermImport, MAX_TERM_LENGTH } = require('../../public/js/screening.js');
+
+  test('adds every starter term to an empty list, cleaned', () => {
+    const plan = planStarterTermImport('crisis', [], ['  Fade Away Forever ', 'Nta mpamvu yo kubaho']);
+    expect(plan.terms).toEqual(['fade away forever', 'nta mpamvu yo kubaho']);
+    expect(plan.added).toEqual(['fade away forever', 'nta mpamvu yo kubaho']);
+    expect(plan.skipped).toBe(0);
+  });
+
+  test('skips a term that is already on the list and keeps the list in order', () => {
+    const plan = planStarterTermImport('abuse', ['one term', 'two term'], ['two term', 'three term']);
+    expect(plan.terms).toEqual(['one term', 'two term', 'three term']);
+    expect(plan.added).toEqual(['three term']);
+    expect(plan.skipped).toBe(1);
+  });
+
+  test('never removes or changes a term the admin added', () => {
+    const existing = ['an admin term', 'another admin term'];
+    const plan = planStarterTermImport('contact', existing, ['a starter term']);
+    expect(plan.terms.slice(0, 2)).toEqual(existing);
+  });
+
+  test('skips a term that is already built in', () => {
+    const builtIn = DEFAULT_TERM_LISTS.crisis[0];
+    const plan = planStarterTermImport('crisis', [], [builtIn, 'fade away forever']);
+    expect(plan.added).toEqual(['fade away forever']);
+    expect(plan.skipped).toBe(1);
+  });
+
+  test('skips the same starter term given twice', () => {
+    const plan = planStarterTermImport('crisis', [], ['fade away forever', 'Fade away forever!']);
+    expect(plan.added).toEqual(['fade away forever']);
+    expect(plan.skipped).toBe(1);
+  });
+
+  test('skips a term that is too short or too long', () => {
+    const plan = planStarterTermImport('abuse', [], ['ab', 'x'.repeat(MAX_TERM_LENGTH + 1), 'good term']);
+    expect(plan.added).toEqual(['good term']);
+    expect(plan.skipped).toBe(2);
+  });
+
+  test('stops adding when the list is full', () => {
+    const full = distinctTerms(MAX_TERMS_PER_LIST - 1);
+    const plan = planStarterTermImport('contact', full, ['fits in', 'does not fit']);
+    expect(plan.terms.length).toBe(MAX_TERMS_PER_LIST);
+    expect(plan.added).toEqual(['fits in']);
+    expect(plan.skipped).toBe(1);
+  });
+
+  test('a second import adds nothing', () => {
+    const starter = ['first term', 'second term'];
+    const first = planStarterTermImport('crisis', [], starter);
+    const second = planStarterTermImport('crisis', first.terms, starter);
+    expect(second.added).toEqual([]);
+    expect(second.skipped).toBe(2);
+    expect(second.terms).toEqual(first.terms);
+  });
+
+  test('a missing or broken starter list adds nothing', () => {
+    expect(planStarterTermImport('crisis', ['kept term'], undefined)).toEqual({ terms: ['kept term'], added: [], skipped: 0 });
+    expect(planStarterTermImport('crisis', ['kept term'], 'not a list').added).toEqual([]);
+  });
+
+  test.each(['crisis', 'abuse', 'contact'])('every real starter %s term can be imported into an empty list', (category) => {
+    const plan = planStarterTermImport(category, [], SEED_TERMS[category]);
+    expect(plan.added.length).toBe(SEED_TERMS[category].length);
+    expect(plan.skipped).toBe(0);
+    expect(plan.terms.length).toBeLessThanOrEqual(MAX_TERMS_PER_LIST);
   });
 });

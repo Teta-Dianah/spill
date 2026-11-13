@@ -1439,6 +1439,54 @@ describe('termLists (FR 7.1)', () => {
     return batch.commit();
   }
 
+  // The "Import starter terms" button: one list write plus one audit
+  // entry for each term added, all in one batch, the same way
+  // admin-terms.js writes them. The list points at the last entry.
+  function importWrite(db, uid, category, terms, actorId) {
+    const batch = writeBatch(db);
+    terms.forEach((term, index) => {
+      batch.set(doc(db, `auditLog/import-${category}-${index}`), {
+        actorId: actorId || uid,
+        action: 'add_term',
+        itemType: 'termList',
+        itemId: category,
+        oldTerm: null,
+        newTerm: term,
+      });
+    });
+    batch.set(doc(db, `termLists/${category}`), {
+      terms,
+      lastAuditLogId: `import-${category}-${terms.length - 1}`,
+      updatedBy: uid,
+    });
+    return batch.commit();
+  }
+
+  test('an admin can import several terms with an audit entry for each, in one batch', async () => {
+    await seedAccount('ada', 'admin');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertSucceeds(importWrite(db, 'ada', 'crisis', ['first term', 'second term', 'third term']));
+  });
+
+  test('a moderator cannot import terms', async () => {
+    await seedAccount('mona', 'moderator');
+    const db = testEnv.authenticatedContext('mona').firestore();
+    await assertFails(importWrite(db, 'mona', 'crisis', ['first term', 'second term']));
+  });
+
+  test('an ordinary user cannot import terms', async () => {
+    await seedAccount('alice', 'user');
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(importWrite(db, 'alice', 'crisis', ['first term', 'second term']));
+  });
+
+  test('an import cannot log its entries under another admin', async () => {
+    await seedAccount('ada', 'admin');
+    await seedAccount('adam', 'admin');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(importWrite(db, 'ada', 'crisis', ['first term', 'second term'], 'adam'));
+  });
+
   test('any signed-in user can read a term list', async () => {
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertSucceeds(getDoc(doc(db, 'termLists/crisis')));
