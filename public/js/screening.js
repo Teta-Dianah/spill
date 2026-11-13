@@ -134,6 +134,50 @@ function screenMessage(text, extraTerms) {
   };
 }
 
+// The model check (model-check.js) rates a message with a level for
+// crisis, abuse and contact: 0 no, 1 unsure, 2 likely, 3 clear. A level
+// of 2 or 3 counts as a finding. This cut-off was fixed before the model
+// was tested, not chosen from its results.
+var MODEL_FLAG_LEVEL = 2;
+var MODEL_LEVEL_NAMES = ['crisis', 'abuse', 'contact'];
+
+// Turns the model's answer (JSON text) into { crisis, abuse, contact }
+// levels from 0 to 3. Returns null if the answer can't be used, so a
+// broken answer is treated the same as no answer at all.
+function parseModelAnswer(answerText) {
+  var parsed;
+  try {
+    parsed = JSON.parse(answerText);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object') return null;
+
+  var levels = {};
+  for (var i = 0; i < MODEL_LEVEL_NAMES.length; i++) {
+    var level = parsed[MODEL_LEVEL_NAMES[i]];
+    if (typeof level !== 'number' || !isFinite(level)) return null;
+    levels[MODEL_LEVEL_NAMES[i]] = Math.max(0, Math.min(3, Math.round(level)));
+  }
+  return levels;
+}
+
+// Works out what the model check adds to the term-list result from
+// screenMessage(): 'crisis', 'abuse', or '' for nothing new.
+//
+// The model can only ADD a crisis or abuse finding, never remove one,
+// and with no usable answer (levels is null) it adds nothing. If it
+// finds both, crisis comes first. Its contact level isn't used here:
+// contact-sharing blocks a message, and that is left to the term lists
+// and patterns.
+function modelFinding(screened, levels) {
+  if (!levels) return '';
+
+  if (levels.crisis >= MODEL_FLAG_LEVEL && !screened.hasCrisisLanguage) return 'crisis';
+  if (levels.abuse >= MODEL_FLAG_LEVEL && !screened.hasAbusiveLanguage) return 'abuse';
+  return '';
+}
+
 // Works out an admin's add, edit or remove on one term list (FR 7.1),
 // without touching Firebase, so it can be unit tested. Returns
 // { terms: newList } on success, or { error: 'message' } if the change
@@ -174,6 +218,8 @@ if (typeof module !== 'undefined') {
     cleanTerm: cleanTerm,
     cleanTermList: cleanTermList,
     applyTermChange: applyTermChange,
+    parseModelAnswer: parseModelAnswer,
+    modelFinding: modelFinding,
     DEFAULT_TERM_LISTS: DEFAULT_TERM_LISTS,
     MAX_TERM_LENGTH: MAX_TERM_LENGTH,
     MAX_TERMS_PER_LIST: MAX_TERMS_PER_LIST,

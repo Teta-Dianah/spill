@@ -4,6 +4,8 @@ const {
   cleanTerm,
   cleanTermList,
   applyTermChange,
+  parseModelAnswer,
+  modelFinding,
   DEFAULT_TERM_LISTS,
   MAX_TERMS_PER_LIST,
 } = require('../../public/js/screening.js');
@@ -313,6 +315,88 @@ describe('applyTermChange (admin add, edit, remove)', () => {
   test('refuses to edit or remove a term that is no longer there', () => {
     expect(applyTermChange('abuse', [], 'remove', 'gone term').error).toBeDefined();
     expect(applyTermChange('abuse', [], 'edit', 'gone term', 'new term').error).toBeDefined();
+  });
+});
+
+// The model check can add a finding to the term-list result. The model
+// itself is never called from these tests: they cover what the app does
+// with an answer, a broken answer, or no answer.
+describe('model check: reading the answer', () => {
+  test('a well-formed answer becomes three levels', () => {
+    expect(parseModelAnswer('{"crisis":3,"abuse":0,"contact":1}')).toEqual({ crisis: 3, abuse: 0, contact: 1 });
+  });
+
+  test('levels are rounded and kept between 0 and 3', () => {
+    expect(parseModelAnswer('{"crisis":7,"abuse":-2,"contact":1.6}')).toEqual({ crisis: 3, abuse: 0, contact: 2 });
+  });
+
+  test('an answer that is not JSON, or not an object, is unusable', () => {
+    expect(parseModelAnswer('sorry, I cannot rate that')).toBeNull();
+    expect(parseModelAnswer('')).toBeNull();
+    expect(parseModelAnswer('null')).toBeNull();
+    expect(parseModelAnswer('3')).toBeNull();
+    expect(parseModelAnswer(undefined)).toBeNull();
+  });
+
+  test('an answer with a missing or non-number level is unusable', () => {
+    expect(parseModelAnswer('{"crisis":3,"abuse":0}')).toBeNull();
+    expect(parseModelAnswer('{"crisis":"3","abuse":0,"contact":0}')).toBeNull();
+    expect(parseModelAnswer('{"crisis":null,"abuse":0,"contact":0}')).toBeNull();
+  });
+});
+
+describe('model check: what it adds to the term-list result', () => {
+  const clean = { hasCrisisLanguage: false, hasContactSharing: false, hasAbusiveLanguage: false };
+  const none = { crisis: 0, abuse: 0, contact: 0 };
+
+  test('"likely" or "clear" crisis from the model is a crisis finding', () => {
+    expect(modelFinding(clean, { ...none, crisis: 2 })).toBe('crisis');
+    expect(modelFinding(clean, { ...none, crisis: 3 })).toBe('crisis');
+  });
+
+  test('"likely" or "clear" abuse from the model is an abuse finding', () => {
+    expect(modelFinding(clean, { ...none, abuse: 2 })).toBe('abuse');
+    expect(modelFinding(clean, { ...none, abuse: 3 })).toBe('abuse');
+  });
+
+  test('"no" and "unsure" add nothing', () => {
+    expect(modelFinding(clean, none)).toBe('');
+    expect(modelFinding(clean, { crisis: 1, abuse: 1, contact: 1 })).toBe('');
+  });
+
+  test('crisis comes first when the model finds both', () => {
+    expect(modelFinding(clean, { crisis: 3, abuse: 3, contact: 0 })).toBe('crisis');
+  });
+
+  test('nothing is added twice: what the term lists already found is not repeated', () => {
+    const abuseFound = { ...clean, hasAbusiveLanguage: true };
+    expect(modelFinding(abuseFound, { ...none, abuse: 3 })).toBe('');
+    expect(modelFinding(abuseFound, { ...none, crisis: 3 })).toBe('crisis');
+
+    const crisisFound = { ...clean, hasCrisisLanguage: true };
+    expect(modelFinding(crisisFound, { ...none, crisis: 3 })).toBe('');
+  });
+
+  test("the model's contact level is never a finding", () => {
+    expect(modelFinding(clean, { ...none, contact: 3 })).toBe('');
+  });
+
+  test('with no usable answer nothing is added', () => {
+    expect(modelFinding(clean, null)).toBe('');
+    expect(modelFinding(clean, undefined)).toBe('');
+    expect(modelFinding(clean, {})).toBe('');
+  });
+
+  test('a message the term lists miss is a crisis finding once the model says so', () => {
+    const screened = screenMessage('I keep thinking nobody needs me here');
+    expect(screened.hasCrisisLanguage).toBe(false);
+    expect(modelFinding(screened, parseModelAnswer('{"crisis":3,"abuse":0,"contact":0}'))).toBe('crisis');
+  });
+
+  test('the term-list result passed in is not changed', () => {
+    const screened = { ...clean };
+    modelFinding(screened, { crisis: 3, abuse: 3, contact: 3 });
+    expect(screened).toEqual(clean);
   });
 });
 
