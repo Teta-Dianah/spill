@@ -59,11 +59,12 @@ An admin can add, edit and remove extra terms for the crisis, abuse and contact 
 
 So an admin editing the term lists can make Spill *more* responsive to new phrasing, but can never turn off the underlying safety net in `firestore.rules`.
 
-`test/unit/screening.test.js` measures `screenMessage()` against three sets (NFR 21):
+`test/unit/screening.test.js` measures `screenMessage()` against four sets (NFR 21):
 
 - A 46-message labelled set, used while writing the built-in term lists and patterns.
 - A held-out set of 16 messages never used while tuning, including Kinyarwanda and mixed Kinyarwanda/English.
 - A second set of 47 messages (`test/data/screening-held-out-2.txt`): 14 crisis, 9 abuse, 10 contact and 14 normal, in Kinyarwanda, English and mixed. It was held out for its first run only. The seed terms were then changed based on its misses and false positives, so **it is now tuned after this change** and its current numbers are not held-out results.
+- A third set of 42 messages (`test/data/screening-held-out-3.txt`): 15 crisis, 6 abuse, 8 contact and 13 normal, mostly informal English plus Kinyarwanda and mixed. It is **held-out**: it was run once, after the term fixes above, and no term or rule was changed for it.
 
 Each set is scored with the built-in lists only ("before") and with the terms in `scripts/term-lists-seed.json` added ("after"). Precision (P) and recall (R), before → after:
 
@@ -73,6 +74,9 @@ Each set is scored with the built-in lists only ("before") and with the terms in
 | Previous held-out (16) | P 1.00 → 1.00, R 0.13 → 0.38 | P 1.00 → 1.00, R 1.00 → 1.00 | P 1.00 → 1.00, R 0.00 → 0.50 |
 | Second set (47), first run, held-out | P n/a → 1.00, R 0.00 → 0.64 | P 1.00 → 1.00, R 0.60 → 0.90 | P 1.00 → 0.82, R 0.44 → 1.00 |
 | Second set (47), tuned after this change | P n/a → 1.00, R 0.00 → 1.00 | P 1.00 → 1.00, R 0.60 → 0.90 | P 1.00 → 1.00, R 0.44 → 1.00 |
+| Third set (42), held-out | P 1.00 → 0.50, R 0.07 → 0.13 | P 1.00 → 1.00, R 0.63 → 0.63 | P n/a → n/a, R 0.00 → 0.00 |
+
+"n/a" means nothing in that category was flagged, so there is no precision to measure. The third set's misses and false positives are printed in full by `npm test`.
 
 The first-run row is the honest held-out result for the second set. After that run, "kwipfira" and seven English crisis phrases were added ("point in going on", "better off without me", "end it all", "ending it all", "disappear forever", "never wake up", "life has no worth"), and "nzakubona" and "va hano" were removed from the abuse list because they matched everyday messages ("Nzakubona ejo", "Kuva hano"). The tuned row only shows that those changes did what they were meant to. A fresh, unseen set is needed for a new held-out number.
 
