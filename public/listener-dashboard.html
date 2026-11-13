@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Listener dashboard — Spill</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Listener dashboard</h1>
+    <button type="button" id="sign-out-button" style="width: auto;">Sign out</button>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Your status</h2>
+      <p id="status-message"></p>
+
+      <label>
+        <input type="checkbox" id="available-toggle" style="width: auto; display: inline-block;">
+        Available to take chats
+      </label>
+      <p id="availability-note" class="message"></p>
+    </section>
+
+    <!-- The same notice a user sees on request-chat.html. Shown only when
+         the model check is on and this listener has not answered yet
+         (model-check-notice.js). -->
+    <div id="model-check-notice" class="quiet-notice" role="region" aria-label="Safety check" hidden>
+      <p><strong>Safety check.</strong> To help keep chats safe, messages may be checked automatically by an AI service (Google Gemini) for crisis or harmful wording.</p>
+      <button type="button" id="model-check-agree">Agree</button>
+      <button type="button" id="model-check-decline" class="quiet-button">No thanks</button>
+    </div>
+
+    <section class="card">
+      <h2>Incoming requests</h2>
+      <p id="pending-message" class="message"></p>
+      <ul id="pending-requests" class="plain-list">
+        <li>Loading...</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Your active chats</h2>
+      <ul id="active-chats" class="plain-list">
+        <li>Loading...</li>
+      </ul>
+    </section>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/listeners.js"></script>
+  <script src="js/listener-dashboard.js"></script>
+  <script src="js/model-check-settings.js"></script>
+  <script src="js/model-check-notice.js"></script>
+  <script src="js/crisis-card.js"></script>
+</body>
+</html>

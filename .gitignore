@@ -11,6 +11,7 @@ yarn-error.log*
 *.pem
 serviceAccountKey*.json
 *-firebase-adminsdk-*.json
+public/js/firebase-config.js
 
 # Firebase
 .firebase/

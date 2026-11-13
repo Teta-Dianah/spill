@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "dev": "spill-dev-01",
+    "pilot": "spill-pilot",
+    "default": "dev"
+  }
+}

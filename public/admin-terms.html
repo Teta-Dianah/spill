@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage screening terms — Spill</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Manage screening terms</h1>
+    <p>Admin only. Add extra words or phrases for the chat screen to catch, such as Kinyarwanda terms. The built-in terms always stay on, and the fixed checks in Security Rules never change.</p>
+  </header>
+
+  <main>
+    <p id="admin-terms-message" class="message" role="status"></p>
+
+    <div id="admin-terms-content" hidden>
+      <p>Terms are plain text, 3 to 60 characters, up to 200 per list. Capitals, accents and punctuation are ignored when matching. Every change is recorded in the audit log.</p>
+
+      <section class="card">
+        <h2>Starter terms</h2>
+        <p>Adds Spill's starter terms (mostly Kinyarwanda, plus a few English crisis phrases) to the three lists below. Terms already on a list are skipped, nothing is changed or removed, and each term added is recorded in the audit log under your account. It is safe to press again.</p>
+        <button type="button" id="import-starter-terms-button" style="width: auto;">Import starter terms</button>
+      </section>
+
+      <section class="card">
+        <h2>Suggested by moderators</h2>
+        <p>Phrases moderators have suggested after reviewing flagged chats. Approve adds the phrase to its list. Reject leaves the lists as they are. Either way it is recorded in the audit log.</p>
+        <p id="suggestions-message" class="message" role="status"></p>
+        <ul id="pending-suggestions-list" class="plain-list"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Crisis</h2>
+        <p>A message with one of these is still delivered, but it raises a high-priority flag and shows the crisis card.</p>
+        <p id="crisis-built-in"></p>
+        <ul id="crisis-terms-list" class="plain-list"></ul>
+        <form id="crisis-add-form">
+          <label for="crisisTerm">Add a crisis term</label>
+          <input type="text" id="crisisTerm" name="term" maxlength="60" required>
+          <button type="submit">Add</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Abusive language</h2>
+        <p>A message with one of these is delivered and flagged for a moderator.</p>
+        <p id="abuse-built-in"></p>
+        <ul id="abuse-terms-list" class="plain-list"></ul>
+        <form id="abuse-add-form">
+          <label for="abuseTerm">Add an abuse term</label>
+          <input type="text" id="abuseTerm" name="term" maxlength="60" required>
+          <button type="submit">Add</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Contact sharing</h2>
+        <p>A message with one of these isn't sent. Phone numbers, emails, links, @handles, app names and phrases like "text me" are always caught, whatever is listed here.</p>
+        <ul id="contact-terms-list" class="plain-list"></ul>
+        <form id="contact-add-form">
+          <label for="contactTerm">Add a contact phrase</label>
+          <input type="text" id="contactTerm" name="term" maxlength="60" required>
+          <button type="submit">Add</button>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/screening.js"></script>
+  <script src="js/admin-terms.js"></script>
+  <script src="js/term-suggestions.js"></script>
+  <script src="js/crisis-card.js"></script>
+</body>
+</html>

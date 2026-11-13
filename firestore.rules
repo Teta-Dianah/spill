@@ -1,0 +1,472 @@
+rules_version = '2';
+
+// Spill Firestore Security Rules
+// Everything is denied by default. Each collection below turns on only the
+// access it needs. See docs/Spill_Proposal_and_SRS.pdf section 4.2 (FR 7.4)
+// and section 5.5 (business rules) for why these rules exist.
+//
+// A note on message screening (FR 6.1-6.3): there are two layers, on
+// purpose. This file has its own small, FIXED set of crisis and
+// contact-sharing patterns, hardcoded below and not editable without a
+// redeploy — that is the real safety backstop, enforced at write time no
+// matter what any client does. public/js/screening.js has a richer,
+// admin-editable set of term lists (FR 7.1) that the app uses for the
+// actual chat experience (showing the crisis card promptly, warning
+// messages, etc.) — editing those lists changes the app's behaviour, not
+// what the database will actually accept. Admin terms are only ever
+// added on top of the built-in lists (see termLists below).
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: true if the signed-in user's account has the given role.
+    // Looking up the account doc costs one extra read, which is fine for
+    // our small pilot scale.
+    function hasRole(role) {
+      return request.auth != null &&
+        get(/databases/$(database)/documents/accounts/$(request.auth.uid)).data.role == role;
+    }
+
+    // Helper: is this listener allowed to be matched with this user right
+    // now? Checked here, not just in the UI, so a tampered client can't
+    // force a match with an unapproved listener, skip the minors rule
+    // (BR 1, FR 4.2), reach someone who blocked them (FR 6.6), or reach
+    // someone while either account is suspended (BR 7).
+    function isEligibleListener(listenerId, userId) {
+      let listener = get(/databases/$(database)/documents/listeners/$(listenerId)).data;
+      let listenerAccount = get(/databases/$(database)/documents/accounts/$(listenerId)).data;
+      let userAccount = get(/databases/$(database)/documents/accounts/$(userId)).data;
+      return listener.status == 'approved' &&
+        listener.available == true &&
+        listenerAccount.status == 'active' &&
+        userAccount.status == 'active' &&
+        (userAccount.ageBand != '16-17' || listener.clearedForMinors == true) &&
+        !(listenerId in userAccount.blockedUids) &&
+        !(userId in listenerAccount.blockedUids);
+    }
+
+    // Helper: is this person one of the two people in this chat?
+    function isChatParticipant(chatId, uid) {
+      let chat = get(/databases/$(database)/documents/chats/$(chatId)).data;
+      return chat.userId == uid || chat.listenerId == uid;
+    }
+
+    // Helper: is this person a participant AND is the chat actually
+    // accepted? Messages only flow once the listener has accepted the
+    // request (FR 5.5) — not while it's still pending, and not once it's
+    // ended.
+    function isActiveChatParticipant(chatId, uid) {
+      let chat = get(/databases/$(database)/documents/chats/$(chatId)).data;
+      return (chat.userId == uid || chat.listenerId == uid) && chat.status == 'active';
+    }
+
+    // Helper: has a moderator opened a case on this chat? chatCases is
+    // only ever written by a moderator (see that collection below) — this
+    // is the one and only path in to chat content for them (BR 3).
+    function chatHasCase(chatId) {
+      return exists(/databases/$(database)/documents/chatCases/$(chatId));
+    }
+
+    // Helper: does the flag named on this crisis message actually belong
+    // to it — same chat, same message, same sender — and is it really a
+    // high-priority crisis flag? Checking the flag merely exists isn't
+    // enough: a stale or mismatched flag id would satisfy that and let a
+    // crisis message through unflagged in all the ways that matter.
+    function hasMatchingCrisisFlag(messageId, chatId, senderId) {
+      let flag = getAfter(/databases/$(database)/documents/flags/$(request.resource.data.flagId)).data;
+      return flag.type == 'crisis' &&
+        flag.severity == 3 &&
+        flag.chatId == chatId &&
+        flag.senderId == senderId &&
+        flag.messageId == messageId;
+    }
+
+    // Helper: does this flag/report update carry a matching auditLog
+    // entry in the same batch (same actor, same item)? Mirrors
+    // hasMatchingCrisisFlag — a moderator action and its audit trail are
+    // written together or not at all (FR 6.9, FR 7.3).
+    function hasMatchingAuditEntry(auditLogId, itemType, itemId) {
+      let entry = getAfter(/databases/$(database)/documents/auditLog/$(auditLogId)).data;
+      return entry.actorId == request.auth.uid &&
+        entry.itemType == itemType &&
+        entry.itemId == itemId;
+    }
+
+    // Helper: does this account's suspend/reinstate carry a matching
+    // auditLog entry (same actor, same batch) that names this account as
+    // the target, AND does the flag/report that entry points at actually
+    // name this account as its subject (the flag's sender, or the
+    // report's reportedId)? A moderator can only ever change the status
+    // of the specific person a flag or report is actually about, never
+    // any other account, and the chain can't be faked by pointing at an
+    // unrelated audit entry or an unrelated flag/report.
+    function auditedModerationOf(uid, auditLogId) {
+      let entry = getAfter(/databases/$(database)/documents/auditLog/$(auditLogId)).data;
+      let itemCollection = entry.itemType == 'flag' ? 'flags' : 'reports';
+      let item = getAfter(/databases/$(database)/documents/$(itemCollection)/$(entry.itemId)).data;
+      let itemSubject = entry.itemType == 'flag' ? item.senderId : item.reportedId;
+      return entry.actorId == request.auth.uid &&
+        (entry.action == 'suspend' || entry.action == 'reinstate') &&
+        entry.targetUid == uid &&
+        itemSubject == uid;
+    }
+
+    // Helper: is this term list write paired with a NEW auditLog entry
+    // written in the same batch, by this admin, about this list (FR 7.1,
+    // FR 6.9)? The entry must not exist before the write, so an admin
+    // can't point at an old entry and make an unlogged change.
+    function hasNewTermListAuditEntry(category) {
+      let auditLogId = request.resource.data.lastAuditLogId;
+      let entry = getAfter(/databases/$(database)/documents/auditLog/$(auditLogId)).data;
+      return !exists(/databases/$(database)/documents/auditLog/$(auditLogId)) &&
+        entry.actorId == request.auth.uid &&
+        entry.itemType == 'termList' &&
+        entry.itemId == category &&
+        entry.action in ['add_term', 'edit_term', 'remove_term'];
+    }
+
+    // Helper: is this review of a term suggestion paired with a NEW
+    // auditLog entry written in the same batch, by this admin (FR 7.1,
+    // FR 6.9)? For an approval the entry is the term list's own
+    // "add_term" entry, naming this suggestion and its phrase. For a
+    // rejection it is a "reject_term_suggestion" entry about the
+    // suggestion itself.
+    function hasNewSuggestionAuditEntry(suggestionId) {
+      let auditLogId = request.resource.data.auditLogId;
+      let entry = getAfter(/databases/$(database)/documents/auditLog/$(auditLogId)).data;
+      let approved = request.resource.data.status == 'approved';
+      return !exists(/databases/$(database)/documents/auditLog/$(auditLogId)) &&
+        entry.actorId == request.auth.uid &&
+        entry.suggestionId == suggestionId &&
+        entry.newTerm == resource.data.phrase &&
+        (
+          (approved && entry.action == 'add_term' &&
+            entry.itemType == 'termList' && entry.itemId == resource.data.category) ||
+          (!approved && entry.action == 'reject_term_suggestion' &&
+            entry.itemType == 'termSuggestion' && entry.itemId == suggestionId)
+        );
+    }
+
+    // Helper: after this batch, is the approved phrase really on its
+    // term list? Stops a suggestion being marked approved without the
+    // term being added.
+    function approvedPhraseIsOnList() {
+      let list = getAfter(/databases/$(database)/documents/termLists/$(resource.data.category)).data;
+      return resource.data.phrase in list.terms &&
+        list.lastAuditLogId == request.resource.data.auditLogId;
+    }
+
+    // Fixed, non-editable crisis-language check (FR 6.2). Deliberately
+    // small — this is a backstop, not the primary detector.
+    function hasCrisisLanguage(text) {
+      return text.lower().matches(
+        '.*(kill myself|kill me|suicide|suicidal|end my life|want to die|self harm|hurt myself).*'
+      );
+    }
+
+    // Fixed, non-editable contact-sharing check (FR 6.3): phone numbers,
+    // emails/handles (an "@" next to a letter or digit), links, and
+    // naming a platform to move the conversation to.
+    function hasContactSharing(text) {
+      return text.lower().matches(
+        '.*(https?://|www[.]|whatsapp|instagram|telegram|snapchat|@[a-z0-9]).*'
+      ) || text.matches('.*[0-9][0-9 -]{6,}[0-9].*');
+    }
+
+    // accounts/{uid} — one document per registered user (FR 1, FR 7.4).
+    // A user can write most of their own account, but never their own
+    // role or status (BR 7 — a suspended account can't just un-suspend
+    // itself). An admin can change role and status on any account
+    // (approving a listener for moderator duty, for example). A
+    // moderator can change status only (FR 6.8), and only as the
+    // audited, same-batch resolution of a flag or report that actually
+    // names this account (auditedModerationOf) — never an unrelated
+    // account, and never an admin or another moderator, so a moderator
+    // can't silence oversight of their own work. Admins and moderators
+    // can also read any account, since safety work means seeing who
+    // applied or who was flagged — just their pseudonym, never real
+    // identity, and never chat content (BR 4).
+    match /accounts/{uid} {
+      allow read: if request.auth != null &&
+        (request.auth.uid == uid || hasRole('admin') || hasRole('moderator'));
+
+      allow create: if request.auth != null &&
+        request.auth.uid == uid &&
+        request.resource.data.role == 'user';
+
+      allow update: if request.auth != null && (
+        (request.auth.uid == uid &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.status == resource.data.status) ||
+        (hasRole('admin') &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'status'])) ||
+        (hasRole('moderator') &&
+          resource.data.role == 'user' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'lastAuditLogId']) &&
+          auditedModerationOf(uid, request.resource.data.lastAuditLogId))
+      );
+
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // resources/{resourceId} — helplines, clinics and self-help content
+    // (FR 2, FR 7.2, BR 8). Anyone can read, even signed out. Only an
+    // admin account can add, edit or remove a resource.
+    match /resources/{resourceId} {
+      allow read: if true;
+      allow write: if hasRole('admin');
+    }
+
+    // termLists/{category} — extra screening terms an admin adds for
+    // crisis, abuse or contact-sharing (FR 7.1), as { terms: [...] }.
+    // Any signed-in user can read them, since screening runs in each
+    // person's own browser while they chat. Only an admin can write,
+    // only to these three lists, at most 200 terms, and every change
+    // must come with its own auditLog entry in the same batch. Rules
+    // can't loop over a list, so the length of each term is checked by
+    // screening.js when the list is loaded, not here. These lists never
+    // change what this file accepts: the fixed hasCrisisLanguage and
+    // hasContactSharing checks above stay the same whatever is saved.
+    match /termLists/{category} {
+      allow read: if request.auth != null;
+
+      allow create, update: if hasRole('admin') &&
+        category in ['crisis', 'abuse', 'contact'] &&
+        request.resource.data.keys().hasOnly(['terms', 'lastAuditLogId', 'updatedBy', 'updatedAt']) &&
+        request.resource.data.terms is list &&
+        request.resource.data.terms.size() <= 200 &&
+        request.resource.data.updatedBy == request.auth.uid &&
+        hasNewTermListAuditEntry(category);
+    }
+
+    // termSuggestions/{suggestionId} — a phrase a moderator suggests for
+    // the crisis or abuse term list after reviewing a flagged chat
+    // (FR 7.1). It holds only the phrase, its category, an optional
+    // note, the moderator's own ID and a time: no message text and no
+    // other person's ID. Nothing reaches a term list from here by
+    // itself. An admin approves or rejects each one, and termLists
+    // above still only accepts an admin's own audited write.
+    //
+    // A moderator can create a suggestion, always "pending" and under
+    // their own ID, and read their own. The phrase must already be in
+    // the cleaned form screening.js gives a term (lower case letters,
+    // digits and single spaces, 3 to 60 characters). Contact terms
+    // can't be suggested. An admin can read them all, and can change a
+    // pending one to approved or rejected, once, with a new auditLog
+    // entry in the same batch; the phrase, category, note and author
+    // can never change. Nobody can delete one, and its author can't
+    // edit it. Users and listeners can't read or write here at all.
+    match /termSuggestions/{suggestionId} {
+      allow create: if hasRole('moderator') &&
+        request.resource.data.keys().hasOnly(['phrase', 'category', 'note', 'suggestedBy', 'status', 'createdAt']) &&
+        request.resource.data.keys().hasAll(['phrase', 'category', 'note', 'suggestedBy', 'status', 'createdAt']) &&
+        request.resource.data.phrase is string &&
+        request.resource.data.phrase.size() >= 3 &&
+        request.resource.data.phrase.size() <= 60 &&
+        request.resource.data.phrase.matches('^[a-z0-9]+( [a-z0-9]+)*$') &&
+        request.resource.data.category in ['crisis', 'abuse'] &&
+        request.resource.data.note is string &&
+        request.resource.data.note.size() <= 280 &&
+        request.resource.data.suggestedBy == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.createdAt == request.time;
+
+      allow read: if hasRole('admin') ||
+        (hasRole('moderator') && resource.data.suggestedBy == request.auth.uid);
+
+      allow update: if hasRole('admin') &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status in ['approved', 'rejected'] &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'reviewedBy', 'reviewedAt', 'auditLogId']) &&
+        request.resource.data.reviewedBy == request.auth.uid &&
+        request.resource.data.reviewedAt == request.time &&
+        hasNewSuggestionAuditEntry(suggestionId) &&
+        (request.resource.data.status == 'rejected' || approvedPhraseIsOnList());
+    }
+
+    // moods/{moodId} — one document per mood check-in (FR 3). A user can
+    // only create and read their own mood entries. Mood entries are a
+    // simple log, so there is no update or delete in version 1.0.
+    match /moods/{moodId} {
+      allow create: if request.auth != null &&
+        request.auth.uid == request.resource.data.uid;
+
+      allow read: if request.auth != null &&
+        request.auth.uid == resource.data.uid;
+    }
+
+    // listeners/{uid} — one document per listener application (FR 5).
+    // Anyone signed in can read the whole collection: matching a user to
+    // a listener happens in the browser (the free plan has no Cloud
+    // Functions to do it on a server), so a user's client needs to see
+    // who is approved and available. A person can only apply for
+    // themselves, always starting as unapproved and unavailable; only an
+    // admin can approve, reject, or clear someone for minors (BR 2).
+    match /listeners/{uid} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null &&
+        request.auth.uid == uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.clearedForMinors == false &&
+        request.resource.data.available == false &&
+        request.resource.data.trainingComplete == false;
+
+      allow update: if request.auth != null && (
+        hasRole('admin') ||
+        (request.auth.uid == uid &&
+          request.resource.data.status == resource.data.status &&
+          request.resource.data.clearedForMinors == resource.data.clearedForMinors)
+      );
+    }
+
+    // chats/{chatId} — one document per chat session (FR 4, FR 5.5). Only
+    // a user can start a chat (FR 4.4), and only with a listener who is
+    // actually eligible right now (BR 1, BR 7, FR 6.6 — see
+    // isEligibleListener), and only alongside a pendingChats claim
+    // naming this exact chat in the same batch (FR 4.1 — see that
+    // collection below, and hasMatchingCrisisFlag above for the same
+    // pairing pattern). pendingChats has no update rule, so a second
+    // chat can never be created while the first claim still stands —
+    // that's what actually stops a user ending up with two pending
+    // chats at once, even from a tampered client that skips
+    // request-chat.js entirely. A new chat always starts "pending" —
+    // the listener accepts or declines it (FR 5.5) before any messages
+    // can flow. The two participants can always read or change it; a
+    // moderator can read it too, but only once a case exists for it
+    // (BR 3) — an admin never can (BR 4).
+    match /chats/{chatId} {
+      allow create: if request.auth != null &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        isEligibleListener(request.resource.data.listenerId, request.auth.uid) &&
+        getAfter(/databases/$(database)/documents/pendingChats/$(request.auth.uid)).data.chatId == chatId;
+
+      allow read: if request.auth != null &&
+        (resource.data.userId == request.auth.uid ||
+          resource.data.listenerId == request.auth.uid ||
+          (hasRole('moderator') && chatHasCase(chatId)));
+
+      allow update: if request.auth != null &&
+        (resource.data.userId == request.auth.uid || resource.data.listenerId == request.auth.uid) &&
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.listenerId == resource.data.listenerId &&
+        request.resource.data.createdAt == resource.data.createdAt;
+    }
+
+    // pendingChats/{uid} — a marker naming the one chat this user
+    // currently has outstanding (FR 4.1). request-chat.js creates it in
+    // the same batch as each chats/{chatId} it creates (first attempt,
+    // or a retry after a decline) and deletes it once matched, declined
+    // and about to retry, or old enough that the client would have
+    // given up anyway. There's deliberately no update rule: Firestore
+    // treats a second create-style write to an existing document as an
+    // update, so a second chat can never get its own claim in here
+    // while the first one's claim still stands — a user can only ever
+    // hold one at a time, for exactly one chat.
+    match /pendingChats/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // messages/{messageId} — one document per chat message (FR 4.3,
+    // FR 6.1-6.3). Contact-sharing is always rejected outright. Crisis
+    // wording is never blocked, but the write must bring its own
+    // matching high-priority flag along in the same batch (same chat,
+    // message and sender — see hasMatchingCrisisFlag). A tampered client
+    // could try to skip or mismatch the flag, but then the whole write
+    // (crisis message included) is refused, not silently delivered
+    // unflagged or flagged against the wrong message.
+    match /messages/{messageId} {
+      allow create: if request.auth != null &&
+        request.resource.data.senderId == request.auth.uid &&
+        isActiveChatParticipant(request.resource.data.chatId, request.auth.uid) &&
+        !hasContactSharing(request.resource.data.text) &&
+        (!hasCrisisLanguage(request.resource.data.text) ||
+          hasMatchingCrisisFlag(messageId, request.resource.data.chatId, request.resource.data.senderId));
+
+      allow read: if request.auth != null &&
+        (isChatParticipant(resource.data.chatId, request.auth.uid) ||
+          (hasRole('moderator') && chatHasCase(resource.data.chatId)));
+    }
+
+    // flags/{flagId} — system-raised safety flags: crisis wording,
+    // blocked contact-sharing attempts, and flagged abusive language
+    // (FR 6.2, FR 6.3, FR 6.4). Written by the sender themselves — a
+    // chat participant — since Security Rules can only allow or deny a
+    // write, never create data on their own. Only moderators work the
+    // queue (FR 6.7, BR 3); this is safety data, so admins don't read it
+    // either, matching BR 4's spirit. A moderator's update (dismiss,
+    // warn, suspend, reinstate, escalate — FR 7.3) must bring its own
+    // matching auditLog entry in the same batch, same as the crisis
+    // message/flag pairing above — an action with no audit trail is
+    // refused outright, not silently applied unlogged (FR 6.9).
+    match /flags/{flagId} {
+      allow create: if request.auth != null &&
+        request.resource.data.senderId == request.auth.uid &&
+        isChatParticipant(request.resource.data.chatId, request.auth.uid);
+
+      allow read: if hasRole('moderator');
+
+      allow update: if hasRole('moderator') &&
+        hasMatchingAuditEntry(request.resource.data.auditLogId, 'flag', flagId);
+    }
+
+    // reports/{reportId} — a participant reporting a chat or the other
+    // person, with a reason (FR 6.5). Same visibility as flags. Severity
+    // on creation is fixed at 2 (not crisis-level 3) — a reporter hasn't
+    // been through moderation, so they can't self-assign high priority;
+    // a moderator reviewing the report can still re-triage it freely
+    // once it's in the queue. As with flags, a moderator's update must
+    // carry its own matching auditLog entry in the same batch.
+    match /reports/{reportId} {
+      allow create: if request.auth != null &&
+        request.resource.data.reporterId == request.auth.uid &&
+        isChatParticipant(request.resource.data.chatId, request.auth.uid) &&
+        request.resource.data.severity == 2;
+
+      allow read: if hasRole('moderator');
+
+      allow update: if hasRole('moderator') &&
+        hasMatchingAuditEntry(request.resource.data.auditLogId, 'report', reportId);
+    }
+
+    // chatFlagged/{chatId} — a marker saying "at least one flag or
+    // report has been raised for this chat", written by the participant
+    // alongside that flag or report. On its own this gives nobody access
+    // to anything new; it only exists so chatCases (below) has something
+    // to check.
+    match /chatFlagged/{chatId} {
+      allow create, update: if request.auth != null && isChatParticipant(chatId, request.auth.uid);
+
+      allow read: if hasRole('moderator');
+    }
+
+    // chatCases/{chatId} — a moderator deliberately opening a case on a
+    // flagged chat (BR 3). Only a moderator can create this — never a
+    // participant, never an admin — and only once chatFlagged confirms a
+    // flag or report genuinely exists for that chat, so a moderator
+    // can't just open an arbitrary chat with nothing raised against it.
+    // This is what chatHasCase() checks, and it is the only path in to
+    // chat content for a moderator.
+    match /chatCases/{chatId} {
+      allow create: if hasRole('moderator') &&
+        exists(/databases/$(database)/documents/chatFlagged/$(chatId));
+
+      allow read: if hasRole('moderator');
+    }
+
+    // auditLog/{entryId} — every moderator/admin action and every case
+    // opened, logged by the client at the moment it happens (FR 6.9,
+    // NFR 19). Entries can never be edited or removed through the app —
+    // there is no update or delete rule for this collection at all.
+    match /auditLog/{entryId} {
+      allow create: if request.auth != null &&
+        request.resource.data.actorId == request.auth.uid &&
+        (hasRole('moderator') || hasRole('admin'));
+
+      allow read: if hasRole('moderator') || hasRole('admin');
+    }
+  }
+}

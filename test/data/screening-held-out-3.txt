@@ -1,0 +1,43 @@
+label | message | language
+crisis | i wanna unalive myself | english
+crisis | kms honestly, i can't do this anymore | english
+crisis | nobody would even notice if i was gone | english
+crisis | i'm so done with life fr | english
+crisis | i wish i could just not exist | english
+crisis | what's the point of anything anymore, i'm tired of being here | english
+crisis | thinking of checking out for good | english
+crisis | i don't wanna be here anymore | english
+crisis | everyone would be happier if i just wasn't around | english
+crisis | i keep hurting myself when it gets too much | english
+crisis | Ndananiwe, i just want everything to stop | mixed
+crisis | Nta muntu unkunda and i feel like disappearing | mixed
+crisis | Ubuzima bumaze kunanira, i don't wanna be here anymore | mixed
+crisis | Ndarambiwe ubuzima, nshaka kwipfira. | kinyarwanda
+crisis | Nta cyo bimaze kubaho. | kinyarwanda
+abuse | you're such a loser, go away | english
+abuse | ur trash and everybody knows it | english
+abuse | stfu you clown | english
+abuse | you're a joke, nobody wants to talk to you | english
+abuse | send nudes babe | english
+abuse | Uri trash rwose, genda. | mixed
+contact | dm me | english
+contact | slide into my dms | english
+contact | what's ur snap? | english
+contact | hit me up on ig, it's easier than here | english
+contact | my number is 0788000111 | english
+contact | lets move to whatsapp, its easier | english
+contact | Nyandikira on insta, mfite akazi kenshi hano. | mixed
+contact | Mpa ur number tuvugane on WhatsApp. | mixed
+normal | What's the point in going on that trip if it's raining? | english
+normal | I'm ending it all with this group project today, finally done! | english
+normal | I wanted to disappear from the party, it was so boring. | english
+normal | this exam is killing me lol | english
+normal | lol i'm dead, that joke was hilarious | english
+normal | my phone is dead, i'll charge it and text you later | english
+normal | you're crazy good at football! | english
+normal | Follow the school page for the exam updates. | english
+normal | I hate Mondays so much | english
+normal | Nzakubona ejo, tuzaganire. | kinyarwanda
+normal | Ndavuye ku ishuri, ndananiwe cyane. | kinyarwanda
+normal | Genda uryame, bwije. | kinyarwanda
+normal | Ndarambiwe gutegereza bisi, yatinze cyane. | kinyarwanda

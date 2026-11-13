@@ -1,0 +1,48 @@
+label | message | language
+crisis | Uyu munsi ndashaka gupfa. | kinyarwanda
+crisis | Mwaramutse, ndi umutwaro kuri buri wese. | kinyarwanda
+crisis | Byaba byiza mpfuye. | kinyarwanda
+crisis | Nanijwe n'ubu buzima. | kinyarwanda
+crisis | Ndi njyenyine nta muntu mfite. | kinyarwanda
+crisis | Mpaze igihe nikomeretsa. | kinyarwanda
+crisis | Hari umuntu umpohotera, mfite ubwoba bw'ubuzima bwanjye. | kinyarwanda
+crisis | I don't see the point in going on anymore. | english
+crisis | Sometimes I think everyone would be better off without me. | english
+crisis | I've been thinking about ending it all. | english
+crisis | i just want to disappear forever and never wake up | english
+crisis | Mfite stress nyinshi, ndashaka gupfa. | mixed
+crisis | I feel so alone, ndi njyenyine nta muntu mfite. | mixed
+abuse | Uri igicucu rwose. | kinyarwanda
+abuse | Uri ikigoryi. | kinyarwanda
+abuse | Ceceka, uri umubeshyi. | kinyarwanda
+abuse | Ndakwanga, va hano. | kinyarwanda
+abuse | Uri umwanda. | kinyarwanda
+abuse | You're so stupid, nobody likes you. | english
+abuse | Shut up you idiot, you're pathetic. | english
+abuse | Uri umusazi, I hate you. | mixed
+contact | Mpa nimero yawe ya telefoni ukoresha kuri momo. | kinyarwanda
+contact | Nyandikira kuri WhatsApp. | kinyarwanda
+contact | Imeri yanjye ni jean.k@gmail.com | kinyarwanda
+contact | Utuye he? | kinyarwanda
+contact | Nzakoherereza amafaranga cyangwa airtime. | kinyarwanda
+contact | Add me on Snapchat, I'm sam_rw. | english
+contact | Text me on 0788 123 456 | english
+contact | What's your WhatsApp number? | english
+contact | Nyandikira kuri Snapchat, give me your username. | mixed
+normal | Nzakubona ejo kuri kaminuza. | kinyarwanda
+normal | Kuva hano ni kure cyane. | kinyarwanda
+normal | Genda buhoro, umuhanda uranyerera. | kinyarwanda
+normal | Nkurikira inama za mwarimu kandi ndabona zimfasha. | kinyarwanda
+normal | Ikizamini cyari kigoye, ndarambiwe kwiga uyu munsi. | kinyarwanda
+normal | Sinshaka kujya ku ishuri uyu munsi. | kinyarwanda
+normal | Mwaramutse, mumeze mute? | kinyarwanda
+normal | Ndumva mfite umunaniro mwinshi nyuma y'akazi. | kinyarwanda
+normal | I'm dying to see that movie, the wait is killing me. | english
+normal | Exam stress is killing me lol. | english
+normal | I feel sad today because I failed my exam. | english
+normal | My phone number changed because I got a new SIM. | english
+normal | Can you give me advice about talking to my parents? | english
+normal | Nzagenda kwiga ejo, then we can talk after class. | mixed
+crisis | Every time i try to be perfect abantu baranyanga ndashaka kwipfira it looks life has no worth | mixed
+abuse | ako ubwo utekereza ute nta kintu uzimarira you are an idiot | mixed
+contact | njye nagufasha muri uwo mubabaro uzaze unsure that i also give you some money | mixed
