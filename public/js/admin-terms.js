@@ -1,7 +1,7 @@
 // Lets an admin add, edit and remove extra screening terms (FR 7.1).
 // Firestore Security Rules are the real gatekeeper here — this page just
 // gives an admin a form to use. Needs screening.js loaded first (for
-// applyTermChange and DEFAULT_TERM_LISTS).
+// applyTermChange, planStarterTermImport and DEFAULT_TERM_LISTS).
 //
 // Every change writes the new list and its auditLog entry together, in
 // one transaction (FR 6.9). firestore.rules refuses a list change that
@@ -50,6 +50,107 @@ function saveTermChange(category, action, oldTerm, newTerm, adminUid) {
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
     });
+  });
+}
+
+// Where the starter terms live. The same file "npm run seed:terms" uses
+// for the emulators.
+var STARTER_TERMS_URL = 'data/term-lists-seed.json';
+
+// Adds the starter terms to one list (FR 7.1), as the signed-in admin.
+// Only ever adds: planStarterTermImport skips anything already listed.
+// The list and one auditLog entry per term added are written together,
+// in one transaction (FR 6.9), the same way a single change is.
+// Resolves to { added: howMany, skipped: howMany }.
+function importStarterTermsFor(category, starterTerms, adminUid) {
+  var db = firebase.firestore();
+  var listRef = db.collection('termLists').doc(category);
+
+  return db.runTransaction(function (transaction) {
+    return transaction.get(listRef).then(function (docSnap) {
+      var currentTerms = docSnap.exists ? docSnap.data().terms : [];
+      var plan = planStarterTermImport(category, currentTerms, starterTerms);
+      if (plan.added.length === 0) {
+        return { added: 0, skipped: plan.skipped };
+      }
+
+      var lastAuditRef = null;
+      plan.added.forEach(function (term) {
+        lastAuditRef = db.collection('auditLog').doc();
+        transaction.set(lastAuditRef, {
+          actorId: adminUid,
+          action: AUDIT_ACTIONS.add,
+          itemType: 'termList',
+          itemId: category,
+          oldTerm: null,
+          newTerm: term,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+      });
+      transaction.set(listRef, {
+        terms: plan.terms,
+        lastAuditLogId: lastAuditRef.id,
+        updatedBy: adminUid,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return { added: plan.added.length, skipped: plan.skipped };
+    });
+  });
+}
+
+// Loads the starter terms and imports them into the three lists, one
+// after another. Resolves to the totals for the message on the page.
+function importStarterTerms(adminUid) {
+  var totals = { added: 0, skipped: 0 };
+
+  return fetch(STARTER_TERMS_URL)
+    .then(function (response) {
+      if (!response.ok) throw new Error('Could not load the starter terms.');
+      return response.json();
+    })
+    .then(function (starter) {
+      // One list at a time, so a problem with one is easy to see.
+      return TERM_CATEGORIES.reduce(function (previous, category) {
+        return previous
+          .then(function () {
+            return importStarterTermsFor(category, starter[category], adminUid);
+          })
+          .then(function (result) {
+            totals.added += result.added;
+            totals.skipped += result.skipped;
+          });
+      }, Promise.resolve());
+    })
+    .then(function () {
+      return totals;
+    });
+}
+
+function wireImportButton(adminUid) {
+  var button = document.getElementById('import-starter-terms-button');
+  if (!button) return;
+
+  button.addEventListener('click', function () {
+    button.disabled = true;
+    showAdminTermsMessage('Importing starter terms...');
+
+    importStarterTerms(adminUid)
+      .then(function (totals) {
+        showAdminTermsMessage(
+          totals.added + ' starter term(s) added, ' + totals.skipped + ' skipped (already on a list).'
+        );
+      })
+      .catch(function (error) {
+        showAdminTermsMessage('Could not import the starter terms. Please try again.');
+        console.error(error);
+      })
+      .then(function () {
+        button.disabled = false;
+        TERM_CATEGORIES.forEach(function (category) {
+          renderTermList(category, adminUid);
+        });
+      });
   });
 }
 
@@ -185,6 +286,7 @@ function checkAdminAndStart() {
         var content = document.getElementById('admin-terms-content');
         if (content) content.hidden = false;
 
+        wireImportButton(user.uid);
         TERM_CATEGORIES.forEach(function (category) {
           renderBuiltInTerms(category);
           wireAddForm(category, user.uid);

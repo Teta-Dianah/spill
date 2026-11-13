@@ -211,6 +211,30 @@ function applyTermChange(category, currentTerms, action, oldTerm, newTerm) {
   return { terms: terms };
 }
 
+// Works out what importing the starter terms would do to one list,
+// without touching Firebase, so it can be unit tested. Each starter term
+// goes through applyTermChange as an ordinary 'add', so the import can
+// only add terms, never change or remove one, and a term the admin page
+// would refuse (already listed, too short, list full) is skipped.
+// Returns { terms: newList, added: [terms added], skipped: howMany }.
+function planStarterTermImport(category, currentTerms, starterTerms) {
+  var terms = cleanTermList(currentTerms);
+  var added = [];
+  var skipped = 0;
+
+  (Array.isArray(starterTerms) ? starterTerms : []).forEach(function (term) {
+    var result = applyTermChange(category, terms, 'add', null, term);
+    if (result.error) {
+      skipped++;
+      return;
+    }
+    terms = result.terms;
+    added.push(terms[terms.length - 1]);
+  });
+
+  return { terms: terms, added: added, skipped: skipped };
+}
+
 if (typeof module !== 'undefined') {
   module.exports = {
     screenMessage: screenMessage,
@@ -218,6 +242,7 @@ if (typeof module !== 'undefined') {
     cleanTerm: cleanTerm,
     cleanTermList: cleanTermList,
     applyTermChange: applyTermChange,
+    planStarterTermImport: planStarterTermImport,
     parseModelAnswer: parseModelAnswer,
     modelFinding: modelFinding,
     DEFAULT_TERM_LISTS: DEFAULT_TERM_LISTS,

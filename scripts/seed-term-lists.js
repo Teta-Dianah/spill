@@ -1,4 +1,4 @@
-// Adds the terms in term-lists-seed.json to the admin-editable screening
+// Adds the terms in public/data/term-lists-seed.json to the admin-editable screening
 // term lists (FR 7.1) in the Firestore emulator. Each term goes through
 // the same checks as the admin page (applyTermChange in screening.js),
 // so a term the page would refuse is refused here too, and listed.
@@ -14,7 +14,7 @@ process.env.FIRESTORE_EMULATOR_HOST = process.env.FIRESTORE_EMULATOR_HOST || 'lo
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { applyTermChange } = require('../public/js/screening.js');
-const seedTerms = require('./term-lists-seed.json');
+const seedTerms = require('../public/data/term-lists-seed.json');
 
 initializeApp({ projectId: 'demo-spill-dev' });
 

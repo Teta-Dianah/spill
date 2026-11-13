@@ -50,7 +50,7 @@ Every chat message is checked for crisis language and attempts to share contact 
 
 ### Admin-added terms (FR 7.1)
 
-An admin can add, edit and remove extra terms for the crisis, abuse and contact lists on `admin-terms.html`, without a redeploy (for example, Kinyarwanda words). They're stored in `termLists/{crisis,abuse,contact}` as `{ terms: [...] }`, and the chat screen loads them once per chat.
+An admin can add, edit and remove extra terms for the crisis, abuse and contact lists on `admin-terms.html`, without a redeploy (for example, Kinyarwanda words). The "Import starter terms" button there adds Spill's starter terms in one go; it only ever adds, and skips terms already listed. They're stored in `termLists/{crisis,abuse,contact}` as `{ terms: [...] }`, and the chat screen loads them once per chat.
 
 - Admin terms are only ever **added** to the built-in lists. The built-in terms and contact patterns (phone numbers, emails, links, @handles, app names) always stay on, so an admin can't make screening weaker by mistake.
 - Terms are plain text, not patterns. They're normalised the same way as messages (lower case, no accents or punctuation), must be 3 to 60 characters, and each list holds at most 200. Lists read from Firestore are cleaned again when loaded, so a bad saved value can't break screening.
@@ -66,7 +66,7 @@ So an admin editing the term lists can make Spill *more* responsive to new phras
 - A second set of 47 messages (`test/data/screening-held-out-2.txt`): 14 crisis, 9 abuse, 10 contact and 14 normal, in Kinyarwanda, English and mixed. It was held out for its first run only. The seed terms were then changed based on its misses and false positives, so **it is now tuned after this change** and its current numbers are not held-out results.
 - A third set of 42 messages (`test/data/screening-held-out-3.txt`): 15 crisis, 6 abuse, 8 contact and 13 normal, mostly informal English plus Kinyarwanda and mixed. It is **held-out**: it was run once, after the term fixes above, and no term or rule was changed for it.
 
-Each set is scored with the built-in lists only ("before") and with the terms in `scripts/term-lists-seed.json` added ("after"). Precision (P) and recall (R), before → after:
+Each set is scored with the built-in lists only ("before") and with the terms in `public/data/term-lists-seed.json` added ("after"). Precision (P) and recall (R), before → after:
 
 | Set | Crisis | Contact | Abuse |
 |---|---|---|---|
@@ -196,9 +196,9 @@ To reach the staff pages, sign in and look at the dashboard. An approved listene
 
 ### About the seed scripts
 
-`npm run seed:terms` adds the terms in `scripts/term-lists-seed.json` (mostly Kinyarwanda, plus a few English crisis phrases) to the admin term lists. Each term goes through the same checks as `admin-terms.html`, and each one added gets its own `auditLog` entry. Terms already on a list are skipped, so it's safe to run again. The script only adds terms: removing a term from the seed file doesn't remove it from a database that was already seeded. Remove it on `admin-terms.html` instead, so the removal is logged too.
+`npm run seed:terms` adds the terms in `public/data/term-lists-seed.json` (mostly Kinyarwanda, plus a few English crisis phrases) to the admin term lists. Each term goes through the same checks as `admin-terms.html`, and each one added gets its own `auditLog` entry. Terms already on a list are skipped, so it's safe to run again. The script only adds terms: removing a term from the seed file doesn't remove it from a database that was already seeded. Remove it on `admin-terms.html` instead, so the removal is logged too.
 
-All three seed scripts write to the emulators only.
+All three seed scripts write to the emulators only. The "Import starter terms" button on `admin-terms.html` adds the same starter terms from the page itself, as the signed-in admin, so it also works on a deployed project.
 
 ## Testing
 
@@ -249,7 +249,7 @@ Check which project `public/js/firebase-config.js` points at before every deploy
 
 - **Staff accounts.** Sign up on the deployed site with each person's own email and a private password. Then, in the Firebase console, open Firestore > `accounts` > that person's document and change `role` to `moderator` or `admin`. A listener applies on `listener-apply.html` and is approved by an admin on `admin-listeners.html`. Don't run `npm run seed:accounts` here: it refuses, and its password is public.
 - **Helplines and clinics.** An admin adds the verified ones on `admin-resources.html`.
-- **Screening terms.** The seed scripts write to the emulators only. On a deployed project an admin adds the terms from `scripts/term-lists-seed.json` on `admin-terms.html`, which logs each one. Until then screening uses the built-in lists and the fixed patterns in `firestore.rules`.
+- **Screening terms.** Sign in as an admin, open `admin-terms.html` and press "Import starter terms". It adds the terms in `public/data/term-lists-seed.json` to the three lists, skips any already there, and records each term added in the audit log under that admin. It needs no key and no script, and it is safe to press again. Until it is done, screening uses the built-in lists and the fixed patterns in `firestore.rules`. (`npm run seed:terms` does the same job for the emulators only.)
 
 `firebase.json` sets `Cache-Control: no-cache` on every `.js` and `.css` file, so a deploy that fixes a safety bug (screening, chat) takes effect immediately for everyone instead of waiting out a browser's cached copy. This only applies on a real deploy — the local Hosting emulator doesn't implement custom headers, so you won't see it in `curl` or dev tools while running `npm run emulators`.
 
