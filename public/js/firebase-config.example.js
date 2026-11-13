@@ -15,3 +15,9 @@ var firebaseConfig = {
   messagingSenderId: 'REPLACE_ME',
   appId: 'REPLACE_ME',
 };
+
+// The model check: a second opinion on chat messages from an outside
+// service (see the README, "Model check"). Leave this false. It is a
+// demo prototype, turned on only in the development project's own
+// firebase-config.js, and the code ignores true for any other project.
+var modelCheckEnabled = false;

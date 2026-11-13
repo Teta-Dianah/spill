@@ -41,7 +41,8 @@ function renderStaffLinks(uid) {
   ])
     .then(function (docs) {
       var role = docs[0].exists ? docs[0].data().role : null;
-      var links = staffLinksFor(role, docs[1].exists);
+      var isApprovedListener = docs[1].exists && docs[1].data().status === 'approved';
+      var links = staffLinksFor(role, isApprovedListener);
       if (links.length === 0) return;
 
       list.innerHTML = '';

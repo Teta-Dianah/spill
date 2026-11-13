@@ -91,6 +91,36 @@ button:hover {
   font-size: 0.9rem;
 }
 
+/* The "Safety check" notice: small and plain on purpose, with no warning
+   colours. It sits in the page, so it never covers the "Need help now"
+   button. */
+.quiet-notice {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  margin: 1rem 0;
+  font-size: 0.85rem;
+}
+
+.quiet-notice p {
+  margin: 0 0 0.5rem;
+}
+
+.quiet-notice button {
+  width: auto;
+  margin: 0 0.5rem 0 0;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+.quiet-notice button.quiet-button,
+.quiet-notice button.quiet-button:hover {
+  background: none;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
 ul.plain-list {
   list-style: none;
   padding: 0;

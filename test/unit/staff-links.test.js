@@ -1,7 +1,7 @@
 const { staffLinksFor } = require('../../public/js/staff-links.js');
 
-function hrefs(role, hasListenerRecord) {
-  return staffLinksFor(role, hasListenerRecord).map((link) => link.href);
+function hrefs(role, isApprovedListener) {
+  return staffLinksFor(role, isApprovedListener).map((link) => link.href);
 }
 
 describe('staffLinksFor', () => {
@@ -9,7 +9,7 @@ describe('staffLinksFor', () => {
     expect(hrefs('user', false)).toEqual([]);
   });
 
-  test('someone who applied as a listener gets the listener pages', () => {
+  test('an approved listener gets the listener pages', () => {
     expect(hrefs('user', true)).toEqual(['listener-dashboard.html', 'listener-training.html']);
   });
 
