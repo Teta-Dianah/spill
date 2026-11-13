@@ -211,6 +211,50 @@ function applyTermChange(category, currentTerms, action, oldTerm, newTerm) {
   return { terms: terms };
 }
 
+// A moderator can suggest a term for these lists only (FR 7.1). Contact
+// terms block a message outright, so they stay with the admin.
+var SUGGESTION_CATEGORIES = ['crisis', 'abuse'];
+var MAX_SUGGESTION_NOTE_LENGTH = 280;
+
+// Checks a moderator's suggestion before it is saved. Returns
+// { phrase, category, note } with the phrase cleaned the same way as a
+// term on a list, or { error: 'message' } if it isn't allowed.
+function checkTermSuggestion(category, phrase, note) {
+  if (SUGGESTION_CATEGORIES.indexOf(category) === -1) {
+    return { error: 'Choose crisis or abusive language.' };
+  }
+  var cleaned = cleanTerm(phrase);
+  if (!cleaned) {
+    return { error: 'Phrases need to be between ' + MIN_TERM_LENGTH + ' and ' + MAX_TERM_LENGTH + ' characters.' };
+  }
+  if (DEFAULT_TERM_LISTS[category].indexOf(cleaned) !== -1) {
+    return { error: 'That phrase is already built in.' };
+  }
+  var cleanedNote = typeof note === 'string' ? note.trim() : '';
+  if (cleanedNote.length > MAX_SUGGESTION_NOTE_LENGTH) {
+    return { error: 'Notes can be up to ' + MAX_SUGGESTION_NOTE_LENGTH + ' characters.' };
+  }
+  return { phrase: cleaned, category: category, note: cleanedNote };
+}
+
+// Things an admin should think about before approving a suggested
+// phrase. A term matches anywhere in a message, even inside a longer
+// word, so a short phrase or a single word can flag harmless messages.
+// Returns a list of warnings to show (empty if there are none).
+function termSuggestionWarnings(phrase) {
+  var cleaned = cleanTerm(phrase);
+  var warnings = [];
+  if (!cleaned) return warnings;
+
+  if (cleaned.length < 6) {
+    warnings.push('it is under 6 characters, so it may match inside ordinary words.');
+  }
+  if (cleaned.indexOf(' ') === -1) {
+    warnings.push('it is a single word. Matching ignores word breaks, so it also matches inside longer words and in harmless messages.');
+  }
+  return warnings;
+}
+
 // Works out what importing the starter terms would do to one list,
 // without touching Firebase, so it can be unit tested. Each starter term
 // goes through applyTermChange as an ordinary 'add', so the import can
@@ -243,6 +287,10 @@ if (typeof module !== 'undefined') {
     cleanTermList: cleanTermList,
     applyTermChange: applyTermChange,
     planStarterTermImport: planStarterTermImport,
+    checkTermSuggestion: checkTermSuggestion,
+    termSuggestionWarnings: termSuggestionWarnings,
+    SUGGESTION_CATEGORIES: SUGGESTION_CATEGORIES,
+    MAX_SUGGESTION_NOTE_LENGTH: MAX_SUGGESTION_NOTE_LENGTH,
     parseModelAnswer: parseModelAnswer,
     modelFinding: modelFinding,
     DEFAULT_TERM_LISTS: DEFAULT_TERM_LISTS,

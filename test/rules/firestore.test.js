@@ -1615,3 +1615,329 @@ describe('the fixed Rules checks still apply whatever the term lists say', () =>
     );
   });
 });
+
+// FR 7.1: moderator-suggested terms with admin approval. A moderator can
+// suggest a crisis or abuse phrase; only an admin can approve or reject
+// it, and only with a new auditLog entry in the same batch. Nothing
+// reaches a term list without the admin's own audited write.
+describe('termSuggestions (FR 7.1)', () => {
+  const { serverTimestamp, query, collection, where, getDocs } = require('firebase/firestore');
+
+  async function seedAccount(uid, role) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `accounts/${uid}`), {
+        pseudonym: uid, role, status: 'active', blockedUids: [],
+      });
+    });
+  }
+
+  // A listener is an ordinary account with an approved listener record.
+  async function seedListener(uid) {
+    await seedAccount(uid, 'user');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `listeners/${uid}`), {
+        status: 'approved', clearedForMinors: false, available: true, trainingComplete: true,
+      });
+    });
+  }
+
+  async function seedSuggestion(id, fields = {}) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `termSuggestions/${id}`), {
+        phrase: 'nobody would miss me',
+        category: 'crisis',
+        note: '',
+        suggestedBy: 'mona',
+        status: 'pending',
+        createdAt: new Date(),
+        ...fields,
+      });
+    });
+  }
+
+  function suggestion(uid, fields = {}) {
+    return {
+      phrase: 'nobody would miss me',
+      category: 'crisis',
+      note: 'seen in a flagged chat',
+      suggestedBy: uid,
+      status: 'pending',
+      createdAt: serverTimestamp(),
+      ...fields,
+    };
+  }
+
+  // Approve the way term-suggestions.js does: the list, the audit entry
+  // and the suggestion in one batch. Options leave parts out or change
+  // them, to check each part is really required.
+  function approve(db, uid, id, options = {}) {
+    const phrase = options.phrase || 'nobody would miss me';
+    const batch = writeBatch(db);
+    if (!options.skipAudit) {
+      batch.set(doc(db, `auditLog/approve-${id}`), {
+        actorId: options.auditActor || uid,
+        action: 'add_term',
+        itemType: 'termList',
+        itemId: 'crisis',
+        suggestionId: options.auditSuggestionId || id,
+        oldTerm: null,
+        newTerm: phrase,
+      });
+    }
+    if (!options.skipList) {
+      batch.set(doc(db, 'termLists/crisis'), {
+        terms: options.listTerms || [phrase],
+        lastAuditLogId: `approve-${id}`,
+        updatedBy: uid,
+      });
+    }
+    batch.update(doc(db, `termSuggestions/${id}`), {
+      status: 'approved',
+      reviewedBy: uid,
+      reviewedAt: serverTimestamp(),
+      auditLogId: `approve-${id}`,
+      ...(options.extraFields || {}),
+    });
+    return batch.commit();
+  }
+
+  function reject(db, uid, id, options = {}) {
+    const batch = writeBatch(db);
+    if (!options.skipAudit) {
+      batch.set(doc(db, `auditLog/reject-${id}`), {
+        actorId: uid,
+        action: 'reject_term_suggestion',
+        itemType: 'termSuggestion',
+        itemId: id,
+        suggestionId: id,
+        oldTerm: null,
+        newTerm: 'nobody would miss me',
+      });
+    }
+    batch.update(doc(db, `termSuggestions/${id}`), {
+      status: 'rejected',
+      reviewedBy: uid,
+      reviewedAt: serverTimestamp(),
+      auditLogId: `reject-${id}`,
+    });
+    return batch.commit();
+  }
+
+  beforeEach(async () => {
+    await seedAccount('mona', 'moderator');
+    await seedAccount('moses', 'moderator');
+    await seedAccount('ada', 'admin');
+    await seedAccount('alice', 'user');
+    await seedListener('grace');
+  });
+
+  // ---- creating ----
+
+  test('a moderator can suggest a crisis phrase', async () => {
+    const db = testEnv.authenticatedContext('mona').firestore();
+    await assertSucceeds(setDoc(doc(db, 'termSuggestions/s1'), suggestion('mona')));
+  });
+
+  test('a moderator can suggest an abuse phrase with an empty note', async () => {
+    const db = testEnv.authenticatedContext('mona').firestore();
+    await assertSucceeds(setDoc(doc(db, 'termSuggestions/s1'), suggestion('mona', { category: 'abuse', phrase: 'waste of space', note: '' })));
+  });
+
+  test('a contact phrase cannot be suggested', async () => {
+    const db = testEnv.authenticatedContext('mona').firestore();
+    await assertFails(setDoc(doc(db, 'termSuggestions/s1'), suggestion('mona', { category: 'contact' })));
+  });
+
+  test('a phrase under 3 or over 60 characters is refused', async () => {
+    const db = testEnv.authenticatedContext('mona').firestore();
+    await assertFails(setDoc(doc(db, 'termSuggestions/s1'), suggestion('mona', { phrase: 'ab' })));
+    await assertFails(setDoc(doc(db, 'termSuggestions/s2'), suggestion('mona', { phrase: 'x'.repeat(61) })));
+    await assertSucceeds(setDoc(doc(db, 'termSuggestions/s3'), suggestion('mona', { phrase: 'abc' })));
+    await assertSucceeds(setDoc(doc(db, 'termSuggestions/s4'), suggestion('mona', { phrase: 'x'.repeat(60) })));
+  });
+
+  test('a phrase that is not plain cleaned text is refused', async () => {
+    const db = testEnv.authenticatedContext('mona').firestore();
+    await assertFails(setDoc(doc(db, 'termSuggestions/s1'), suggestion('mona', { phrase: 'Nobody Would Miss Me' })));
+    await assertFails(setDoc(doc(db, 'termSuggestions/s2'), suggestion('mona', { phrase: '<b>miss me</b>' })));
+    await assertFails(setDoc(doc(db, 'termSuggestions/s3'), suggestion('mona', { phrase: 'miss  me' })));
+    await assertFails(setDoc(doc(db, 'termSuggestions/s4'), suggestion('mona', { phrase: ' miss me' })));
+    await assertFails(setDoc(doc(db, 'termSuggestions/s5'), suggestion('mona', { phrase: ['miss me'] })));
+  });
+
+  test('a note over 280 characters is refused', async () => {
+    const db = testEnv.authenticatedContext('mona').firestore();
+    await assertFails(setDoc(doc(db, 'termSuggestions/s1'), suggestion('mona', { note: 'x'.repeat(281) })));
+  });
+
+  test('a suggestion cannot carry message text, a chat or another person', async () => {
+    const db = testEnv.authenticatedContext('mona').firestore();
+    await assertFails(setDoc(doc(db, 'termSuggestions/s1'), suggestion('mona', { messageText: 'the whole message' })));
+    await assertFails(setDoc(doc(db, 'termSuggestions/s2'), suggestion('mona', { chatId: 'chat1' })));
+    await assertFails(setDoc(doc(db, 'termSuggestions/s3'), suggestion('mona', { senderId: 'alice' })));
+  });
+
+  test('a moderator cannot suggest under another moderator, or start it as approved', async () => {
+    const db = testEnv.authenticatedContext('mona').firestore();
+    await assertFails(setDoc(doc(db, 'termSuggestions/s1'), suggestion('moses')));
+    await assertFails(setDoc(doc(db, 'termSuggestions/s2'), suggestion('mona', { status: 'approved' })));
+  });
+
+  test('a user, a listener, an admin and a signed-out visitor cannot create a suggestion', async () => {
+    await assertFails(setDoc(doc(testEnv.authenticatedContext('alice').firestore(), 'termSuggestions/s1'), suggestion('alice')));
+    await assertFails(setDoc(doc(testEnv.authenticatedContext('grace').firestore(), 'termSuggestions/s2'), suggestion('grace')));
+    await assertFails(setDoc(doc(testEnv.authenticatedContext('ada').firestore(), 'termSuggestions/s3'), suggestion('ada')));
+    await assertFails(setDoc(doc(testEnv.unauthenticatedContext().firestore(), 'termSuggestions/s4'), suggestion('nobody')));
+  });
+
+  // ---- reading ----
+
+  test('a moderator can read their own suggestion but not another moderator\'s', async () => {
+    await seedSuggestion('s1', { suggestedBy: 'mona' });
+    await assertSucceeds(getDoc(doc(testEnv.authenticatedContext('mona').firestore(), 'termSuggestions/s1')));
+    await assertFails(getDoc(doc(testEnv.authenticatedContext('moses').firestore(), 'termSuggestions/s1')));
+  });
+
+  test('a moderator can list only their own suggestions', async () => {
+    await seedSuggestion('s1', { suggestedBy: 'mona' });
+    await seedSuggestion('s2', { suggestedBy: 'moses' });
+    const db = testEnv.authenticatedContext('mona').firestore();
+    await assertSucceeds(getDocs(query(collection(db, 'termSuggestions'), where('suggestedBy', '==', 'mona'))));
+    await assertFails(getDocs(query(collection(db, 'termSuggestions'), where('status', '==', 'pending'))));
+  });
+
+  test('an admin can read and list every suggestion', async () => {
+    await seedSuggestion('s1', { suggestedBy: 'mona' });
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertSucceeds(getDoc(doc(db, 'termSuggestions/s1')));
+    await assertSucceeds(getDocs(query(collection(db, 'termSuggestions'), where('status', '==', 'pending'))));
+  });
+
+  test('a user, a listener and a signed-out visitor cannot read a suggestion', async () => {
+    await seedSuggestion('s1');
+    await assertFails(getDoc(doc(testEnv.authenticatedContext('alice').firestore(), 'termSuggestions/s1')));
+    await assertFails(getDoc(doc(testEnv.authenticatedContext('grace').firestore(), 'termSuggestions/s1')));
+    await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore(), 'termSuggestions/s1')));
+  });
+
+  // ---- the author cannot change it; nobody can delete it ----
+
+  test('a moderator cannot edit or approve their own suggestion', async () => {
+    await seedSuggestion('s1', { suggestedBy: 'mona' });
+    const db = testEnv.authenticatedContext('mona').firestore();
+    await assertFails(updateDoc(doc(db, 'termSuggestions/s1'), { phrase: 'something else' }));
+    await assertFails(updateDoc(doc(db, 'termSuggestions/s1'), { note: 'changed my mind' }));
+    await assertFails(approve(db, 'mona', 's1'));
+    await assertFails(reject(db, 'mona', 's1'));
+  });
+
+  test('nobody can delete a suggestion', async () => {
+    await seedSuggestion('s1', { suggestedBy: 'mona' });
+    await assertFails(deleteDoc(doc(testEnv.authenticatedContext('mona').firestore(), 'termSuggestions/s1')));
+    await assertFails(deleteDoc(doc(testEnv.authenticatedContext('ada').firestore(), 'termSuggestions/s1')));
+  });
+
+  test('a moderator still cannot write a term list directly', async () => {
+    const db = testEnv.authenticatedContext('mona').firestore();
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'auditLog/sneaky'), { actorId: 'mona', action: 'add_term', itemType: 'termList', itemId: 'crisis' });
+    batch.set(doc(db, 'termLists/crisis'), { terms: ['nobody would miss me'], lastAuditLogId: 'sneaky', updatedBy: 'mona' });
+    await assertFails(batch.commit());
+  });
+
+  test('a user and a listener cannot write a term list', async () => {
+    for (const uid of ['alice', 'grace']) {
+      const db = testEnv.authenticatedContext(uid).firestore();
+      await assertFails(setDoc(doc(db, 'termLists/crisis'), { terms: ['nobody would miss me'], lastAuditLogId: 'x', updatedBy: uid }));
+    }
+  });
+
+  // ---- approving ----
+
+  test('an admin can approve: list, audit entry and suggestion in one batch', async () => {
+    await seedSuggestion('s1');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertSucceeds(approve(db, 'ada', 's1'));
+  });
+
+  test('approving keeps the terms already on the list', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'termLists/crisis'), { terms: ['an admin term'] });
+    });
+    await seedSuggestion('s1');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertSucceeds(approve(db, 'ada', 's1', { listTerms: ['an admin term', 'nobody would miss me'] }));
+  });
+
+  test('approve without the audit entry is refused', async () => {
+    await seedSuggestion('s1');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(approve(db, 'ada', 's1', { skipAudit: true }));
+  });
+
+  test('approve pointing at an audit entry that already existed is refused', async () => {
+    await seedSuggestion('s1');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'auditLog/approve-s1'), {
+        actorId: 'ada', action: 'add_term', itemType: 'termList', itemId: 'crisis', suggestionId: 's1', newTerm: 'nobody would miss me',
+      });
+    });
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(approve(db, 'ada', 's1', { skipAudit: true }));
+  });
+
+  test('approve without adding the phrase to the list is refused', async () => {
+    await seedSuggestion('s1');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(approve(db, 'ada', 's1', { skipList: true }));
+    await assertFails(approve(db, 'ada', 's1', { listTerms: ['a different phrase'] }));
+  });
+
+  test('approve with an audit entry about another suggestion, phrase or admin is refused', async () => {
+    await seedSuggestion('s1');
+    await seedAccount('adam', 'admin');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(approve(db, 'ada', 's1', { auditSuggestionId: 's2' }));
+    await assertFails(approve(db, 'ada', 's1', { phrase: 'a different phrase' }));
+    await assertFails(approve(db, 'ada', 's1', { auditActor: 'adam' }));
+  });
+
+  test('an admin cannot change the phrase, category, note or author while reviewing', async () => {
+    await seedSuggestion('s1');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(approve(db, 'ada', 's1', { extraFields: { phrase: 'nobody would miss me at all' } }));
+    await assertFails(approve(db, 'ada', 's1', { extraFields: { category: 'abuse' } }));
+    await assertFails(approve(db, 'ada', 's1', { extraFields: { note: 'rewritten' } }));
+    await assertFails(approve(db, 'ada', 's1', { extraFields: { suggestedBy: 'moses' } }));
+  });
+
+  test('a suggestion can only be reviewed once', async () => {
+    await seedSuggestion('s1', { status: 'rejected' });
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(approve(db, 'ada', 's1'));
+    await assertFails(reject(db, 'ada', 's1'));
+  });
+
+  // ---- rejecting ----
+
+  test('an admin can reject with an audit entry, and no list is touched', async () => {
+    await seedSuggestion('s1');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertSucceeds(reject(db, 'ada', 's1'));
+  });
+
+  test('reject without the audit entry is refused', async () => {
+    await seedSuggestion('s1');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(reject(db, 'ada', 's1', { skipAudit: true }));
+  });
+
+  test('a user and a listener cannot approve or reject', async () => {
+    await seedSuggestion('s1');
+    for (const uid of ['alice', 'grace']) {
+      const db = testEnv.authenticatedContext(uid).firestore();
+      await assertFails(approve(db, uid, 's1'));
+      await assertFails(reject(db, uid, 's1'));
+    }
+  });
+});

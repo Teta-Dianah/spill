@@ -25,6 +25,25 @@ These are open, and are the reason it is a prototype:
 - **FR 6.2 (crisis flag written with the message).** A crisis message found by the rules or the term lists is still written together with its flag. A crisis message found only by the model gets its flag a few seconds later, in a separate write. That is inside the 1-minute target (NFR 4), but it is not atomic, and the flag is lost if the sender closes the page first.
 - **NFR 21 (documented and tested screening rules).** The model's instructions and the level that counts are fixed in `public/js/model-check.js`, and how its answer is used is unit tested. The model itself is an outside service and can change, so its results can't be guaranteed the way the term lists' can.
 
+## FR 7.1: moderator-suggested terms
+
+The SRS gives the administrator the job of managing the keyword lists (FR 7.1). That has not changed: only an admin can change a list. Two things were added around it.
+
+**"Import starter terms".** A button on the admin term page adds the starter terms in one go, as the signed-in admin, with an audit entry for each.
+
+**Suggestions from moderators.** A moderator reviewing a flagged chat can suggest a phrase for the crisis or abuse list. The loop is:
+
+flag -> moderator suggests -> admin approves -> list grows
+
+- A suggestion is stored in a new collection, `termSuggestions`, as `{ phrase, category, note, suggestedBy, status, createdAt }`, plus `reviewedBy`, `reviewedAt` and `auditLogId` once an admin has reviewed it. It holds no message text and no user ID other than the moderator's own, so BR 3 and BR 4 are not affected: an admin approving a suggestion sees a phrase, never a chat.
+- Nothing is added to a list automatically. Flags, including flags raised by the model check, only reach a list if a moderator suggests a phrase and an admin approves it.
+- Approve and Reject each write an `auditLog` entry in the same batch (FR 6.9), and the Security Rules refuse a review without one.
+- Contact terms can't be suggested, because they block a message outright.
+
+Read FR 7.1 as: the administrator manages the keyword lists, and may do so by approving or rejecting phrases suggested by moderators.
+
+**Collections.** The SRS list of collections gains `termLists` (the admin-editable lists) and `termSuggestions`.
+
 ## Requirements this touches
 
-FR 6.2, FR 6.4, NFR 4, NFR 14, NFR 21.
+FR 6.2, FR 6.4, FR 6.9, FR 7.1, NFR 4, NFR 14, NFR 21.

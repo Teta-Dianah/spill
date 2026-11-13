@@ -125,6 +125,37 @@ service cloud.firestore {
         entry.action in ['add_term', 'edit_term', 'remove_term'];
     }
 
+    // Helper: is this review of a term suggestion paired with a NEW
+    // auditLog entry written in the same batch, by this admin (FR 7.1,
+    // FR 6.9)? For an approval the entry is the term list's own
+    // "add_term" entry, naming this suggestion and its phrase. For a
+    // rejection it is a "reject_term_suggestion" entry about the
+    // suggestion itself.
+    function hasNewSuggestionAuditEntry(suggestionId) {
+      let auditLogId = request.resource.data.auditLogId;
+      let entry = getAfter(/databases/$(database)/documents/auditLog/$(auditLogId)).data;
+      let approved = request.resource.data.status == 'approved';
+      return !exists(/databases/$(database)/documents/auditLog/$(auditLogId)) &&
+        entry.actorId == request.auth.uid &&
+        entry.suggestionId == suggestionId &&
+        entry.newTerm == resource.data.phrase &&
+        (
+          (approved && entry.action == 'add_term' &&
+            entry.itemType == 'termList' && entry.itemId == resource.data.category) ||
+          (!approved && entry.action == 'reject_term_suggestion' &&
+            entry.itemType == 'termSuggestion' && entry.itemId == suggestionId)
+        );
+    }
+
+    // Helper: after this batch, is the approved phrase really on its
+    // term list? Stops a suggestion being marked approved without the
+    // term being added.
+    function approvedPhraseIsOnList() {
+      let list = getAfter(/databases/$(database)/documents/termLists/$(resource.data.category)).data;
+      return resource.data.phrase in list.terms &&
+        list.lastAuditLogId == request.resource.data.auditLogId;
+    }
+
     // Fixed, non-editable crisis-language check (FR 6.2). Deliberately
     // small — this is a backstop, not the primary detector.
     function hasCrisisLanguage(text) {
@@ -206,6 +237,52 @@ service cloud.firestore {
         request.resource.data.terms.size() <= 200 &&
         request.resource.data.updatedBy == request.auth.uid &&
         hasNewTermListAuditEntry(category);
+    }
+
+    // termSuggestions/{suggestionId} — a phrase a moderator suggests for
+    // the crisis or abuse term list after reviewing a flagged chat
+    // (FR 7.1). It holds only the phrase, its category, an optional
+    // note, the moderator's own ID and a time: no message text and no
+    // other person's ID. Nothing reaches a term list from here by
+    // itself. An admin approves or rejects each one, and termLists
+    // above still only accepts an admin's own audited write.
+    //
+    // A moderator can create a suggestion, always "pending" and under
+    // their own ID, and read their own. The phrase must already be in
+    // the cleaned form screening.js gives a term (lower case letters,
+    // digits and single spaces, 3 to 60 characters). Contact terms
+    // can't be suggested. An admin can read them all, and can change a
+    // pending one to approved or rejected, once, with a new auditLog
+    // entry in the same batch; the phrase, category, note and author
+    // can never change. Nobody can delete one, and its author can't
+    // edit it. Users and listeners can't read or write here at all.
+    match /termSuggestions/{suggestionId} {
+      allow create: if hasRole('moderator') &&
+        request.resource.data.keys().hasOnly(['phrase', 'category', 'note', 'suggestedBy', 'status', 'createdAt']) &&
+        request.resource.data.keys().hasAll(['phrase', 'category', 'note', 'suggestedBy', 'status', 'createdAt']) &&
+        request.resource.data.phrase is string &&
+        request.resource.data.phrase.size() >= 3 &&
+        request.resource.data.phrase.size() <= 60 &&
+        request.resource.data.phrase.matches('^[a-z0-9]+( [a-z0-9]+)*$') &&
+        request.resource.data.category in ['crisis', 'abuse'] &&
+        request.resource.data.note is string &&
+        request.resource.data.note.size() <= 280 &&
+        request.resource.data.suggestedBy == request.auth.uid &&
+        request.resource.data.status == 'pending' &&
+        request.resource.data.createdAt == request.time;
+
+      allow read: if hasRole('admin') ||
+        (hasRole('moderator') && resource.data.suggestedBy == request.auth.uid);
+
+      allow update: if hasRole('admin') &&
+        resource.data.status == 'pending' &&
+        request.resource.data.status in ['approved', 'rejected'] &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'reviewedBy', 'reviewedAt', 'auditLogId']) &&
+        request.resource.data.reviewedBy == request.auth.uid &&
+        request.resource.data.reviewedAt == request.time &&
+        hasNewSuggestionAuditEntry(suggestionId) &&
+        (request.resource.data.status == 'rejected' || approvedPhraseIsOnList());
     }
 
     // moods/{moodId} — one document per mood check-in (FR 3). A user can

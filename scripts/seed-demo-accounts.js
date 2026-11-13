@@ -1,6 +1,7 @@
 // Creates one demo account per role in the local emulators, so every
 // part of Spill can be tried straight after cloning: a user, a listener
-// (approved, trained and available), a moderator and an admin.
+// (approved, trained and available), a moderator and an admin. Also
+// adds one pending term suggestion from the moderator.
 //
 // EMULATORS ONLY. These accounts have passwords that are written in the
 // README, so they must never exist in a real Firebase project. The
@@ -67,6 +68,19 @@ async function createDemoAccount(auth, db, account) {
   }
 }
 
+// One pending suggestion from the demo moderator, so the admin page has
+// something to approve or reject straight away (FR 7.1).
+async function createDemoSuggestion(db) {
+  await db.collection('termSuggestions').doc('demo-suggestion').set({
+    phrase: 'nobody would miss me',
+    category: 'crisis',
+    note: 'Came up in a flagged chat and is not on the list yet.',
+    suggestedBy: 'demo-moderator',
+    status: 'pending',
+    createdAt: new Date(),
+  });
+}
+
 async function seed() {
   // The emulator addresses are set here, before Firebase loads, unless
   // they were already given. Either way they are checked below.
@@ -92,6 +106,8 @@ async function seed() {
     await createDemoAccount(auth, db, account);
     console.log('  ' + (account.isListener ? 'listener' : account.role).padEnd(10) + account.email);
   }
+  await createDemoSuggestion(db);
+  console.log('  one pending term suggestion from the moderator');
   console.log('Demo accounts ready. The password is in the README.');
   process.exit(0);
 }
