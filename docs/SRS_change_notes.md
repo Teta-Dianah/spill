@@ -42,7 +42,28 @@ flag -> moderator suggests -> admin approves -> list grows
 
 Read FR 7.1 as: the administrator manages the keyword lists, and may do so by approving or rejecting phrases suggested by moderators.
 
-**Collections.** The SRS list of collections gains `termLists` (the admin-editable lists) and `termSuggestions`.
+**Collections.** The SRS list of collections gains `termLists` (the admin-editable lists) and `termSuggestions`. All the added collections are listed under "Collections added since the SRS" below.
+
+## App Check
+
+Firebase App Check is **not set up** in Spill, and the SRS does not mention it. It matters only for the model check: Google requires App Check for the service the model check uses. In the development project, enforcement for that one service has been switched off by hand in the Firebase console so the prototype can run. Google has delayed the requirement until 21 January 2027 at the latest.
+
+App Check must be set up before any real use of the model check, or before that date, whichever comes first. Without it the model check stops working and screening is the Security Rules and the term lists alone, which is what version 1.0 relies on anyway. Nothing else in Spill depends on App Check.
+
+## Collections added since the SRS
+
+The SRS lists accounts, moods, chats, messages, flags, reports, resources and the audit log. The app also uses these:
+
+| Collection | What it holds | Why it was added |
+|---|---|---|
+| `listeners/{uid}` | A listener's application, approval, training and availability (FR 5). | Kept apart from the account so a user's browser can find an available listener without reading anyone's account. |
+| `termLists/{crisis,abuse,contact}` | The admin-editable screening terms (FR 7.1). | So an admin can add terms without a redeploy. |
+| `termSuggestions/{id}` | A phrase a moderator suggests for a term list, and the admin's decision. | See "FR 7.1: moderator-suggested terms" above. |
+| `chatFlagged/{chatId}` | A marker that a flag or report has been raised against this chat. | Security Rules can only check a named document, not run a search, so this is how the Rules know a chat has something against it. |
+| `chatCases/{chatId}` | A marker that a moderator has opened a case on this chat (BR 3). | It is the only way in to a chat's content for a moderator, it can only be created once `chatFlagged` exists, and opening it is what is written to the audit log (FR 6.9). |
+| `pendingChats/{uid}` | A marker naming the one chat request a user has outstanding (FR 4.1). | Created in the same write as the chat, so a user can never have two pending requests at once. |
+
+The three markers hold no chat content, only these facts. Two fields were also added for the same reason as the markers: `flags` and `reports` carry an `auditLogId` once a moderator resolves them, and `accounts` carries a `lastAuditLogId` once a moderator suspends or reinstates one. The Rules follow these to confirm every moderator action has its audit entry.
 
 ## Requirements this touches
 
