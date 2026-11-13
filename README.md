@@ -17,7 +17,7 @@ The full requirements and reasoning live in [`docs/Spill_Proposal_and_SRS.pdf`](
 | Tool | What it's for |
 |---|---|
 | Firebase Hosting | Serves the web app; no separate backend server |
-| Cloud Firestore | The database — accounts, moods, chats, messages, flags, reports, resources, audit log |
+| Cloud Firestore | The database. From the SRS: accounts, moods, chats, messages, flags, reports, resources, audit log. Added since: `listeners` (listener applications and availability), `termLists` and `termSuggestions` (the screening term lists and moderators' suggestions for them), and three marker collections that hold no chat content: `chatFlagged`, `chatCases` and `pendingChats` |
 | Firebase Authentication | Handles sign-up, sign-in, and password hashing |
 | Firestore Security Rules | Controls who can read/write what, throttles abuse, and screens messages at write time |
 | Firebase Local Emulator Suite | Runs Firestore and Auth locally so tests don't touch the live project |
@@ -27,8 +27,9 @@ The full requirements and reasoning live in [`docs/Spill_Proposal_and_SRS.pdf`](
 | GitHub | Source control and the issue backlog |
 | GitHub Projects | The [sprint board](https://github.com/users/Teta-Dianah/projects/4) |
 | GitHub Actions | Runs tests on every push |
+| Firebase AI Logic (Google Gemini) | The outside service behind the model check, a demo prototype that is off by default. The only part of Spill that sends anything outside Firebase's own database and sign-in |
 
-Everything runs on Firebase's free Spark plan — no billing account, no paid services.
+Everything runs on Firebase's free Spark plan — no billing account, no paid services. The model check uses the service's free tier.
 
 ## Sprint plan
 
@@ -137,7 +138,7 @@ On the third set, which is held-out, the term lists caught 2 of the 15 crisis me
 
 - **A provider or terms that fit Spill's users.** The prototype uses Google's free tier. Its terms require users to be 18 or older, say not to submit sensitive or personal information, and allow Google to use the messages to improve its products, including review by people. Spill's users are 16 to 25 and their messages are sensitive, so the free tier can't be used for them.
 - **A proper consent step.** The notice is a first version. Real use needs consent that fits Rwanda's data protection law and the legal review in NFR 14, kept with the account rather than in the browser.
-- **App Check.** Google is making it a requirement for this service. Without it the model check stops working after 21 January 2027, and screening goes back to the term lists alone.
+- **App Check.** App Check is **not set up** in Spill. Google requires it for this service, so in the development project its enforcement for this one service has been switched off by hand in the Firebase console. Google has delayed the requirement, but only until 21 January 2027 at the latest. So App Check must be set up before any real use, or before that date, whichever comes first. If it is not, the model check stops working and screening goes back to the term lists and `firestore.rules` alone. It was left out because the prototype is only used for the demo, with made-up messages.
 
 **If you are testing the demo, use made-up messages only.** Don't type anything real or personal while the model check is on.
 
@@ -153,7 +154,7 @@ Whether nobody's free right now or the matched listener declines, the user sees 
 
 You'll need Node.js 20 or newer and a JDK 21 or newer (the Firebase emulators run on Java).
 
-The app's code is on the `develop` branch until it is merged into `main`.
+The code is on `main`, the default branch, so a plain `git clone` gets everything.
 
 ```bash
 npm install
@@ -270,6 +271,23 @@ Check which project `public/js/firebase-config.js` points at before every deploy
 - **Staff accounts.** Sign up on the deployed site with each person's own email and a private password. Then, in the Firebase console, open Firestore > `accounts` > that person's document and change `role` to `moderator` or `admin`. A listener applies on `listener-apply.html` and is approved by an admin on `admin-listeners.html`. Don't run `npm run seed:accounts` here: it refuses, and its password is public.
 - **Helplines and clinics.** An admin adds the verified ones on `admin-resources.html`.
 - **Screening terms.** Sign in as an admin, open `admin-terms.html` and press "Import starter terms". It adds the terms in `public/data/term-lists-seed.json` to the three lists, skips any already there, and records each term added in the audit log under that admin. It needs no key and no script, and it is safe to press again. Until it is done, screening uses the built-in lists and the fixed patterns in `firestore.rules`. (`npm run seed:terms` does the same job for the emulators only.)
+
+**Model check on a deployed development copy (optional, demo only)**
+
+The model check is off on every deploy unless these steps are done. It only works for the development project, `spill-dev-01`: that is the one project named in `MODEL_CHECK_PROJECTS` in `public/js/model-check-settings.js`, and the setting is ignored for any other project, including the pilot one. Read "Model check (demo prototype)" above first: it is for made-up messages only.
+
+By hand in the Firebase console, in the development project:
+
+1. AI Logic: press Get started and choose the Gemini Developer API. This is the free option and needs no billing account.
+2. App Check > APIs > Firebase AI Logic: set it to unenforced. App Check is not set up in Spill, so with enforcement on every request is refused. Google allows this only until 21 January 2027 at the latest.
+3. Authentication > Settings > Authorised domains: check the Hosting domain is listed (the same check as in the one-time setup).
+
+Then on your computer:
+
+4. In your local `public/js/firebase-config.js` (the one holding the development project's values), set `var modelCheckEnabled = true;`. Leave the template, `firebase-config.example.js`, as `false`.
+5. Deploy Hosting again: `npx firebase deploy --only hosting`.
+
+To check it worked, sign in on the deployed site and open "Talk to a listener": the small "Safety check" notice appears. To turn the model check off again, set `modelCheckEnabled` back to `false` and deploy Hosting again. Nothing else changes: screening carries on with the term lists and `firestore.rules`.
 
 `firebase.json` sets `Cache-Control: no-cache` on every `.js` and `.css` file, so a deploy that fixes a safety bug (screening, chat) takes effect immediately for everyone instead of waiting out a browser's cached copy. This only applies on a real deploy — the local Hosting emulator doesn't implement custom headers, so you won't see it in `curl` or dev tools while running `npm run emulators`.
 
