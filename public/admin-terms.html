@@ -26,6 +26,13 @@
       </section>
 
       <section class="card">
+        <h2>Suggested by moderators</h2>
+        <p>Phrases moderators have suggested after reviewing flagged chats. Approve adds the phrase to its list. Reject leaves the lists as they are. Either way it is recorded in the audit log.</p>
+        <p id="suggestions-message" class="message" role="status"></p>
+        <ul id="pending-suggestions-list" class="plain-list"></ul>
+      </section>
+
+      <section class="card">
         <h2>Crisis</h2>
         <p>A message with one of these is still delivered, but it raises a high-priority flag and shows the crisis card.</p>
         <p id="crisis-built-in"></p>
@@ -69,6 +76,7 @@
   <script src="js/firebase-init.js"></script>
   <script src="js/screening.js"></script>
   <script src="js/admin-terms.js"></script>
+  <script src="js/term-suggestions.js"></script>
   <script src="js/crisis-card.js"></script>
 </body>
 </html>

@@ -43,6 +43,30 @@
 
       <button type="submit">Apply action</button>
     </form>
+
+    <!-- Shown to a moderator by term-suggestions.js. Only what is typed
+         here is saved: no message text and no user IDs. -->
+    <form id="suggest-term-form" class="card" hidden>
+      <h2>Suggest a term</h2>
+      <p>Seen wording the screening missed? Suggest it for the term lists. An admin reviews every suggestion before anything is added.</p>
+
+      <label for="suggestPhrase">Phrase (3 to 60 characters)</label>
+      <input type="text" id="suggestPhrase" name="suggestPhrase" minlength="3" maxlength="60" autocomplete="off" required>
+      <p class="hint">Use a short phrase that would not appear in harmless messages.</p>
+
+      <label for="suggestCategory">Category</label>
+      <select id="suggestCategory" name="suggestCategory" required>
+        <option value="crisis">Crisis</option>
+        <option value="abuse">Abusive language</option>
+      </select>
+
+      <label for="suggestNote">Note for the admin (optional)</label>
+      <textarea id="suggestNote" name="suggestNote" rows="2" maxlength="280"></textarea>
+      <p class="hint">Don't copy a message or name anyone here.</p>
+
+      <button type="submit">Send suggestion</button>
+      <p id="suggest-term-message" class="message" role="status"></p>
+    </form>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
@@ -52,6 +76,8 @@
   <script src="js/firebase-init.js"></script>
   <script src="js/moderator.js"></script>
   <script src="js/moderator-case.js"></script>
+  <script src="js/screening.js"></script>
+  <script src="js/term-suggestions.js"></script>
   <script src="js/crisis-card.js"></script>
 </body>
 </html>

@@ -59,6 +59,26 @@ An admin can add, edit and remove extra terms for the crisis, abuse and contact 
 
 So an admin editing the term lists can make Spill *more* responsive to new phrasing, but can never turn off the underlying safety net in `firestore.rules`.
 
+### Moderator-suggested terms (FR 7.1)
+
+Flags are how Spill finds out what its term lists miss. A moderator reviewing a flagged chat can pass that on, but a term only ever reaches a list through a person and an approval step:
+
+**flag → moderator suggests → admin approves → list grows**
+
+1. A flag or report reaches the moderator queue. It can come from the Rules, the term lists, the model check or a person pressing Report.
+2. On the case page, the moderator fills in "Suggest a term": a short phrase (3 to 60 characters), crisis or abusive language, and an optional note. The page reminds them to use a short phrase that would not appear in harmless messages.
+3. On `admin-terms.html`, an admin sees the pending suggestions and presses Approve or Reject.
+4. Approve adds the phrase to its term list, marks the suggestion approved and writes an `auditLog` entry, all in one write. Reject marks it rejected, with its own `auditLog` entry.
+
+What keeps this safe:
+
+- **Nothing is added automatically.** No flag, and no answer from the model check, can change a term list. Only an admin's Approve does.
+- **A suggestion holds no chat content.** It stores the phrase, the category, the note, the moderator's own ID and a time. The moderator types the phrase by hand; no message text and no user ID is copied in, and `firestore.rules` refuses any other field.
+- **Additions only.** Approve uses the same logic as the admin's own "Add" form. It can't remove or change a term, and the built-in terms stay on.
+- **No contact terms.** A contact term stops a message being sent, so those stay with the admin.
+- **The admin is warned** when a phrase is under 6 characters or a single word. Matching ignores word breaks, so "ass" would also match "classic".
+- **Enforced in `firestore.rules`.** Only a moderator can create a suggestion, under their own ID, and can read only their own. Only an admin can review one, once, and only together with a new `auditLog` entry; an approval must also really put the phrase on the list. The author can't edit a suggestion, nobody can delete one, and users and listeners can't read or write them at all.
+
 `test/unit/screening.test.js` measures `screenMessage()` against four sets (NFR 21):
 
 - A 46-message labelled set, used while writing the built-in term lists and patterns.
@@ -165,8 +185,8 @@ Sign-up only ever creates an ordinary user, so `npm run seed:accounts` creates o
 |---|---|---|
 | User | `user@spill.test` | Mood check-in, "Talk to a listener" |
 | Listener | `listener@spill.test` | Listener dashboard: accept a chat request. Already approved, trained and available |
-| Moderator | `moderator@spill.test` | Moderator queue: open a case, record an action |
-| Admin | `admin@spill.test` | Listener applications, screening terms, helplines and clinics |
+| Moderator | `moderator@spill.test` | Moderator queue: open a case, record an action, suggest a term |
+| Admin | `admin@spill.test` | Listener applications, screening terms (one demo suggestion is waiting to approve or reject), helplines and clinics |
 
 These accounts are for the emulators only. The script uses the emulator-only project and refuses to run if it is pointed at anything other than the emulators on your computer. Never create accounts with a published password in a real Firebase project.
 

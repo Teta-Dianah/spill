@@ -672,3 +672,99 @@ describe('planStarterTermImport (admin import of the starter terms)', () => {
     expect(plan.terms.length).toBeLessThanOrEqual(MAX_TERMS_PER_LIST);
   });
 });
+
+// Moderator-suggested terms (FR 7.1): what a moderator may suggest, and
+// what an admin is warned about before approving.
+describe('checkTermSuggestion (a moderator suggests a term)', () => {
+  const { checkTermSuggestion, SUGGESTION_CATEGORIES, MAX_SUGGESTION_NOTE_LENGTH } = require('../../public/js/screening.js');
+
+  test('accepts a crisis or abuse phrase and cleans it like a list term', () => {
+    expect(checkTermSuggestion('crisis', '  Nobody would MISS me! ', ' seen twice ')).toEqual({
+      phrase: 'nobody would miss me',
+      category: 'crisis',
+      note: 'seen twice',
+    });
+    expect(checkTermSuggestion('abuse', 'waste of space', '').phrase).toBe('waste of space');
+  });
+
+  test('the note is optional', () => {
+    expect(checkTermSuggestion('crisis', 'nobody would miss me', undefined).note).toBe('');
+  });
+
+  test('contact terms cannot be suggested', () => {
+    expect(SUGGESTION_CATEGORIES).toEqual(['crisis', 'abuse']);
+    expect(checkTermSuggestion('contact', 'message me there', '').error).toBeDefined();
+    expect(checkTermSuggestion('anything else', 'some phrase', '').error).toBeDefined();
+  });
+
+  test('refuses a phrase under 3 or over 60 characters', () => {
+    expect(checkTermSuggestion('crisis', 'ab', '').error).toBeDefined();
+    expect(checkTermSuggestion('crisis', 'x'.repeat(61), '').error).toBeDefined();
+    expect(checkTermSuggestion('crisis', 'abc', '').phrase).toBe('abc');
+    expect(checkTermSuggestion('crisis', 'ab '.repeat(20).trim(), '').error).toBeUndefined();
+  });
+
+  test('refuses a phrase that is only punctuation or not text', () => {
+    expect(checkTermSuggestion('crisis', '!!!???', '').error).toBeDefined();
+    expect(checkTermSuggestion('crisis', 12345, '').error).toBeDefined();
+  });
+
+  test('refuses a phrase that is already built in', () => {
+    expect(checkTermSuggestion('crisis', DEFAULT_TERM_LISTS.crisis[0], '').error).toBeDefined();
+  });
+
+  test('refuses a note that is too long', () => {
+    expect(checkTermSuggestion('crisis', 'nobody would miss me', 'x'.repeat(MAX_SUGGESTION_NOTE_LENGTH + 1)).error).toBeDefined();
+    expect(checkTermSuggestion('crisis', 'nobody would miss me', 'x'.repeat(MAX_SUGGESTION_NOTE_LENGTH)).error).toBeUndefined();
+  });
+});
+
+describe('termSuggestionWarnings (what an admin is warned about)', () => {
+  const { termSuggestionWarnings } = require('../../public/js/screening.js');
+
+  test('no warning for a longer phrase of several words', () => {
+    expect(termSuggestionWarnings('nobody would miss me')).toEqual([]);
+  });
+
+  test('warns about a phrase under 6 characters', () => {
+    expect(termSuggestionWarnings('no way').length).toBe(0);
+    expect(termSuggestionWarnings('go on').length).toBe(1);
+    expect(termSuggestionWarnings('go on')[0]).toMatch(/under 6 characters/);
+  });
+
+  test('warns about a single word, because it also matches inside longer words', () => {
+    const warnings = termSuggestionWarnings('worthless');
+    expect(warnings.length).toBe(1);
+    expect(warnings[0]).toMatch(/single word/);
+    // The reason for the warning: a term matches anywhere in the text.
+    expect(screenMessage('That was a classic film', { abuse: ['ass'] }).hasAbusiveLanguage).toBe(true);
+  });
+
+  test('a short single word gets both warnings', () => {
+    expect(termSuggestionWarnings('die').length).toBe(2);
+  });
+
+  test('nothing to warn about for a phrase that is not usable at all', () => {
+    expect(termSuggestionWarnings('')).toEqual([]);
+  });
+});
+
+describe('approving a suggestion uses the additions-only logic', () => {
+  test('an approved phrase is added at the end and nothing else changes', () => {
+    const result = applyTermChange('crisis', ['an admin term'], 'add', null, 'nobody would miss me');
+    expect(result.terms).toEqual(['an admin term', 'nobody would miss me']);
+  });
+
+  test('a phrase already on the list cannot be approved a second time', () => {
+    expect(applyTermChange('crisis', ['nobody would miss me'], 'add', null, 'nobody would miss me').error).toBeDefined();
+  });
+
+  test('built-in terms stay on whatever is approved or removed', () => {
+    const builtIn = DEFAULT_TERM_LISTS.crisis[0];
+    const before = DEFAULT_TERM_LISTS.crisis.slice();
+    applyTermChange('crisis', [], 'add', null, 'nobody would miss me');
+    expect(applyTermChange('crisis', [], 'remove', builtIn, null).error).toBeDefined();
+    expect(DEFAULT_TERM_LISTS.crisis).toEqual(before);
+    expect(screenMessage(builtIn, { crisis: [] }).hasCrisisLanguage).toBe(true);
+  });
+});
