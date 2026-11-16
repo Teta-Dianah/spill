@@ -138,107 +138,317 @@ describe('resources', () => {
   });
 });
 
-describe('listeners', () => {
-  test('a user can apply to be a listener for themselves', async () => {
-    const db = testEnv.authenticatedContext('alice').firestore();
-    await assertSucceeds(
-      setDoc(doc(db, 'listeners/alice'), {
-        status: 'pending',
-        clearedForMinors: false,
-        available: false,
-        trainingComplete: false,
-      })
-    );
+// FR 5.1, FR 5.2: applying to be a listener and being approved. The
+// answers live in listenerApplications/{uid}, which is private. The small
+// listeners/{uid} record is public to signed-in users, for matching.
+describe('listeners and listener applications', () => {
+  const { serverTimestamp } = require('firebase/firestore');
+
+  async function seedAccount(uid, role, ageBand = '18-25') {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/' + uid), {
+        pseudonym: uid, role, ageBand, status: 'active', blockedUids: [],
+      });
+    });
+  }
+
+  function answers(overrides = {}) {
+    return {
+      confirmedAge21: true,
+      motivation: 'I want to be there for people my age when things get heavy.',
+      experience: '',
+      hoursPerWeek: '3-5',
+      scenarioCrisis: 'I would stay with them, listen, and let the crisis card do its part.',
+      scenarioContact: 'I would say no kindly and remind them everything stays on Spill.',
+      agreedConduct: true,
+      agreedChecks: true,
+      referenceCode: 'SPL-7K2QXD',
+      createdAt: serverTimestamp(),
+      ...overrides,
+    };
+  }
+
+  const NEW_RECORD = { status: 'pending', clearedForMinors: false, available: false, trainingComplete: false };
+
+  // Apply the way listeners.js does: both documents in one batch.
+  function apply(db, uid, options = {}) {
+    const batch = writeBatch(db);
+    if (!options.skipApplication) batch.set(doc(db, 'listenerApplications/' + uid), answers(options.answers));
+    if (!options.skipRecord) batch.set(doc(db, 'listeners/' + uid), { ...NEW_RECORD, ...(options.record || {}) });
+    return batch.commit();
+  }
+
+  // A person who has already applied, set up without going through the rules.
+  async function seedApplicant(uid, options = {}) {
+    await seedAccount(uid, 'user');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'listeners/' + uid), { ...NEW_RECORD, ...(options.record || {}) });
+      await setDoc(doc(context.firestore(), 'listenerApplications/' + uid), {
+        ...answers({ createdAt: new Date() }),
+        ...(options.application || {}),
+      });
+    });
+  }
+
+  const ALL_CHECKS = { identity: true, references: true, policeClearance: true, interview: true };
+
+  function auditEntry(db, id, actorId, listenerUid, overrides = {}) {
+    return [doc(db, 'auditLog/' + id), { actorId, action: 'listener_step', itemType: 'listener', itemId: listenerUid, ...overrides }];
+  }
+
+  function saveChecks(db, adminUid, uid, checks, options = {}) {
+    const batch = writeBatch(db);
+    if (!options.skipAudit) batch.set(...auditEntry(db, 'checks-' + uid, options.auditActor || adminUid, options.auditItem || uid));
+    batch.update(doc(db, 'listenerApplications/' + uid), { checks, reviewedBy: adminUid, lastAuditLogId: 'checks-' + uid, ...(options.extra || {}) });
+    return batch.commit();
+  }
+
+  function approve(db, adminUid, uid, options = {}) {
+    const batch = writeBatch(db);
+    if (!options.skipAudit) batch.set(...auditEntry(db, 'approve-' + uid, adminUid, options.auditItem || uid));
+    batch.update(doc(db, 'listeners/' + uid), { status: 'approved', clearedForMinors: !!options.minors, lastAuditLogId: 'approve-' + uid, ...(options.extra || {}) });
+    return batch.commit();
+  }
+
+  function reject(db, adminUid, uid, options = {}) {
+    const batch = writeBatch(db);
+    if (!options.skipAudit) batch.set(...auditEntry(db, 'reject-' + uid, adminUid, uid));
+    if (!options.skipReason) {
+      batch.update(doc(db, 'listenerApplications/' + uid), { rejectionReason: options.reason || 'References could not be reached.', reviewedBy: adminUid, lastAuditLogId: 'reject-' + uid });
+    }
+    batch.update(doc(db, 'listeners/' + uid), { status: 'rejected', lastAuditLogId: 'reject-' + uid });
+    return batch.commit();
+  }
+
+  beforeEach(async () => {
+    await seedAccount('alice', 'user');
+    await seedAccount('bob', 'user');
+    await seedAccount('ada', 'admin');
+    await seedAccount('mona', 'moderator');
+    await seedAccount('young', 'user', '16-17');
   });
 
-  test('a user cannot apply already marked approved', async () => {
+  // ---- applying ----
+
+  test('a user aged 18 to 25 can apply for themselves, with both documents together', async () => {
     const db = testEnv.authenticatedContext('alice').firestore();
-    await assertFails(
-      setDoc(doc(db, 'listeners/alice'), {
-        status: 'approved',
-        clearedForMinors: false,
-        available: false,
-        trainingComplete: false,
-      })
-    );
+    await assertSucceeds(apply(db, 'alice'));
+  });
+
+  test('a user in the 16 to 17 age band cannot apply (listeners must be 21 or older)', async () => {
+    const db = testEnv.authenticatedContext('young').firestore();
+    await assertFails(apply(db, 'young'));
+  });
+
+  test('the application needs the age confirmation and both agreements', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(apply(db, 'alice', { answers: { confirmedAge21: false } }));
+    await assertFails(apply(db, 'alice', { answers: { agreedConduct: false } }));
+    await assertFails(apply(db, 'alice', { answers: { agreedChecks: false } }));
+  });
+
+  test('answers that are too short or too long are refused', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(apply(db, 'alice', { answers: { motivation: 'too short' } }));
+    await assertFails(apply(db, 'alice', { answers: { scenarioCrisis: 'x'.repeat(29) } }));
+    await assertFails(apply(db, 'alice', { answers: { scenarioContact: 'x'.repeat(1001) } }));
+    await assertFails(apply(db, 'alice', { answers: { experience: 'x'.repeat(1001) } }));
+    await assertFails(apply(db, 'alice', { answers: { hoursPerWeek: 'all day' } }));
+  });
+
+  test('the reference code must have the expected shape', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(apply(db, 'alice', { answers: { referenceCode: 'ALICE-MUKAMANA' } }));
+    await assertFails(apply(db, 'alice', { answers: { referenceCode: 'SPL-123' } }));
+  });
+
+  test('an application cannot carry a real name, a phone number, a document or its own checks', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(apply(db, 'alice', { answers: { fullName: 'A Real Name' } }));
+    await assertFails(apply(db, 'alice', { answers: { phone: '0788123456' } }));
+    await assertFails(apply(db, 'alice', { answers: { idDocument: 'scan.pdf' } }));
+    await assertFails(apply(db, 'alice', { answers: { checks: ALL_CHECKS } }));
+  });
+
+  test('the public listener record cannot carry the answers', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(apply(db, 'alice', { record: { motivation: 'my private reason' } }));
+  });
+
+  test('one document without the other is refused', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(apply(db, 'alice', { skipApplication: true }));
+    await assertFails(apply(db, 'alice', { skipRecord: true }));
+  });
+
+  test('a user cannot apply already approved, available or cleared for minors', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(apply(db, 'alice', { record: { status: 'approved' } }));
+    await assertFails(apply(db, 'alice', { record: { available: true } }));
+    await assertFails(apply(db, 'alice', { record: { clearedForMinors: true } }));
   });
 
   test('a user cannot apply on someone else\'s behalf', async () => {
     const db = testEnv.authenticatedContext('alice').firestore();
-    await assertFails(
-      setDoc(doc(db, 'listeners/bob'), {
-        status: 'pending',
-        clearedForMinors: false,
-        available: false,
-        trainingComplete: false,
-      })
-    );
+    await assertFails(apply(db, 'bob'));
   });
 
-  test('any signed-in user can read the listeners list (needed for matching)', async () => {
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await setDoc(doc(context.firestore(), 'listeners/grace'), {
-        status: 'approved',
-        clearedForMinors: true,
-        available: true,
-        trainingComplete: true,
-      });
-    });
+  // ---- reading ----
 
-    const db = testEnv.authenticatedContext('alice').firestore();
-    await assertSucceeds(getDoc(doc(db, 'listeners/grace')));
+  test('any signed-in user can read the listener records (needed for matching)', async () => {
+    await seedApplicant('grace', { record: { status: 'approved', available: true } });
+    await assertSucceeds(getDoc(doc(testEnv.authenticatedContext('alice').firestore(), 'listeners/grace')));
   });
 
-  test('a listener can toggle their own availability', async () => {
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await setDoc(doc(context.firestore(), 'listeners/grace'), {
-        status: 'approved',
-        clearedForMinors: false,
-        available: false,
-        trainingComplete: true,
-      });
-    });
+  test('only the applicant and an admin can read an application', async () => {
+    await seedApplicant('grace');
+    await assertSucceeds(getDoc(doc(testEnv.authenticatedContext('grace').firestore(), 'listenerApplications/grace')));
+    await assertSucceeds(getDoc(doc(testEnv.authenticatedContext('ada').firestore(), 'listenerApplications/grace')));
+    await assertFails(getDoc(doc(testEnv.authenticatedContext('alice').firestore(), 'listenerApplications/grace')));
+    await assertFails(getDoc(doc(testEnv.authenticatedContext('mona').firestore(), 'listenerApplications/grace')));
+    await assertFails(getDoc(doc(testEnv.unauthenticatedContext().firestore(), 'listenerApplications/grace')));
+  });
 
+  // ---- what the applicant can change afterwards ----
+
+  test('a listener can change their own availability and training, and nothing else', async () => {
+    await seedApplicant('grace', { record: { status: 'approved' } });
     const db = testEnv.authenticatedContext('grace').firestore();
-    await assertSucceeds(
-      updateDoc(doc(db, 'listeners/grace'), { available: true })
-    );
+    await assertSucceeds(updateDoc(doc(db, 'listeners/grace'), { available: true }));
+    await assertSucceeds(updateDoc(doc(db, 'listeners/grace'), { trainingComplete: true }));
+    await assertFails(updateDoc(doc(db, 'listeners/grace'), { clearedForMinors: true }));
+    await assertFails(updateDoc(doc(db, 'listeners/grace'), { lastAuditLogId: 'made-up' }));
   });
 
-  test('a listener cannot approve themselves', async () => {
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await setDoc(doc(context.firestore(), 'listeners/grace'), {
-        status: 'pending',
-        clearedForMinors: false,
-        available: false,
-        trainingComplete: false,
-      });
-    });
-
+  test('an applicant cannot approve themselves or tick their own checks', async () => {
+    await seedApplicant('grace');
     const db = testEnv.authenticatedContext('grace').firestore();
-    await assertFails(
-      updateDoc(doc(db, 'listeners/grace'), { status: 'approved' })
-    );
+    await assertFails(updateDoc(doc(db, 'listeners/grace'), { status: 'approved' }));
+    await assertFails(approve(db, 'grace', 'grace'));
+    await assertFails(saveChecks(db, 'grace', 'grace', ALL_CHECKS));
+    await assertFails(updateDoc(doc(db, 'listenerApplications/grace'), { motivation: 'A different answer, written after the review started.' }));
   });
 
-  test('an admin can approve a listener and clear them for minors', async () => {
-    await testEnv.withSecurityRulesDisabled(async (context) => {
-      await setDoc(doc(context.firestore(), 'accounts/admin1'), {
-        pseudonym: 'SteadyEmber3',
-        role: 'admin',
-      });
-      await setDoc(doc(context.firestore(), 'listeners/grace'), {
-        status: 'pending',
-        clearedForMinors: false,
-        available: false,
-        trainingComplete: true,
-      });
-    });
+  test('nobody can delete an application', async () => {
+    await seedApplicant('grace');
+    await assertFails(deleteDoc(doc(testEnv.authenticatedContext('grace').firestore(), 'listenerApplications/grace')));
+    await assertFails(deleteDoc(doc(testEnv.authenticatedContext('ada').firestore(), 'listenerApplications/grace')));
+  });
 
-    const db = testEnv.authenticatedContext('admin1').firestore();
-    await assertSucceeds(
-      updateDoc(doc(db, 'listeners/grace'), { status: 'approved', clearedForMinors: true })
-    );
+  // ---- the admin's checks ----
+
+  test('an admin can record the in-person checks, with an audit entry', async () => {
+    await seedApplicant('grace');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertSucceeds(saveChecks(db, 'ada', 'grace', { identity: true, references: false, policeClearance: false, interview: false }));
+  });
+
+  test('recording checks without the audit entry is refused', async () => {
+    await seedApplicant('grace');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(saveChecks(db, 'ada', 'grace', ALL_CHECKS, { skipAudit: true }));
+  });
+
+  test('the audit entry must be by this admin and about this listener', async () => {
+    await seedApplicant('grace');
+    await seedApplicant('hope');
+    await seedAccount('adam', 'admin');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(saveChecks(db, 'ada', 'grace', ALL_CHECKS, { auditActor: 'adam' }));
+    await assertFails(saveChecks(db, 'ada', 'grace', ALL_CHECKS, { auditItem: 'hope' }));
+  });
+
+  test('checks must be the four yes-or-no boxes and nothing else', async () => {
+    await seedApplicant('grace');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(saveChecks(db, 'ada', 'grace', { ...ALL_CHECKS, idNumber: '1199...' }));
+    await assertFails(saveChecks(db, 'ada', 'grace', { ...ALL_CHECKS, identity: 'passport seen' }));
+  });
+
+  test('an admin cannot rewrite the applicant\'s answers', async () => {
+    await seedApplicant('grace');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(saveChecks(db, 'ada', 'grace', ALL_CHECKS, { extra: { motivation: 'Rewritten by the admin, which must not be possible.' } }));
+  });
+
+  test('a moderator and an ordinary user cannot record checks', async () => {
+    await seedApplicant('grace');
+    await assertFails(saveChecks(testEnv.authenticatedContext('mona').firestore(), 'mona', 'grace', ALL_CHECKS));
+    await assertFails(saveChecks(testEnv.authenticatedContext('alice').firestore(), 'alice', 'grace', ALL_CHECKS));
+  });
+
+  // ---- approving ----
+
+  test('an admin can approve once all four checks are ticked, and clear for minors', async () => {
+    await seedApplicant('grace', { application: { checks: ALL_CHECKS } });
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertSucceeds(approve(db, 'ada', 'grace', { minors: true }));
+  });
+
+  test('approving with no checks recorded is refused', async () => {
+    await seedApplicant('grace');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(approve(db, 'ada', 'grace'));
+  });
+
+  test.each(['identity', 'references', 'policeClearance', 'interview'])('approving with the %s check missing is refused', async (missing) => {
+    await seedApplicant('grace', { application: { checks: { ...ALL_CHECKS, [missing]: false } } });
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(approve(db, 'ada', 'grace'));
+  });
+
+  test('approving without the audit entry, or with one about someone else, is refused', async () => {
+    await seedApplicant('grace', { application: { checks: ALL_CHECKS } });
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(approve(db, 'ada', 'grace', { skipAudit: true }));
+    await assertFails(approve(db, 'ada', 'grace', { auditItem: 'someone-else' }));
+  });
+
+  test('a plain update with no audit entry can no longer approve', async () => {
+    await seedApplicant('grace', { application: { checks: ALL_CHECKS } });
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(updateDoc(doc(db, 'listeners/grace'), { status: 'approved', clearedForMinors: true }));
+  });
+
+  test('a listener record with no application behind it cannot be approved', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'listeners/old'), NEW_RECORD);
+    });
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(approve(db, 'ada', 'old'));
+  });
+
+  test('an admin cannot make a listener available or mark their training while approving', async () => {
+    await seedApplicant('grace', { application: { checks: ALL_CHECKS } });
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(approve(db, 'ada', 'grace', { extra: { available: true } }));
+    await assertFails(approve(db, 'ada', 'grace', { extra: { trainingComplete: true } }));
+  });
+
+  test('a moderator cannot approve', async () => {
+    await seedApplicant('grace', { application: { checks: ALL_CHECKS } });
+    await assertFails(approve(testEnv.authenticatedContext('mona').firestore(), 'mona', 'grace'));
+  });
+
+  // ---- rejecting ----
+
+  test('an admin can reject with a reason and an audit entry', async () => {
+    await seedApplicant('grace');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertSucceeds(reject(db, 'ada', 'grace'));
+  });
+
+  test('rejecting without a reason, or with one that is too short, is refused', async () => {
+    await seedApplicant('grace');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(reject(db, 'ada', 'grace', { skipReason: true }));
+    await assertFails(reject(db, 'ada', 'grace', { reason: 'no' }));
+  });
+
+  test('rejecting without the audit entry is refused', async () => {
+    await seedApplicant('grace');
+    const db = testEnv.authenticatedContext('ada').firestore();
+    await assertFails(reject(db, 'ada', 'grace', { skipAudit: true }));
   });
 });
 

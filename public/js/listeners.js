@@ -1,19 +1,85 @@
 // Listener applications, approval and availability (FR 5).
 // Needs firebase-init.js loaded first.
 
-function applyAsListener(uid, motivation) {
-  return firebase
+// Sends a listener application (FR 5.1). Two documents are written
+// together, in one batch:
+//   listenerApplications/{uid}  the answers. Private: only the applicant
+//                               and an admin can read them.
+//   listeners/{uid}             the small record used for matching, which
+//                               any signed-in user can read. It holds no
+//                               answers.
+// application is what checkListenerApplication() returned, with the
+// reference code added.
+function applyAsListener(uid, application) {
+  var db = firebase.firestore();
+  var now = firebase.firestore.FieldValue.serverTimestamp();
+  var batch = db.batch();
+
+  var privateAnswers = {};
+  Object.keys(application).forEach(function (key) {
+    privateAnswers[key] = application[key];
+  });
+  privateAnswers.createdAt = now;
+
+  batch.set(db.collection('listenerApplications').doc(uid), privateAnswers);
+  batch.set(db.collection('listeners').doc(uid), {
+    status: 'pending',
+    clearedForMinors: false,
+    available: false,
+    trainingComplete: false,
+    appliedAt: now,
+  });
+  return batch.commit();
+}
+
+// The private application. onLoaded gets null if there isn't one.
+function getListenerApplication(uid, onLoaded) {
+  firebase
     .firestore()
-    .collection('listeners')
+    .collection('listenerApplications')
     .doc(uid)
-    .set({
-      status: 'pending',
-      clearedForMinors: false,
-      available: false,
-      trainingComplete: false,
-      motivation: motivation || '',
-      appliedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    .get()
+    .then(function (docSnap) {
+      onLoaded(docSnap.exists ? docSnap.data() : null);
+    })
+    .catch(function () {
+      onLoaded(null);
     });
+}
+
+// Adds the auditLog entry every admin step on a listener must come with
+// (FR 6.9). firestore.rules refuses the step without it. Returns the new
+// entry's id.
+function addListenerAuditEntry(batch, adminUid, listenerUid, action, details) {
+  var db = firebase.firestore();
+  var auditRef = db.collection('auditLog').doc();
+  var entry = {
+    actorId: adminUid,
+    action: action,
+    itemType: 'listener',
+    itemId: listenerUid,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+  Object.keys(details || {}).forEach(function (key) {
+    entry[key] = details[key];
+  });
+  batch.set(auditRef, entry);
+  return auditRef.id;
+}
+
+// Records which in-person checks an admin has confirmed (FR 5.2). checks
+// is like { identity: true, references: false, ... }. Only the fact that
+// a check was done is saved, never a document.
+function saveListenerChecks(uid, checks, adminUid) {
+  var db = firebase.firestore();
+  var batch = db.batch();
+  var auditId = addListenerAuditEntry(batch, adminUid, uid, 'update_listener_checks', { checks: checks });
+  batch.update(db.collection('listenerApplications').doc(uid), {
+    checks: checks,
+    reviewedBy: adminUid,
+    lastAuditLogId: auditId,
+  });
+  return batch.commit();
 }
 
 function getListener(uid, onLoaded) {
@@ -45,17 +111,38 @@ function loadAllListeners(onLoaded) {
     });
 }
 
-function approveListener(uid, clearedForMinors) {
-  return firebase.firestore().collection('listeners').doc(uid).update({
-    status: 'approved',
+// Approves a listener. firestore.rules only allows it once all four
+// in-person checks are ticked on their application.
+function approveListener(uid, clearedForMinors, adminUid) {
+  var db = firebase.firestore();
+  var batch = db.batch();
+  var auditId = addListenerAuditEntry(batch, adminUid, uid, 'approve_listener', {
     clearedForMinors: !!clearedForMinors,
   });
+  batch.update(db.collection('listeners').doc(uid), {
+    status: 'approved',
+    clearedForMinors: !!clearedForMinors,
+    lastAuditLogId: auditId,
+  });
+  return batch.commit();
 }
 
-function rejectListener(uid) {
-  return firebase.firestore().collection('listeners').doc(uid).update({
-    status: 'rejected',
+// Rejects an application. A reason is required and is saved on the
+// private application, with the same audit entry.
+function rejectListener(uid, reason, adminUid) {
+  var db = firebase.firestore();
+  var batch = db.batch();
+  var auditId = addListenerAuditEntry(batch, adminUid, uid, 'reject_listener', { reason: reason });
+  batch.update(db.collection('listenerApplications').doc(uid), {
+    rejectionReason: reason,
+    reviewedBy: adminUid,
+    lastAuditLogId: auditId,
   });
+  batch.update(db.collection('listeners').doc(uid), {
+    status: 'rejected',
+    lastAuditLogId: auditId,
+  });
+  return batch.commit();
 }
 
 function setListenerAvailability(uid, available) {
@@ -97,6 +184,8 @@ function findEligibleListener(ageBand, excludeIds, onFound) {
 
 window.applyAsListener = applyAsListener;
 window.getListener = getListener;
+window.getListenerApplication = getListenerApplication;
+window.saveListenerChecks = saveListenerChecks;
 window.loadAllListeners = loadAllListeners;
 window.approveListener = approveListener;
 window.rejectListener = rejectListener;

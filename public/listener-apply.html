@@ -13,17 +13,89 @@
       <a class="brand" href="dashboard.html">Spill</a>
       <a href="dashboard.html">Dashboard</a>
     </div>
-    <h1>Apply to be a listener</h1>
-    <p>Thank you for wanting to help. After you apply, an admin reviews your application offline (identity, references, police clearance) before approving you.</p>
+    <h1>Become a listener</h1>
+    <p>Thank you for wanting to help. Listeners are volunteers aged 21 or older who are checked in person and trained before their first chat.</p>
   </header>
 
   <main>
-    <form id="apply-form">
-      <label for="motivation">Why do you want to be a listener? (optional)</label>
-      <textarea id="motivation" name="motivation" rows="4"></textarea>
+    <p id="apply-message" class="message" role="status"></p>
 
-      <button type="submit">Submit application</button>
-      <p id="apply-message" class="message" role="status"></p>
+    <!-- Shown once the person has applied (listener-apply.js). -->
+    <section id="apply-status" class="card" hidden>
+      <h2>Your application</h2>
+      <p>Your reference code is <strong id="apply-reference"></strong>. Quote it when you arrange your in-person checks. It stands in for your name, so Spill never needs to store it.</p>
+      <ol id="apply-steps" class="steps">
+        <li>Application sent</li>
+        <li>In-person checks: identity, two references, police clearance and an interview</li>
+        <li>Approved by an admin</li>
+        <li>Listener training</li>
+        <li>Ready to listen</li>
+      </ol>
+      <p id="apply-next"></p>
+    </section>
+
+    <form id="apply-form" hidden>
+      <section class="card notice-card">
+        <h2>Before you apply</h2>
+        <ul>
+          <li>You need to be 21 or older.</li>
+          <li>The form takes about 10 minutes.</li>
+          <li>After it, you meet a coordinator in person, who checks your identity and police clearance, contacts two references and holds a short interview.</li>
+          <li>Nothing is uploaded. Spill never stores your real name or your documents.</li>
+        </ul>
+      </section>
+
+      <label class="option">
+        <input type="checkbox" name="confirmedAge21">
+        I am 21 or older.
+      </label>
+
+      <label for="motivation">Why do you want to be a listener?</label>
+      <textarea id="motivation" name="motivation" rows="4" maxlength="1000" required></textarea>
+      <p class="hint">At least 30 characters.</p>
+
+      <label for="experience">Have you supported someone through a hard time before? (optional)</label>
+      <textarea id="experience" name="experience" rows="3" maxlength="1000"></textarea>
+      <p class="hint">Friends, family, a club, volunteering. Leave out names.</p>
+
+      <fieldset>
+        <legend>How many hours a week can you give?</legend>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="hoursPerWeek" value="1-2" required><span>1 to 2</span></label>
+          <label class="choice"><input type="radio" name="hoursPerWeek" value="3-5"><span>3 to 5</span></label>
+          <label class="choice"><input type="radio" name="hoursPerWeek" value="6-plus"><span>6 or more</span></label>
+        </div>
+      </fieldset>
+
+      <label for="scenarioCrisis">Someone tells you they are thinking about ending their life. What do you do?</label>
+      <textarea id="scenarioCrisis" name="scenarioCrisis" rows="4" maxlength="1000" required></textarea>
+      <p class="hint">There is no perfect answer. We want to see how you think. At least 30 characters.</p>
+
+      <label for="scenarioContact">Someone asks for your phone number so you can keep talking outside Spill. What do you do?</label>
+      <textarea id="scenarioContact" name="scenarioContact" rows="4" maxlength="1000" required></textarea>
+      <p class="hint">At least 30 characters.</p>
+
+      <section class="card notice-card">
+        <h2>Listener code of conduct</h2>
+        <ul>
+          <li>Listen first. You are there to let someone talk, not to fix them or give medical advice.</li>
+          <li>Spill is peer support, not therapy. Say so if a chat starts feeling like more than that.</li>
+          <li>Never ask for or share a phone number, email, or any way to talk outside Spill.</li>
+          <li>What you hear in a chat stays in the chat.</li>
+          <li>You can end a chat or block someone at any time, and so can they.</li>
+        </ul>
+      </section>
+
+      <label class="option">
+        <input type="checkbox" name="agreedConduct">
+        I have read the code of conduct and agree to follow it.
+      </label>
+      <label class="option">
+        <input type="checkbox" name="agreedChecks">
+        I agree to the in-person checks: identity, two references, police clearance and an interview.
+      </label>
+
+      <button type="submit">Send application</button>
     </form>
   </main>
 
@@ -32,6 +104,7 @@
   <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-init.js"></script>
+  <script src="js/listener-application.js"></script>
   <script src="js/listeners.js"></script>
   <script src="js/listener-apply.js"></script>
   <script src="js/crisis-card.js"></script>

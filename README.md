@@ -144,6 +144,26 @@ On the third set, which is held-out, the term lists caught 2 of the 15 crisis me
 
 Two more limits to know about: the model's flag is written a few seconds after the message, not in the same write as it, and it is lost if the sender closes the page before the answer arrives. `docs/SRS_change_notes.md` lists where this differs from the SRS.
 
+## How someone becomes a listener (FR 5.1, FR 5.2)
+
+Users only ever talk to vetted listeners, so becoming one takes more than filling in a form. Every listener must be 21 or older.
+
+**application → in-person checks → approval → training → ready**
+
+1. **Application.** On `listener-apply.html` the person confirms they are 21 or older, says why they want to listen, what experience they have and how much time they can give, answers two "what would you do" situations, and agrees to the code of conduct and to the in-person checks. An account in the 16 to 17 age band can't apply.
+2. **Reference code.** They get a code such as `SPL-7K2QXD`. They quote it when they write to the coordinator to arrange the checks, so their name never has to be stored.
+3. **In-person checks.** A coordinator sees their identity document and police clearance certificate, contacts two references and holds a short interview.
+4. **Approval.** On `admin-listeners.html` an admin reads the answers and ticks each check as it is done. Approve only works once all four are ticked. Reject needs a reason.
+5. **Training.** The approved listener passes the training quiz and can then set themselves available.
+
+What keeps this honest and private:
+
+- **Nothing is uploaded.** Spill never stores a real name, a phone number or an identity document (NFR 11). It records only that each check was done, and by which admin.
+- **The answers are private.** They are kept in `listenerApplications/{uid}`, which only the applicant and an admin can read. The `listeners/{uid}` record that every signed-in user can read (matching happens in the browser) holds no answers.
+- **Enforced in `firestore.rules`.** A listener can't be approved until all four checks are saved. A rejection needs a recorded reason. Every admin step needs its own new `auditLog` entry in the same write (FR 6.9). An applicant can't change their application or tick their own checks.
+
+The coordinator's address is `VETTING_CONTACT_EMAIL` at the top of `public/js/listener-application.js`. It is a placeholder (`listeners@spill.example`): change it before a pilot.
+
 ## Design
 
 The look is meant to feel like a place to talk, not a clinic: confident on the way in (heavy headlines, a warm background, one orange accent) and quiet on the screens where people open up (soft message bubbles in the chat, a calm crisis card). The wording stays plain and non-clinical.
@@ -200,10 +220,10 @@ Sign-up only ever creates an ordinary user, so `npm run seed:accounts` creates o
 
 | Role | Email | What to try |
 |---|---|---|
-| User | `user@spill.test` | Mood check-in, "Talk to a listener" |
+| User | `user@spill.test` | Mood check-in, "Talk to a listener", "Apply to be a listener" |
 | Listener | `listener@spill.test` | Listener dashboard: accept a chat request. Already approved, trained and available |
 | Moderator | `moderator@spill.test` | Moderator queue: open a case, record an action, suggest a term |
-| Admin | `admin@spill.test` | Listener applications, screening terms (one demo suggestion is waiting to approve or reject), helplines and clinics |
+| Admin | `admin@spill.test` | Listener applications (apply as the user first, then tick the checks and approve), screening terms (one demo suggestion is waiting to approve or reject), helplines and clinics |
 
 These accounts are for the emulators only. The script uses the emulator-only project and refuses to run if it is pointed at anything other than the emulators on your computer. Never create accounts with a published password in a real Firebase project.
 
@@ -284,7 +304,7 @@ Check which project `public/js/firebase-config.js` points at before every deploy
 
 **After the first deploy**
 
-- **Staff accounts.** Sign up on the deployed site with each person's own email and a private password. Then, in the Firebase console, open Firestore > `accounts` > that person's document and change `role` to `moderator` or `admin`. A listener applies on `listener-apply.html` and is approved by an admin on `admin-listeners.html`. Don't run `npm run seed:accounts` here: it refuses, and its password is public.
+- **Staff accounts.** Sign up on the deployed site with each person's own email and a private password. Then, in the Firebase console, open Firestore > `accounts` > that person's document and change `role` to `moderator` or `admin`. A listener applies on `listener-apply.html`, is checked in person, and is then approved by an admin on `admin-listeners.html` (see "How someone becomes a listener"). Set `VETTING_CONTACT_EMAIL` to a real address first. Don't run `npm run seed:accounts` here: it refuses, and its password is public.
 - **Helplines and clinics.** An admin adds the verified ones on `admin-resources.html`.
 - **Screening terms.** Sign in as an admin, open `admin-terms.html` and press "Import starter terms". It adds the terms in `public/data/term-lists-seed.json` to the three lists, skips any already there, and records each term added in the audit log under that admin. It needs no key and no script, and it is safe to press again. Until it is done, screening uses the built-in lists and the fixed patterns in `firestore.rules`. (`npm run seed:terms` does the same job for the emulators only.)
 

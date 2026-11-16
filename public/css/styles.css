@@ -239,6 +239,10 @@ a:hover {
   display: none;
 }
 
+main > .message {
+  margin-bottom: var(--space-4);
+}
+
 /* Only for screen readers. */
 .visually-hidden {
   position: absolute;
@@ -885,6 +889,68 @@ ul.plain-list li button {
   margin: 0;
   font-size: var(--text-small);
   font-weight: 500;
+  color: var(--color-muted);
+}
+
+/* ---- Listener applications ---- */
+
+/* The progress list on the apply page. */
+.steps {
+  margin: var(--space-4) 0;
+  padding-left: 1.5rem;
+}
+
+.steps li {
+  padding: var(--space-2) 0;
+  color: var(--color-muted);
+}
+
+.steps li.step-done,
+.steps li.step-current {
+  color: var(--color-ink);
+}
+
+.steps li.step-current {
+  font-weight: 700;
+}
+
+.steps .tag {
+  margin-left: var(--space-2);
+}
+
+/* One application on the admin page. */
+#listeners-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+#listeners-list li.application {
+  display: block;
+  padding: var(--space-5);
+  margin: 0;
+  border: none;
+}
+
+.application h2 {
+  display: inline-block;
+  margin-right: var(--space-3);
+}
+
+.answer {
+  padding: var(--space-3) 0;
+  border-top: 1.5px solid var(--color-line);
+}
+
+.answer p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.answer .answer-question {
+  margin-bottom: var(--space-1);
+  font-size: var(--text-small);
+  font-weight: 700;
   color: var(--color-muted);
 }
 
