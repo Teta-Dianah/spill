@@ -93,12 +93,25 @@ describe('choices that replaced dropdowns', () => {
 describe('the crisis card', () => {
   const script = read('js/crisis-card.js');
 
-  test.each(['8015', '114', '116'])('lists %s with a button that starts a call', (number) => {
-    expect(script).toContain(`crisisLine('${number}',`);
+  test.each([
+    ['114', 'Rwanda Biomedical Centre helpline'],
+    ['116', 'Child helpline / RIB'],
+    ['0793 902 059', 'Kigali Mental Health Referral Centre'],
+  ])('lists %s as "%s" with a button that starts a call', (number, name) => {
+    expect(script).toContain(`crisisLine('${number}', '${name}')`);
   });
 
-  test('each Call button is a phone link with a spoken label', () => {
-    expect(script).toMatch(/href="tel:' \+ number \+ '"/);
+  test('8015 is no longer listed', () => {
+    expect(script).not.toContain('8015');
+  });
+
+  test('the card does not promise that every line is free', () => {
+    expect(script).not.toMatch(/are free/);
+  });
+
+  test('each Call button is a phone link, dialled without spaces, with a spoken label', () => {
+    expect(script).toMatch(/var dial = number\.replace\(\/ \/g, ''\);/);
+    expect(script).toMatch(/href="tel:' \+ dial \+ '"/);
     expect(script).toMatch(/aria-label="Call ' \+ number \+ '"/);
   });
 });

@@ -8,10 +8,13 @@
 // on a phone. The numbers are fixed in this file, not typed by anyone,
 // so there is nothing here to escape.
 function crisisLine(number, name) {
+  // A longer number is written with spaces so it is easy to read. The
+  // link that starts the call needs it without them.
+  var dial = number.replace(/ /g, '');
   return (
     '<li>' +
     '<span class="crisis-line-text"><strong>' + number + '</strong>' + name + '</span>' +
-    '<a class="button" href="tel:' + number + '" aria-label="Call ' + number + '">Call</a>' +
+    '<a class="button" href="tel:' + dial + '" aria-label="Call ' + number + '">Call</a>' +
     '</li>'
   );
 }
@@ -31,11 +34,11 @@ function buildCrisisCard() {
   modal.innerHTML =
     '<div class="crisis-modal-content">' +
     '<h2 id="crisis-modal-title">You are not alone.</h2>' +
-    '<p>These helplines in Rwanda are free and confidential.</p>' +
+    '<p>You can call any of these in Rwanda.</p>' +
     '<ul class="crisis-lines">' +
-    crisisLine('8015', 'Suicide prevention helpline') +
     crisisLine('114', 'Rwanda Biomedical Centre helpline') +
-    crisisLine('116', 'Child helpline') +
+    crisisLine('116', 'Child helpline / RIB') +
+    crisisLine('0793 902 059', 'Kigali Mental Health Referral Centre') +
     '</ul>' +
     '<p>If you are in immediate danger, contact local emergency services or go to the nearest hospital.</p>' +
     '<button type="button" id="close-crisis-modal" class="button-secondary">Close</button>' +

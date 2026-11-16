@@ -20,16 +20,16 @@ const sampleResources = [
     lastVerified: '2026-09-01',
   },
   {
-    name: 'Child Helpline',
+    name: 'Child Helpline / RIB',
     contact: '116',
     category: 'helpline',
     lastVerified: '2026-09-01',
   },
   {
-    name: 'Suicide Prevention Helpline',
-    contact: '8015',
-    category: 'helpline',
-    lastVerified: '2026-09-01',
+    name: 'Kigali Mental Health Referral Centre',
+    contact: '0793 902 059',
+    category: 'clinic',
+    lastVerified: '2026-11-16',
   },
 ];
 
