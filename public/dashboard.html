@@ -7,57 +7,67 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body>
+<body class="wide">
   <header>
-    <h1>Your dashboard</h1>
-    <p id="pseudonym-display"></p>
-    <button type="button" id="sign-out-button" style="width: auto;">Sign out</button>
+    <div class="topbar">
+      <a class="brand" href="dashboard.html">Spill</a>
+      <button type="button" id="sign-out-button">Sign out</button>
+    </div>
+    <p class="eyebrow">You are known here as</p>
+    <h1 id="pseudonym-display">&nbsp;</h1>
   </header>
 
   <main>
-    <section class="card">
-      <h2>How are you feeling today?</h2>
-      <form id="mood-form">
-        <label for="score">Mood (1 = rough, 5 = great)</label>
-        <select id="score" name="score" required>
-          <option value="1">1 — Rough</option>
-          <option value="2">2</option>
-          <option value="3">3 — Okay</option>
-          <option value="4">4</option>
-          <option value="5">5 — Great</option>
-        </select>
+    <div class="columns">
+      <section class="card">
+        <h2>How's today going?</h2>
+        <form id="mood-form">
+          <fieldset>
+            <legend class="visually-hidden">Mood from 1 to 5</legend>
+            <div class="choices choices-scale">
+          <label class="choice"><input type="radio" name="score" value="1" required aria-describedby="score-ends"><span>1</span></label>
+          <label class="choice"><input type="radio" name="score" value="2"><span>2</span></label>
+          <label class="choice"><input type="radio" name="score" value="3"><span>3</span></label>
+          <label class="choice"><input type="radio" name="score" value="4"><span>4</span></label>
+          <label class="choice"><input type="radio" name="score" value="5"><span>5</span></label>
+        </div>
+        <p class="scale-ends" id="score-ends"><span>1 is rough</span><span>5 is great</span></p>
+          </fieldset>
 
-        <label for="note">Anything you want to add? (optional)</label>
-        <textarea id="note" name="note" rows="3" maxlength="280"></textarea>
+          <label for="note">Anything to add? (optional)</label>
+          <textarea id="note" name="note" rows="2" maxlength="280"></textarea>
 
-        <button type="submit">Save check-in</button>
-        <p id="mood-message" class="message"></p>
-      </form>
-    </section>
+          <button type="submit">Save check-in</button>
+          <p id="mood-message" class="message"></p>
+        </form>
+      </section>
 
-    <section class="card">
-      <h2>Your recent check-ins</h2>
-      <p id="monthly-recap"></p>
-      <ul id="mood-history" class="plain-list">
-        <li>Loading...</li>
-      </ul>
-    </section>
+      <div>
+        <section class="card card-dark">
+          <h2>Need to talk?</h2>
+          <p>A trained listener can chat with you one-to-one.</p>
+          <a class="button button-accent" href="request-chat.html">Talk to a listener</a>
+        </section>
 
-    <section class="card">
-      <h2>Need to talk?</h2>
-      <p><a href="request-chat.html">Talk to a listener</a></p>
-      <p>Applying as a listener yourself? <a href="listener-apply.html">Apply here</a>.</p>
-    </section>
+        <section class="card">
+          <h2>Your check-ins</h2>
+          <p id="monthly-recap" class="hint"></p>
+          <ul id="mood-history" class="plain-list">
+            <li>Loading...</li>
+          </ul>
+        </section>
 
-    <section class="card" id="staff-links-section" hidden>
-      <h2>Your Spill pages</h2>
-      <ul id="staff-links" class="plain-list"></ul>
-    </section>
+        <section class="card" id="staff-links-section" hidden>
+          <h2>Your Spill pages</h2>
+          <ul id="staff-links" class="plain-list"></ul>
+        </section>
+      </div>
+    </div>
 
-    <section class="card">
-      <h2>Account</h2>
-      <button type="button" id="delete-account-button" style="width: auto; background: #a4303f;">Delete my account</button>
-    </section>
+    <div class="actions">
+      <a href="listener-apply.html">Apply to be a listener</a>
+      <button type="button" id="delete-account-button" class="button-danger-link">Delete my account</button>
+    </div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>

@@ -25,18 +25,21 @@ function renderQueueRow(item) {
   var row = document.createElement('li');
   var ageText = item.createdAt ? new Date(item.createdAt.toMillis()).toLocaleString() : 'unknown time';
 
+  // The severity is written out in the tag, so it never depends on
+  // colour alone. Number() keeps anything but a number out of the class.
+  var severity = Number(item.severity) || 0;
   row.innerHTML =
-    '<strong>Severity ' + item.severity + '</strong> — ' + escapeForDisplay(describeItem(item)) +
-    '<br><span class="resource-meta">' + ageText + '</span>';
+    '<div class="queue-text">' +
+    '<span class="tag tag-severity-' + severity + '">Severity ' + severity + '</span>' +
+    '<span class="queue-title">' + escapeForDisplay(describeItem(item)) + '</span>' +
+    '<span class="resource-meta">' + escapeForDisplay(ageText) + '</span>' +
+    '</div>';
 
   var openButton = document.createElement('a');
+  openButton.className = 'button';
   openButton.href = 'moderator-case.html?chatId=' + encodeURIComponent(item.chatId) +
     '&itemType=' + encodeURIComponent(item.itemType) + '&itemId=' + encodeURIComponent(item.id);
   openButton.textContent = 'Open case';
-  openButton.style.display = 'inline-block';
-  openButton.style.width = 'auto';
-  openButton.style.marginTop = '0.5rem';
-  row.appendChild(document.createElement('br'));
   row.appendChild(openButton);
 
   return row;

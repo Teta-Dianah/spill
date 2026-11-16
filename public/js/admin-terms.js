@@ -180,6 +180,7 @@ function renderTermRow(category, term, adminUid) {
   var saveButton = document.createElement('button');
   saveButton.type = 'button';
   saveButton.textContent = 'Save';
+  saveButton.className = 'button-secondary';
   saveButton.addEventListener('click', function () {
     saveTermChange(category, 'edit', term, input.value, adminUid)
       .then(function () {
@@ -192,6 +193,7 @@ function renderTermRow(category, term, adminUid) {
   var removeButton = document.createElement('button');
   removeButton.type = 'button';
   removeButton.textContent = 'Remove';
+  removeButton.className = 'button-danger-link';
   removeButton.addEventListener('click', function () {
     saveTermChange(category, 'remove', term, null, adminUid)
       .then(function () {

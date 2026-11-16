@@ -20,7 +20,9 @@ function renderPseudonym(uid) {
     .get()
     .then(function (accountDoc) {
       if (accountDoc.exists) {
-        box.textContent = 'You are known here as ' + accountDoc.data().pseudonym;
+        // The line "You are known here as" is already in dashboard.html,
+        // just above this heading.
+        box.textContent = accountDoc.data().pseudonym;
       }
     });
 }

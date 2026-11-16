@@ -9,13 +9,17 @@
 </head>
 <body>
   <header>
-    <h1>Sign up</h1>
-    <p>No real name needed. We'll give you a pseudonym instead.</p>
+    <div class="topbar">
+      <a class="brand" href="index.html">Spill</a>
+      <a href="signin.html">Sign in</a>
+    </div>
+    <h1>No real name needed.</h1>
+    <p>We'll give you a made-up one. It's the only name anyone sees.</p>
   </header>
 
   <main>
-    <div class="not-therapy-notice">
-      <p><strong>Before you continue:</strong></p>
+    <div class="card notice-card">
+      <h2>Before you continue</h2>
       <ul>
         <li>Spill offers peer support, not therapy or an emergency service.</li>
         <li>Chats are confidential, except where there is serious risk of harm — in that case, limited information may be shared with emergency services.</li>
@@ -23,32 +27,37 @@
       </ul>
     </div>
 
-    <form id="signup-form" class="card">
+    <form id="signup-form">
       <label for="email">Email</label>
-      <input type="email" id="email" name="email" required>
+      <input type="email" id="email" name="email" autocomplete="email" required>
+      <p class="hint">Only for signing in. Nobody else sees it.</p>
 
-      <label for="password">Password (at least 8 characters)</label>
-      <input type="password" id="password" name="password" minlength="8" required>
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" minlength="8" autocomplete="new-password" required>
+      <p class="hint">At least 8 characters.</p>
 
-      <label for="ageBand">Age</label>
-      <select id="ageBand" name="ageBand" required>
-        <option value="">Choose one</option>
-        <option value="16-17">16 to 17</option>
-        <option value="18-25">18 to 25</option>
-      </select>
+      <fieldset>
+        <legend>Your age</legend>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="ageBand" value="16-17" required><span>16 to 17</span></label>
+          <label class="choice"><input type="radio" name="ageBand" value="18-25"><span>18 to 25</span></label>
+        </div>
+      </fieldset>
 
-      <label>Is this the first time you've looked for this kind of support?</label>
-      <label>
-        <input type="radio" name="firstTimeSeekingHelp" value="yes" required style="width: auto; display: inline-block;">
-        Yes, this is my first time
-      </label>
-      <label>
-        <input type="radio" name="firstTimeSeekingHelp" value="no" style="width: auto; display: inline-block;">
-        No, I've looked for support before
-      </label>
+      <fieldset>
+        <legend>Is this the first time you've looked for this kind of support?</legend>
+        <label class="option">
+          <input type="radio" name="firstTimeSeekingHelp" value="yes" required>
+          Yes, this is my first time
+        </label>
+        <label class="option">
+          <input type="radio" name="firstTimeSeekingHelp" value="no">
+          No, I've looked for support before
+        </label>
+      </fieldset>
 
-      <label>
-        <input type="checkbox" name="consent" style="width: auto; display: inline-block;">
+      <label class="option option-plain">
+        <input type="checkbox" name="consent">
         I have read the notice above and agree to it.
       </label>
 
@@ -56,7 +65,7 @@
       <p id="signup-message" class="message"></p>
     </form>
 
-    <p>Already have an account? <a href="signin.html">Sign in</a></p>
+    <p class="fine-print">Already have an account? <a href="signin.html">Sign in</a></p>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>

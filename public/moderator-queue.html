@@ -7,14 +7,18 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body>
+<body class="wide">
   <header>
+    <div class="topbar">
+      <a class="brand" href="dashboard.html">Spill</a>
+      <a href="dashboard.html">Dashboard</a>
+    </div>
     <h1>Moderator queue</h1>
-    <p>Moderator only. Open flags and reports, ordered by severity then age.</p>
+    <p>Moderator only. Open flags and reports, most serious first. Opening a case is recorded in the audit log.</p>
   </header>
 
   <main>
-    <p id="queue-message" class="message"></p>
+    <p id="queue-message" class="message" role="status"></p>
     <ul id="queue-list" class="plain-list"></ul>
   </main>
 

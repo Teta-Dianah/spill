@@ -9,13 +9,19 @@
 </head>
 <body>
   <header>
-    <h1>Manage listeners</h1>
+    <div class="topbar">
+      <a class="brand" href="dashboard.html">Spill</a>
+      <a href="dashboard.html">Dashboard</a>
+    </div>
+    <h1>Listener applications</h1>
     <p>Admin only. Approve or reject listener applications, and mark who's cleared to talk to 16-17 year olds.</p>
   </header>
 
   <main>
-    <p id="admin-listeners-message" class="message"></p>
-    <ul id="listeners-list" class="plain-list"></ul>
+    <p id="admin-listeners-message" class="message" role="status"></p>
+    <section class="card">
+      <ul id="listeners-list" class="plain-list"></ul>
+    </section>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>

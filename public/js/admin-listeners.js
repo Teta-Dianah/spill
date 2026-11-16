@@ -42,6 +42,7 @@ function renderListenerRow(listener) {
     var approveMinorsButton = document.createElement('button');
     approveMinorsButton.type = 'button';
     approveMinorsButton.textContent = 'Approve + clear for minors';
+    approveMinorsButton.className = 'button-secondary';
     approveMinorsButton.addEventListener('click', function () {
       approveListener(listener.uid, true).then(renderListeners);
     });
@@ -50,6 +51,7 @@ function renderListenerRow(listener) {
     var rejectButton = document.createElement('button');
     rejectButton.type = 'button';
     rejectButton.textContent = 'Reject';
+    rejectButton.className = 'button-secondary';
     rejectButton.addEventListener('click', function () {
       rejectListener(listener.uid).then(renderListeners);
     });
