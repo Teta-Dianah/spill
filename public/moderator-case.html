@@ -7,66 +7,76 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body>
+<body class="wide">
   <header>
+    <div class="topbar">
+      <a class="brand" href="dashboard.html">Spill</a>
+      <a href="moderator-queue.html">Back to queue</a>
+    </div>
     <h1>Case</h1>
-    <p><a href="moderator-queue.html">&larr; Back to queue</a></p>
   </header>
 
   <main>
-    <p id="case-message" class="message"></p>
+    <p id="case-message" class="message" role="status"></p>
 
-    <section id="case-details" class="card" hidden>
-      <h2>What was flagged</h2>
-      <p id="item-summary"></p>
-    </section>
+    <div class="columns">
+      <div>
+        <section id="case-details" class="card" hidden>
+          <h2>What was flagged</h2>
+          <p id="item-summary"></p>
+        </section>
 
-    <section id="case-transcript" class="card" hidden>
-      <h2>Chat transcript</h2>
-      <ul id="transcript-list" class="plain-list"></ul>
-    </section>
+        <section id="case-transcript" class="card" hidden>
+          <h2>Chat transcript</h2>
+          <ul id="transcript-list" class="plain-list"></ul>
+        </section>
+      </div>
 
-    <form id="action-form" class="card" hidden>
-      <h2>Take an action</h2>
+      <div>
+        <form id="action-form" class="card" hidden>
+          <h2>Take an action</h2>
 
-      <label for="actionSelect">Action</label>
-      <select id="actionSelect" name="actionSelect" required>
-        <option value="dismiss">Dismiss — no issue found</option>
-        <option value="warn">Warn</option>
-        <option value="suspend">Suspend the other person's account</option>
-        <option value="reinstate">Reinstate the other person's account</option>
-        <option value="escalate">Escalate for closer review</option>
-      </select>
+          <label for="actionSelect">Action</label>
+          <select id="actionSelect" name="actionSelect" required>
+            <option value="dismiss">Dismiss — no issue found</option>
+            <option value="warn">Warn</option>
+            <option value="suspend">Suspend the other person's account</option>
+            <option value="reinstate">Reinstate the other person's account</option>
+            <option value="escalate">Escalate for closer review</option>
+          </select>
 
-      <label for="actionReason">Reason</label>
-      <textarea id="actionReason" name="actionReason" rows="3" maxlength="500" required></textarea>
+          <label for="actionReason">Reason</label>
+          <textarea id="actionReason" name="actionReason" rows="3" maxlength="500" required></textarea>
+          <p class="hint">Every action needs a reason and is logged.</p>
 
-      <button type="submit">Apply action</button>
-    </form>
+          <button type="submit">Apply action</button>
+        </form>
 
-    <!-- Shown to a moderator by term-suggestions.js. Only what is typed
-         here is saved: no message text and no user IDs. -->
-    <form id="suggest-term-form" class="card" hidden>
-      <h2>Suggest a term</h2>
-      <p>Seen wording the screening missed? Suggest it for the term lists. An admin reviews every suggestion before anything is added.</p>
+        <!-- Shown to a moderator by term-suggestions.js. Only what is typed
+             here is saved: no message text and no user IDs. -->
+        <form id="suggest-term-form" class="card" hidden>
+          <h2>Suggest a term</h2>
+          <p>Seen wording the screening missed? Suggest it for the term lists. An admin reviews every suggestion before anything is added.</p>
 
-      <label for="suggestPhrase">Phrase (3 to 60 characters)</label>
-      <input type="text" id="suggestPhrase" name="suggestPhrase" minlength="3" maxlength="60" autocomplete="off" required>
-      <p class="hint">Use a short phrase that would not appear in harmless messages.</p>
+          <label for="suggestPhrase">Phrase (3 to 60 characters)</label>
+          <input type="text" id="suggestPhrase" name="suggestPhrase" minlength="3" maxlength="60" autocomplete="off" required>
+          <p class="hint">Use a short phrase that would not appear in harmless messages.</p>
 
-      <label for="suggestCategory">Category</label>
-      <select id="suggestCategory" name="suggestCategory" required>
-        <option value="crisis">Crisis</option>
-        <option value="abuse">Abusive language</option>
-      </select>
+          <label for="suggestCategory">Category</label>
+          <select id="suggestCategory" name="suggestCategory" required>
+            <option value="crisis">Crisis</option>
+            <option value="abuse">Abusive language</option>
+          </select>
 
-      <label for="suggestNote">Note for the admin (optional)</label>
-      <textarea id="suggestNote" name="suggestNote" rows="2" maxlength="280"></textarea>
-      <p class="hint">Don't copy a message or name anyone here.</p>
+          <label for="suggestNote">Note for the admin (optional)</label>
+          <textarea id="suggestNote" name="suggestNote" rows="2" maxlength="280"></textarea>
+          <p class="hint">Don't copy a message or name anyone here.</p>
 
-      <button type="submit">Send suggestion</button>
-      <p id="suggest-term-message" class="message" role="status"></p>
-    </form>
+          <button type="submit" class="button-secondary">Send suggestion</button>
+          <p id="suggest-term-message" class="message" role="status"></p>
+        </form>
+      </div>
+    </div>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>

@@ -29,9 +29,9 @@ function loadResources() {
         var item = document.createElement('li');
         item.className = 'resource-item';
         item.innerHTML =
-          '<strong>' + escapeHtml(data.name) + '</strong><br>' +
-          escapeHtml(data.contact) +
-          '<br><span class="resource-meta">' +
+          '<span class="resource-name">' + escapeHtml(data.name) + '</span>' +
+          '<span class="resource-contact">' + escapeHtml(data.contact) + '</span>' +
+          '<span class="resource-meta">' +
           escapeHtml(data.category || '') +
           ' &middot; last verified ' +
           escapeHtml(data.lastVerified || 'unknown') +

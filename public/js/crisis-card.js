@@ -4,6 +4,18 @@
 // The admin-managed resources page (index.html) has the fuller, kept-up-to-date
 // list; this is a fixed safety net that is always there.
 
+// One helpline: its number, what it is, and a button that starts a call
+// on a phone. The numbers are fixed in this file, not typed by anyone,
+// so there is nothing here to escape.
+function crisisLine(number, name) {
+  return (
+    '<li>' +
+    '<span class="crisis-line-text"><strong>' + number + '</strong>' + name + '</span>' +
+    '<a class="button" href="tel:' + number + '" aria-label="Call ' + number + '">Call</a>' +
+    '</li>'
+  );
+}
+
 function buildCrisisCard() {
   var button = document.createElement('button');
   button.id = 'need-help-now-button';
@@ -13,17 +25,20 @@ function buildCrisisCard() {
   var modal = document.createElement('div');
   modal.id = 'crisis-modal';
   modal.hidden = true;
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-labelledby', 'crisis-modal-title');
   modal.innerHTML =
     '<div class="crisis-modal-content">' +
-    '<h2>You are not alone</h2>' +
-    '<p>These are free, confidential helplines in Rwanda:</p>' +
-    '<ul>' +
-    '<li><strong>114</strong> &mdash; Rwanda Biomedical Centre helpline</li>' +
-    '<li><strong>116</strong> &mdash; Child helpline</li>' +
-    '<li><strong>8015</strong> &mdash; Suicide prevention helpline</li>' +
+    '<h2 id="crisis-modal-title">You are not alone.</h2>' +
+    '<p>These helplines in Rwanda are free and confidential.</p>' +
+    '<ul class="crisis-lines">' +
+    crisisLine('8015', 'Suicide prevention helpline') +
+    crisisLine('114', 'Rwanda Biomedical Centre helpline') +
+    crisisLine('116', 'Child helpline') +
     '</ul>' +
     '<p>If you are in immediate danger, contact local emergency services or go to the nearest hospital.</p>' +
-    '<button type="button" id="close-crisis-modal">Close</button>' +
+    '<button type="button" id="close-crisis-modal" class="button-secondary">Close</button>' +
     '</div>';
 
   document.body.appendChild(button);

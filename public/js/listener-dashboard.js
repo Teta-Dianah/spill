@@ -124,7 +124,7 @@ function renderPendingRequests(uid) {
 
         var item = document.createElement('li');
         var label = document.createElement('span');
-        label.textContent = 'Request (' + topic + ') ';
+        label.textContent = 'Someone wants to talk about: ' + topic;
         item.appendChild(label);
 
         var acceptButton = document.createElement('button');
@@ -138,6 +138,7 @@ function renderPendingRequests(uid) {
         var declineButton = document.createElement('button');
         declineButton.type = 'button';
         declineButton.textContent = 'Decline';
+        declineButton.className = 'button-secondary';
         declineButton.addEventListener('click', function () {
           declineChatRequest(chatId);
         });

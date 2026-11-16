@@ -144,6 +144,22 @@ On the third set, which is held-out, the term lists caught 2 of the 15 crisis me
 
 Two more limits to know about: the model's flag is written a few seconds after the message, not in the same write as it, and it is lost if the sender closes the page before the answer arrives. `docs/SRS_change_notes.md` lists where this differs from the SRS.
 
+## Design
+
+The look is meant to feel like a place to talk, not a clinic: confident on the way in (heavy headlines, a warm background, one orange accent) and quiet on the screens where people open up (soft message bubbles in the chat, a calm crisis card). The wording stays plain and non-clinical.
+
+Everything visual lives in `public/css/styles.css`. The pages carry no inline styles.
+
+- **One scale for type, spacing and colour**, set as variables at the top of the stylesheet.
+- **Mobile first.** Pages work from 320 px wide and open into two columns on wider screens. Text wraps instead of overlapping, and nothing scrolls sideways.
+- **"Need help now" is fixed on every page** (NFR 5). Each page keeps empty space at the bottom, so the button never covers the last thing on it.
+- **Colour has one job each.** Orange marks the one main action on a screen. Red is only for "Need help now" and for actions that remove something.
+- **Easy to tap and to read.** Buttons, fields and standalone links are at least 44 px tall, keyboard focus is always visible, and severity in the moderator queue is written out as well as coloured.
+- **Tap, don't open a dropdown.** Mood, topic and age are groups of radio buttons styled as boxes. The scripts still read them with `form.<name>.value`.
+- **Fonts are served from the app.** Archivo and Archivo Black are in `public/fonts/` under the SIL Open Font License (`public/fonts/OFL.txt`). No page asks another site for a font, so opening Spill tells no outside font service about it.
+
+`test/unit/pages.test.js` checks the parts of this that can be checked from the files: every page loads the "Need help now" button and the stylesheet, has no inline styles, and asks no other site for fonts.
+
 ## How matching avoids duplicate requests
 
 A user can only ever have one pending chat request outstanding (FR 4.1). `request-chat.js` claims a `pendingChats/{uid}` marker in the same atomic batch as the `chats` document it creates, and `firestore.rules` requires that pairing on every chat create — since `pendingChats` has no update rule, a second chat can never get its own claim while the first one's still stands.

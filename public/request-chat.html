@@ -9,32 +9,42 @@
 </head>
 <body>
   <header>
-    <h1>Talk to a listener</h1>
+    <div class="topbar">
+      <a class="brand" href="dashboard.html">Spill</a>
+      <a href="dashboard.html">Dashboard</a>
+    </div>
+    <h1>What's on your mind?</h1>
+    <p>Pick the closest one. You can explain in the chat.</p>
   </header>
 
   <main>
-    <form id="request-chat-form" class="card">
-      <label for="topic">What's on your mind?</label>
-      <select id="topic" name="topic" required>
-        <option value="exams">Exams</option>
-        <option value="family">Family</option>
-        <option value="money">Money stress</option>
-        <option value="loneliness">Loneliness</option>
-        <option value="other">Something else</option>
-      </select>
+    <form id="request-chat-form">
+      <fieldset>
+        <legend class="visually-hidden">Topic</legend>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="topic" value="exams" required><span>Exams</span></label>
+          <label class="choice"><input type="radio" name="topic" value="family"><span>Family</span></label>
+          <label class="choice"><input type="radio" name="topic" value="money"><span>Money stress</span></label>
+          <label class="choice"><input type="radio" name="topic" value="loneliness"><span>Loneliness</span></label>
+          <label class="choice"><input type="radio" name="topic" value="other"><span>Something else</span></label>
+        </div>
+      </fieldset>
 
-      <label for="moodBefore">How are you feeling right now? (1 = rough, 5 = great)</label>
-      <select id="moodBefore" name="moodBefore" required>
-        <option value="1">1 — Rough</option>
-        <option value="2">2</option>
-        <option value="3">3 — Okay</option>
-        <option value="4">4</option>
-        <option value="5">5 — Great</option>
-      </select>
+      <fieldset>
+        <legend>How are you feeling right now?</legend>
+        <div class="choices choices-scale">
+          <label class="choice"><input type="radio" name="moodBefore" value="1" required aria-describedby="mood-before-ends"><span>1</span></label>
+          <label class="choice"><input type="radio" name="moodBefore" value="2"><span>2</span></label>
+          <label class="choice"><input type="radio" name="moodBefore" value="3"><span>3</span></label>
+          <label class="choice"><input type="radio" name="moodBefore" value="4"><span>4</span></label>
+          <label class="choice"><input type="radio" name="moodBefore" value="5"><span>5</span></label>
+        </div>
+        <p class="scale-ends" id="mood-before-ends"><span>1 is rough</span><span>5 is great</span></p>
+      </fieldset>
 
-      <button type="submit">Find a listener</button>
-      <p id="request-message" class="message"></p>
-      <button type="button" id="cancel-request-button" hidden>Cancel request</button>
+      <button type="submit" class="button-accent">Find a listener</button>
+      <p id="request-message" class="message" role="status"></p>
+      <button type="button" id="cancel-request-button" class="button-secondary" hidden>Cancel request</button>
     </form>
 
     <!-- Shown only when the model check is on and this person has not
@@ -45,7 +55,7 @@
       <button type="button" id="model-check-decline" class="quiet-button">No thanks</button>
     </div>
 
-    <p>Not ready to wait? <a href="index.html">See helplines and self-help resources</a>.</p>
+    <p class="fine-print">Not ready to wait? <a href="index.html">See helplines and self-help resources</a>.</p>
   </main>
 
   <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>

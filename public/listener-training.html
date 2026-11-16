@@ -9,6 +9,10 @@
 </head>
 <body>
   <header>
+    <div class="topbar">
+      <a class="brand" href="dashboard.html">Spill</a>
+      <a href="listener-dashboard.html">Listener dashboard</a>
+    </div>
     <h1>Listener training</h1>
   </header>
 
@@ -27,23 +31,29 @@
     <form id="quiz-form" class="card">
       <h2>Quick check</h2>
 
-      <label>1. If someone tells you they're thinking about suicide, what should you do?</label>
-      <label><input type="radio" name="q1" value="a" style="width:auto;display:inline-block;"> Try to talk them out of it yourself</label>
-      <label><input type="radio" name="q1" value="b" style="width:auto;display:inline-block;"> Let the crisis card and moderator flag do their job, and stay present</label>
-      <label><input type="radio" name="q1" value="c" style="width:auto;display:inline-block;"> End the chat immediately without saying anything</label>
+      <fieldset>
+        <legend>1. If someone tells you they're thinking about suicide, what should you do?</legend>
+        <label class="option"><input type="radio" name="q1" value="a"> Try to talk them out of it yourself</label>
+        <label class="option"><input type="radio" name="q1" value="b"> Let the crisis card and moderator flag do their job, and stay present</label>
+        <label class="option"><input type="radio" name="q1" value="c"> End the chat immediately without saying anything</label>
+      </fieldset>
 
-      <label>2. A user asks for your phone number so you can keep talking outside Spill. What do you do?</label>
-      <label><input type="radio" name="q2" value="a" style="width:auto;display:inline-block;"> Give it to them since you want to help</label>
-      <label><input type="radio" name="q2" value="b" style="width:auto;display:inline-block;"> Politely decline and remind them everything happens on Spill</label>
-      <label><input type="radio" name="q2" value="c" style="width:auto;display:inline-block;"> Ignore the message and say nothing</label>
+      <fieldset>
+        <legend>2. A user asks for your phone number so you can keep talking outside Spill. What do you do?</legend>
+        <label class="option"><input type="radio" name="q2" value="a"> Give it to them since you want to help</label>
+        <label class="option"><input type="radio" name="q2" value="b"> Politely decline and remind them everything happens on Spill</label>
+        <label class="option"><input type="radio" name="q2" value="c"> Ignore the message and say nothing</label>
+      </fieldset>
 
-      <label>3. What's the most important thing to do when a chat feels unsafe or abusive?</label>
-      <label><input type="radio" name="q3" value="a" style="width:auto;display:inline-block;"> Keep trying to calm the user down no matter what</label>
-      <label><input type="radio" name="q3" value="b" style="width:auto;display:inline-block;"> End the chat or block them — you're allowed to, no reason needed</label>
-      <label><input type="radio" name="q3" value="c" style="width:auto;display:inline-block;"> Wait for a moderator to tell you to end it</label>
+      <fieldset>
+        <legend>3. What's the most important thing to do when a chat feels unsafe or abusive?</legend>
+        <label class="option"><input type="radio" name="q3" value="a"> Keep trying to calm the user down no matter what</label>
+        <label class="option"><input type="radio" name="q3" value="b"> End the chat or block them — you're allowed to, no reason needed</label>
+        <label class="option"><input type="radio" name="q3" value="c"> Wait for a moderator to tell you to end it</label>
+      </fieldset>
 
       <button type="submit">Submit</button>
-      <p id="quiz-message" class="message"></p>
+      <p id="quiz-message" class="message" role="status"></p>
     </form>
   </main>
 
