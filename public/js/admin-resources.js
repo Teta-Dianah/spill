@@ -44,6 +44,7 @@ function loadAdminResources() {
         var removeButton = document.createElement('button');
         removeButton.type = 'button';
         removeButton.textContent = 'Remove';
+        removeButton.className = 'button-danger-link';
         removeButton.addEventListener('click', function () {
           deleteResource(docSnap.id);
         });

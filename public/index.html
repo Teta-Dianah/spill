@@ -3,33 +3,35 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Spill — talk to someone who understands</title>
+  <title>Spill</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body>
+<body class="wide">
   <header>
-    <h1>Spill</h1>
-    <p>A private, judgement-free place for young people in Rwanda to talk.</p>
-    <nav>
-      <a href="signup.html">Sign up</a> &middot;
+    <div class="topbar">
+      <a class="brand" href="index.html">Spill</a>
       <a href="signin.html">Sign in</a>
-    </nav>
+    </div>
   </header>
 
   <main>
-    <div class="not-therapy-notice">
-      Spill offers peer support, not therapy, and is not an emergency service.
-      If you are in immediate danger, use the "Need help now" button below.
-    </div>
+    <div class="columns">
+      <div class="hero">
+        <h1>Don't bottle it. <span class="highlight">Spill it.</span></h1>
+        <p>Talk to someone trained to listen, under a made-up name.</p>
+        <a class="button" href="signup.html">Get started</a>
+        <p class="eyebrow">Anonymous · Free · Ages 16 to 25</p>
+      </div>
 
-    <section class="card">
-      <h2>Helplines and clinics</h2>
-      <p>These are free to use and open to anyone, no account needed.</p>
-      <ul id="resources-list" class="plain-list">
-        <li>Loading...</li>
-      </ul>
-    </section>
+      <section class="card">
+        <h2>Need someone right now?</h2>
+        <p class="hint">Helplines and clinics in Rwanda. No account needed.</p>
+        <ul id="resources-list" class="plain-list">
+          <li>Loading...</li>
+        </ul>
+      </section>
+    </div>
 
     <section class="card">
       <h2>A few things that can help right now</h2>
@@ -39,6 +41,11 @@
         <li><strong>Study overload?</strong> Take a 10-minute break before going back to it.</li>
       </ul>
     </section>
+
+    <p class="not-therapy-notice">
+      Spill offers peer support, not therapy, and is not an emergency service.
+      If you are in immediate danger, use the "Need help now" button.
+    </p>
   </main>
 
   <footer>

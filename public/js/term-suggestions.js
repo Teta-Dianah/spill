@@ -172,7 +172,7 @@ function renderSuggestionRow(suggestion, adminUid) {
     var button = document.createElement('button');
     button.type = 'button';
     button.textContent = choice.label;
-    button.style.width = 'auto';
+    if (choice.decision === 'rejected') button.className = 'button-secondary';
     button.addEventListener('click', function () {
       reviewTermSuggestion(suggestion.id, choice.decision, adminUid)
         .then(function () {

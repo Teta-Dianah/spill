@@ -156,6 +156,55 @@ service cloud.firestore {
         list.lastAuditLogId == request.resource.data.auditLogId;
     }
 
+    // Helper: is this admin step on a listener paired with a NEW auditLog
+    // entry written in the same batch, by this admin, about this listener
+    // (FR 5.2, FR 6.9)? Used for saving the in-person checks, approving
+    // and rejecting.
+    function hasNewListenerAuditEntry(listenerUid) {
+      let auditLogId = request.resource.data.lastAuditLogId;
+      let entry = getAfter(/databases/$(database)/documents/auditLog/$(auditLogId)).data;
+      return !exists(/databases/$(database)/documents/auditLog/$(auditLogId)) &&
+        entry.actorId == request.auth.uid &&
+        entry.itemType == 'listener' &&
+        entry.itemId == listenerUid;
+    }
+
+    // Helper: has an admin ticked all four in-person checks on this
+    // person's application (identity, references, police clearance,
+    // interview)? A listener can't be approved until they have (FR 5.2).
+    function listenerChecksDone(listenerUid) {
+      let checks = getAfter(/databases/$(database)/documents/listenerApplications/$(listenerUid)).data.checks;
+      return checks.identity == true &&
+        checks.references == true &&
+        checks.policeClearance == true &&
+        checks.interview == true;
+    }
+
+    // Helper: after this batch, does this person's application carry a
+    // reason for rejecting it?
+    function listenerRejectionHasReason(listenerUid) {
+      let reason = getAfter(/databases/$(database)/documents/listenerApplications/$(listenerUid)).data.rejectionReason;
+      return reason is string && reason.size() >= 5;
+    }
+
+    // Helper: may this person remove their own listener record and
+    // application? Yes while the application is still waiting (they are
+    // withdrawing it), or when their account is being deleted in the
+    // same batch (they are leaving Spill). An approved or rejected
+    // record can't be removed any other way, so a rejected person can't
+    // wipe the decision and start again.
+    function mayRemoveOwnListenerData(listenerUid, status) {
+      return request.auth != null &&
+        request.auth.uid == listenerUid &&
+        (status == 'pending' ||
+          !existsAfter(/databases/$(database)/documents/accounts/$(listenerUid)));
+    }
+
+    // Helper: is this answer text of an allowed length?
+    function isAnswer(text, minLength) {
+      return text is string && text.size() >= minLength && text.size() <= 1000;
+    }
+
     // Fixed, non-editable crisis-language check (FR 6.2). Deliberately
     // small — this is a backstop, not the primary detector.
     function hasCrisisLanguage(text) {
@@ -286,39 +335,126 @@ service cloud.firestore {
     }
 
     // moods/{moodId} — one document per mood check-in (FR 3). A user can
-    // only create and read their own mood entries. Mood entries are a
-    // simple log, so there is no update or delete in version 1.0.
+    // only create and read their own mood entries. An entry can never be
+    // changed. Its owner can delete it, which is how deleting an account
+    // removes the person's mood history with it (FR 1.5). Nobody else
+    // can read or delete it, not even a moderator or an admin.
     match /moods/{moodId} {
       allow create: if request.auth != null &&
         request.auth.uid == request.resource.data.uid;
 
-      allow read: if request.auth != null &&
+      allow read, delete: if request.auth != null &&
         request.auth.uid == resource.data.uid;
     }
 
-    // listeners/{uid} — one document per listener application (FR 5).
+    // listenerApplications/{uid} — what a person answered when they
+    // applied to be a listener (FR 5.1), plus what an admin recorded
+    // while reviewing it (FR 5.2). It is kept apart from listeners/{uid}
+    // because that record is readable by every signed-in user, and these
+    // answers are private: only the applicant and an admin can read them.
+    //
+    // Spill never stores a real name or an identity document (NFR 11).
+    // The identity, reference and police-clearance checks happen in
+    // person; this document only records that each one was done.
+    //
+    // A person can create only their own application, only once, only
+    // with an 18 to 25 account (every listener must be 21 or older), only
+    // with the declarations ticked, and only together with their
+    // listeners record. They can never change it afterwards. An admin can
+    // change only the four checks and the rejection reason, each time
+    // with a new auditLog entry.
+    //
+    // The applicant can take their answers back: they can delete the
+    // application together with their listeners record, while it is
+    // still waiting or when they delete their account. Nobody else can
+    // delete it.
+    match /listenerApplications/{uid} {
+      allow read: if request.auth != null &&
+        (request.auth.uid == uid || hasRole('admin'));
+
+      allow create: if request.auth != null &&
+        request.auth.uid == uid &&
+        get(/databases/$(database)/documents/accounts/$(uid)).data.ageBand == '18-25' &&
+        request.resource.data.keys().hasOnly(['confirmedAge21', 'motivation', 'experience', 'hoursPerWeek',
+          'scenarioCrisis', 'scenarioContact', 'agreedConduct', 'agreedChecks', 'referenceCode', 'createdAt']) &&
+        request.resource.data.confirmedAge21 == true &&
+        request.resource.data.agreedConduct == true &&
+        request.resource.data.agreedChecks == true &&
+        isAnswer(request.resource.data.motivation, 30) &&
+        isAnswer(request.resource.data.scenarioCrisis, 30) &&
+        isAnswer(request.resource.data.scenarioContact, 30) &&
+        isAnswer(request.resource.data.experience, 0) &&
+        request.resource.data.hoursPerWeek in ['1-2', '3-5', '6-plus'] &&
+        request.resource.data.referenceCode is string &&
+        request.resource.data.referenceCode.matches('^SPL-[A-Z2-9]{6}$') &&
+        request.resource.data.createdAt == request.time &&
+        existsAfter(/databases/$(database)/documents/listeners/$(uid));
+
+      allow update: if hasRole('admin') &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['checks', 'rejectionReason', 'reviewedBy', 'lastAuditLogId']) &&
+        request.resource.data.reviewedBy == request.auth.uid &&
+        (!('checks' in request.resource.data) || (
+          request.resource.data.checks.keys().hasOnly(['identity', 'references', 'policeClearance', 'interview']) &&
+          request.resource.data.checks.identity is bool &&
+          request.resource.data.checks.references is bool &&
+          request.resource.data.checks.policeClearance is bool &&
+          request.resource.data.checks.interview is bool
+        )) &&
+        (!('rejectionReason' in request.resource.data) || (
+          request.resource.data.rejectionReason is string &&
+          request.resource.data.rejectionReason.size() >= 5 &&
+          request.resource.data.rejectionReason.size() <= 500
+        )) &&
+        hasNewListenerAuditEntry(uid);
+
+      allow delete: if !existsAfter(/databases/$(database)/documents/listeners/$(uid)) &&
+        mayRemoveOwnListenerData(uid, get(/databases/$(database)/documents/listeners/$(uid)).data.status);
+    }
+
+    // listeners/{uid} — the small record used for matching (FR 5).
     // Anyone signed in can read the whole collection: matching a user to
     // a listener happens in the browser (the free plan has no Cloud
     // Functions to do it on a server), so a user's client needs to see
-    // who is approved and available. A person can only apply for
-    // themselves, always starting as unapproved and unavailable; only an
-    // admin can approve, reject, or clear someone for minors (BR 2).
+    // who is approved and available. Because of that it holds no answers
+    // from the application, only these few fields.
+    //
+    // A person can create only their own record, always unapproved and
+    // unavailable, and only together with their application. Afterwards
+    // they can change only their availability and training. Only an
+    // admin can approve, reject or clear someone for minors (BR 2), and
+    // only with a new auditLog entry; approving also needs all four
+    // in-person checks ticked, and rejecting needs a recorded reason.
     match /listeners/{uid} {
       allow read: if request.auth != null;
 
       allow create: if request.auth != null &&
         request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['status', 'clearedForMinors', 'available', 'trainingComplete', 'appliedAt']) &&
         request.resource.data.status == 'pending' &&
         request.resource.data.clearedForMinors == false &&
         request.resource.data.available == false &&
-        request.resource.data.trainingComplete == false;
+        request.resource.data.trainingComplete == false &&
+        existsAfter(/databases/$(database)/documents/listenerApplications/$(uid));
 
       allow update: if request.auth != null && (
-        hasRole('admin') ||
+        (hasRole('admin') &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['status', 'clearedForMinors', 'lastAuditLogId']) &&
+          request.resource.data.status in ['approved', 'rejected'] &&
+          request.resource.data.clearedForMinors is bool &&
+          hasNewListenerAuditEntry(uid) &&
+          (request.resource.data.status != 'approved' || listenerChecksDone(uid)) &&
+          (request.resource.data.status != 'rejected' || listenerRejectionHasReason(uid))) ||
         (request.auth.uid == uid &&
-          request.resource.data.status == resource.data.status &&
-          request.resource.data.clearedForMinors == resource.data.clearedForMinors)
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['available', 'trainingComplete']))
       );
+
+      // Removed only by its owner, only together with the application,
+      // and only while waiting or along with the whole account.
+      allow delete: if !existsAfter(/databases/$(database)/documents/listenerApplications/$(uid)) &&
+        mayRemoveOwnListenerData(uid, resource.data.status);
     }
 
     // chats/{chatId} — one document per chat session (FR 4, FR 5.5). Only

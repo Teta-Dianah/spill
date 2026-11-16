@@ -9,29 +9,30 @@
 </head>
 <body>
   <header>
+    <div class="topbar">
+      <a class="brand" href="dashboard.html">Spill</a>
+    </div>
     <h1>Chat</h1>
-    <p class="not-therapy-notice">This is peer support, not therapy or an emergency service.</p>
     <p id="chat-status"></p>
+    <p class="not-therapy-notice">This is peer support, not therapy or an emergency service.</p>
   </header>
 
   <main>
-    <section class="card">
-      <ul id="message-list" class="plain-list">
-        <li>Loading...</li>
-      </ul>
+    <ul id="message-list" class="plain-list">
+      <li class="message-note">Loading...</li>
+    </ul>
 
-      <form id="message-form">
-        <label for="messageText">Message</label>
-        <input type="text" id="messageText" name="messageText" maxlength="1000" autocomplete="off">
-        <button type="submit">Send</button>
-      </form>
-      <p id="chat-message" class="message"></p>
-    </section>
+    <form id="message-form">
+      <label for="messageText" class="visually-hidden">Message</label>
+      <input type="text" id="messageText" name="messageText" maxlength="1000" autocomplete="off" placeholder="Say it how it is">
+      <button type="submit" class="button-accent">Send</button>
+    </form>
+    <p id="chat-message" class="message" role="status"></p>
 
-    <div id="safety-actions">
-      <button type="button" id="report-button" style="width: auto;">Report</button>
-      <button type="button" id="block-button" style="width: auto; background: #a4303f;">Block</button>
-      <button type="button" id="end-chat-button" style="width: auto; background: #a4303f;">End chat</button>
+    <div id="safety-actions" class="actions">
+      <button type="button" id="report-button" class="button-link">Report</button>
+      <button type="button" id="block-button" class="button-link">Block</button>
+      <button type="button" id="end-chat-button" class="button-secondary">End chat</button>
     </div>
 
     <form id="report-form" class="card" hidden>
@@ -39,43 +40,45 @@
       <label for="reportReason">What happened?</label>
       <textarea id="reportReason" name="reportReason" rows="3" maxlength="500" required></textarea>
       <button type="submit">Send report</button>
-      <button type="button" id="cancel-report-button">Cancel</button>
+      <button type="button" id="cancel-report-button" class="button-link">Cancel</button>
     </form>
 
     <div id="block-confirm" class="card" hidden>
       <h2>Block this person?</h2>
       <p>You won't be matched with them again, and this chat will end.</p>
-      <button type="button" id="confirm-block-button" style="width: auto; background: #a4303f;">Yes, block them</button>
-      <button type="button" id="cancel-block-button">Cancel</button>
+      <div class="actions">
+        <button type="button" id="confirm-block-button">Yes, block them</button>
+        <button type="button" id="cancel-block-button" class="button-link">Cancel</button>
+      </div>
     </div>
 
     <form id="mood-after-form" class="card" hidden>
       <h2>Before you go</h2>
-
-      <label for="moodAfter">How are you feeling now? (1 = rough, 5 = great)</label>
-      <select id="moodAfter" name="moodAfter" required>
-        <option value="1">1 — Rough</option>
-        <option value="2">2</option>
-        <option value="3">3 — Okay</option>
-        <option value="4">4</option>
-        <option value="5">5 — Great</option>
-      </select>
-
+      <fieldset>
+        <legend>How are you feeling now?</legend>
+        <div class="choices choices-scale">
+          <label class="choice"><input type="radio" name="moodAfter" value="1" required aria-describedby="mood-after-ends"><span>1</span></label>
+          <label class="choice"><input type="radio" name="moodAfter" value="2"><span>2</span></label>
+          <label class="choice"><input type="radio" name="moodAfter" value="3"><span>3</span></label>
+          <label class="choice"><input type="radio" name="moodAfter" value="4"><span>4</span></label>
+          <label class="choice"><input type="radio" name="moodAfter" value="5"><span>5</span></label>
+        </div>
+        <p class="scale-ends" id="mood-after-ends"><span>1 is rough</span><span>5 is great</span></p>
+      </fieldset>
       <button type="submit">Continue</button>
     </form>
 
     <form id="rating-form" class="card" hidden>
       <h2>Was this chat helpful?</h2>
-      <p>This step is optional — skip it if you'd rather not say.</p>
-
-      <label><input type="radio" name="rating" value="helpful" style="width:auto;display:inline-block;"> Helpful</label>
-      <label><input type="radio" name="rating" value="not-helpful" style="width:auto;display:inline-block;"> Not helpful</label>
+      <p>This step is optional. Skip it if you'd rather not say.</p>
+      <label class="option"><input type="radio" name="rating" value="helpful"> Helpful</label>
+      <label class="option"><input type="radio" name="rating" value="not-helpful"> Not helpful</label>
 
       <label for="ratingComment">Anything else? (optional)</label>
       <textarea id="ratingComment" name="ratingComment" rows="3" maxlength="280"></textarea>
 
       <button type="submit">Finish</button>
-      <button type="button" id="skip-rating-button">Skip</button>
+      <button type="button" id="skip-rating-button" class="button-link">Skip</button>
     </form>
   </main>
 

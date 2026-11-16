@@ -44,6 +44,26 @@ Read FR 7.1 as: the administrator manages the keyword lists, and may do so by ap
 
 **Collections.** The SRS list of collections gains `termLists` (the admin-editable lists) and `termSuggestions`. All the added collections are listed under "Collections added since the SRS" below.
 
+## FR 5.1 and FR 5.2: the listener application
+
+The SRS asks for "an application form for volunteers, including the details needed for offline vetting" (FR 5.1) and for the administrator to approve "after offline checks (identity, references, police clearance)" (FR 5.2). Both still stand. What changed is that the app now records the offline checks and enforces them.
+
+- **The form** asks for the age confirmation, motivation, experience, hours a week, two "what would you do" answers, and agreement to the code of conduct and to the in-person checks. It gives the applicant a reference code to quote when arranging those checks.
+- **Every listener must be 21 or older.** The SRS describes a listener as a vetted volunteer aged 21 or older, and BR 2 requires it for listeners matched with 16 to 17 year olds. The app now applies it to all listeners: an account in the 16 to 17 age band cannot apply, and the applicant must confirm their age, which is then checked against their identity document in person.
+- **An interview is added** to the three checks the SRS names, so there are four: identity, two references, police clearance and an interview.
+- **The app records that each check was done, never the document.** This keeps NFR 11 (no real names or identity documents). An admin ticks each check; approval is refused until all four are ticked, and a rejection needs a reason.
+- **Every admin step is audited** (FR 6.9): saving checks, approving and rejecting each write an `auditLog` entry in the same batch, and the Security Rules refuse the step without it.
+
+- **The applicant can withdraw.** While an application is waiting, the applicant can remove it and their answers. Deleting an account (FR 1.5) now also removes the listener record and the application.
+
+Read FR 5.2 as: the administrator records each offline check in the app and can approve only when all are recorded.
+
+## FR 1.5: deleting an account
+
+The SRS says a user can delete "their account and personal data", and that mood entries are deleted with the account. The app now does this: deleting an account removes the person's mood entries, their listener record and their listener application, as well as the account itself.
+
+Chats, messages, flags and reports are not removed. The SRS keeps data tied to an open safety case until the case closes; the app does not yet tell open cases from closed ones, so it keeps all of these. They are tied to a pseudonymous ID, not to a name.
+
 ## App Check
 
 Firebase App Check is **not set up** in Spill, and the SRS does not mention it. It matters only for the model check: Google requires App Check for the service the model check uses. In the development project, enforcement for that one service has been switched off by hand in the Firebase console so the prototype can run. Google has delayed the requirement until 21 January 2027 at the latest.
@@ -56,7 +76,8 @@ The SRS lists accounts, moods, chats, messages, flags, reports, resources and th
 
 | Collection | What it holds | Why it was added |
 |---|---|---|
-| `listeners/{uid}` | A listener's application, approval, training and availability (FR 5). | Kept apart from the account so a user's browser can find an available listener without reading anyone's account. |
+| `listeners/{uid}` | A listener's approval, training and availability (FR 5). It holds no application answers. | Kept apart from the account so a user's browser can find an available listener without reading anyone's account. |
+| `listenerApplications/{uid}` | What a person answered when applying, their reference code, the four in-person checks an admin has ticked, and a rejection reason if there is one. | The answers are private, and `listeners` is readable by every signed-in user, so they can't live there. Only the applicant and an admin can read this. |
 | `termLists/{crisis,abuse,contact}` | The admin-editable screening terms (FR 7.1). | So an admin can add terms without a redeploy. |
 | `termSuggestions/{id}` | A phrase a moderator suggests for a term list, and the admin's decision. | See "FR 7.1: moderator-suggested terms" above. |
 | `chatFlagged/{chatId}` | A marker that a flag or report has been raised against this chat. | Security Rules can only check a named document, not run a search, so this is how the Rules know a chat has something against it. |
@@ -67,4 +88,4 @@ The three markers hold no chat content, only these facts. Two fields were also a
 
 ## Requirements this touches
 
-FR 6.2, FR 6.4, FR 6.9, FR 7.1, NFR 4, NFR 14, NFR 21.
+FR 5.1, FR 5.2, FR 6.2, FR 6.4, FR 6.9, FR 7.1, BR 2, NFR 4, NFR 11, NFR 14, NFR 21.

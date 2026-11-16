@@ -56,14 +56,20 @@ function renderMessages(docs, myUid) {
 
   list.innerHTML = '';
   if (messages.length === 0) {
-    list.innerHTML = '<li>No messages yet. Say hello.</li>';
+    list.innerHTML = '<li class="message-note">No messages yet. Say hello.</li>';
     return;
   }
 
+  // Your messages sit on the right, theirs on the left (styles.css).
+  // "You:" and "Them:" stay in the page for screen readers, which can't
+  // see which side a bubble is on.
   messages.forEach(function (message) {
     var item = document.createElement('li');
-    var who = message.senderId === myUid ? 'You' : 'Them';
-    item.innerHTML = '<strong>' + who + ':</strong> ' + escapeForDisplay(message.text);
+    var isMine = message.senderId === myUid;
+    item.className = isMine ? 'message-mine' : 'message-theirs';
+    item.innerHTML =
+      '<span class="visually-hidden">' + (isMine ? 'You' : 'Them') + ': </span>' +
+      escapeForDisplay(message.text);
     list.appendChild(item);
   });
 }
