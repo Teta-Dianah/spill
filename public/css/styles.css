@@ -1054,6 +1054,7 @@ body::after {
 
 .crisis-lines li {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
@@ -1065,6 +1066,7 @@ body::after {
 }
 
 .crisis-line-text {
+  flex: 1 1 150px;
   min-width: 0;
   display: flex;
   flex-direction: column;
