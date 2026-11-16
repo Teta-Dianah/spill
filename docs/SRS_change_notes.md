@@ -58,6 +58,12 @@ The SRS asks for "an application form for volunteers, including the details need
 
 Read FR 5.2 as: the administrator records each offline check in the app and can approve only when all are recorded.
 
+## FR 1.5: deleting an account
+
+The SRS says a user can delete "their account and personal data", and that mood entries are deleted with the account. The app now does this: deleting an account removes the person's mood entries, their listener record and their listener application, as well as the account itself.
+
+Chats, messages, flags and reports are not removed. The SRS keeps data tied to an open safety case until the case closes; the app does not yet tell open cases from closed ones, so it keeps all of these. They are tied to a pseudonymous ID, not to a name.
+
 ## App Check
 
 Firebase App Check is **not set up** in Spill, and the SRS does not mention it. It matters only for the model check: Google requires App Check for the service the model check uses. In the development project, enforcement for that one service has been switched off by hand in the Firebase console so the prototype can run. Google has delayed the requirement until 21 January 2027 at the latest.

@@ -1172,6 +1172,34 @@ describe('moods', () => {
     );
   });
 
+  test('a user can delete their own mood entry (how account deletion clears mood history, FR 1.5)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'moods/m-own'), { uid: 'alice', score: 3, note: '' });
+    });
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(deleteDoc(doc(db, 'moods/m-own')));
+  });
+
+  test('nobody else can delete a mood entry: not another user, a moderator, an admin or a visitor', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'moods/m-alice'), { uid: 'alice', score: 3, note: '' });
+      await setDoc(doc(context.firestore(), 'accounts/mona'), { pseudonym: 'mona', role: 'moderator' });
+      await setDoc(doc(context.firestore(), 'accounts/ada'), { pseudonym: 'ada', role: 'admin' });
+    });
+    await assertFails(deleteDoc(doc(testEnv.authenticatedContext('bob').firestore(), 'moods/m-alice')));
+    await assertFails(deleteDoc(doc(testEnv.authenticatedContext('mona').firestore(), 'moods/m-alice')));
+    await assertFails(deleteDoc(doc(testEnv.authenticatedContext('ada').firestore(), 'moods/m-alice')));
+    await assertFails(deleteDoc(doc(testEnv.unauthenticatedContext().firestore(), 'moods/m-alice')));
+  });
+
+  test('a mood entry can never be changed, even by its owner', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'moods/m-fixed'), { uid: 'alice', score: 3, note: '' });
+    });
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(updateDoc(doc(db, 'moods/m-fixed'), { score: 5 }));
+  });
+
   test('a user cannot read someone else\'s mood entry', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), 'moods/mood-3'), {

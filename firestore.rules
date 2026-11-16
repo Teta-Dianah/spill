@@ -335,13 +335,15 @@ service cloud.firestore {
     }
 
     // moods/{moodId} — one document per mood check-in (FR 3). A user can
-    // only create and read their own mood entries. Mood entries are a
-    // simple log, so there is no update or delete in version 1.0.
+    // only create and read their own mood entries. An entry can never be
+    // changed. Its owner can delete it, which is how deleting an account
+    // removes the person's mood history with it (FR 1.5). Nobody else
+    // can read or delete it, not even a moderator or an admin.
     match /moods/{moodId} {
       allow create: if request.auth != null &&
         request.auth.uid == request.resource.data.uid;
 
-      allow read: if request.auth != null &&
+      allow read, delete: if request.auth != null &&
         request.auth.uid == resource.data.uid;
     }
 

@@ -53,9 +53,35 @@ function signOutUser() {
 // FR 1.5: lets a user remove their account and data. Version 1.0 has no
 // safety cases yet (that's Sprint 3), so for now this always deletes
 // everything straight away.
-// Deletes the account. If the person ever applied to be a listener, their
-// listener record and their private application answers go with it, in
-// the same batch, so nothing they wrote is left behind.
+// Deletes every mood entry the person has saved (FR 1.5). A batch can
+// hold 500 writes, so the entries are removed up to 400 at a time, one
+// batch after another, until none are left.
+function deleteOwnMoods(uid) {
+  var db = firebase.firestore();
+  return db
+    .collection('moods')
+    .where('uid', '==', uid)
+    .limit(400)
+    .get()
+    .then(function (snapshot) {
+      if (snapshot.empty) return null;
+
+      var batch = db.batch();
+      snapshot.forEach(function (docSnap) {
+        batch.delete(docSnap.ref);
+      });
+      return batch.commit().then(function () {
+        return deleteOwnMoods(uid);
+      });
+    });
+}
+
+// Deletes the account and the person's own data (FR 1.5): their mood
+// history first, then the account itself. If they ever applied to be a
+// listener, their listener record and their private application answers
+// go in the same batch as the account, so nothing they wrote is left
+// behind. Chats, flags and reports are not removed here: moderators may
+// still need them for a safety case.
 function deleteAccount(uid) {
   var db = firebase.firestore();
   var listenerRef = db.collection('listeners').doc(uid);
@@ -63,7 +89,10 @@ function deleteAccount(uid) {
 
   // A delete of something that isn't there would be refused by the
   // rules, so look first and only delete what exists.
-  return Promise.all([listenerRef.get(), applicationRef.get()])
+  return deleteOwnMoods(uid)
+    .then(function () {
+      return Promise.all([listenerRef.get(), applicationRef.get()]);
+    })
     .then(function (docs) {
       var batch = db.batch();
       batch.delete(db.collection('accounts').doc(uid));
