@@ -10,8 +10,9 @@
    - Orange marks the one main action on a screen. Red is only for
      "Need help now" and for actions that remove something.
    - Every button, field and standalone link is at least 44px tall.
-   - Text never sits under the fixed "Need help now" button: the page
-     keeps empty space at the bottom for it (NFR 5). */
+   - Text never sits under the fixed "Need help now" button: it has its
+     own solid strip at the bottom of the screen, and every page keeps
+     empty space at its end for that strip (NFR 5). */
 
 /* ---- Fonts: kept inside the app, so no page asks another site for them ---- */
 
@@ -80,7 +81,8 @@
 
 body {
   margin: 0;
-  /* Room for the fixed "Need help now" button, so it never covers text. */
+  /* Room for the "Need help now" strip, so the end of a page can always
+     be scrolled clear of it. */
   padding-bottom: 6.5rem;
   font-family: var(--font-body);
   font-size: var(--text-body);
@@ -971,12 +973,30 @@ ul.plain-list li button {
   flex: 1 1 110px;
 }
 
-/* ---- "Need help now": fixed on every page, always reachable (NFR 5) ---- */
+/* ---- "Need help now": fixed on every page, always reachable (NFR 5) ----
+
+   The button sits in a solid strip along the bottom of the screen. The
+   strip is what stops the button ever lying on top of text: the page
+   scrolls behind the strip and is hidden by it, instead of showing
+   through around the button. The strip is drawn by body::after, so no
+   page needs extra markup for it. */
+
+body::after {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 90;
+  height: 5rem;
+  background: var(--color-background);
+  border-top: 1.5px solid var(--color-line);
+}
 
 #need-help-now-button {
   position: fixed;
   right: 1rem;
-  bottom: 1.25rem;
+  bottom: 1rem;
   z-index: 100;
   min-height: 48px;
   margin: 0;
@@ -985,7 +1005,6 @@ ul.plain-list li button {
   background: var(--color-danger);
   border: none;
   border-radius: 16px;
-  box-shadow: 0 4px 14px rgba(20, 48, 31, 0.28);
 }
 
 #need-help-now-button:hover {

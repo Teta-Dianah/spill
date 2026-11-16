@@ -61,6 +61,18 @@ describe('the stylesheet', () => {
     expect(css).toMatch(/\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
   });
 
+  test('"Need help now" sits in a solid strip, so it never lies on top of text', () => {
+    const strip = (css.match(/body::after\s*\{([^}]*)\}/) || [])[1] || '';
+    expect(strip).toMatch(/position:\s*fixed;/);
+    expect(strip).toMatch(/left:\s*0;/);
+    expect(strip).toMatch(/right:\s*0;/);
+    expect(strip).toMatch(/bottom:\s*0;/);
+    expect(strip).toMatch(/background:\s*var\(--color-background\);/);
+    // The page must keep at least the strip's height free at its end.
+    expect(strip).toMatch(/height:\s*5rem;/);
+    expect(css).toMatch(/body\s*\{[^}]*padding-bottom:\s*6\.5rem;/);
+  });
+
   test('the page leaves room at the bottom for the fixed "Need help now" button', () => {
     expect(css).toMatch(/body\s*\{[^}]*padding-bottom:\s*6\.5rem;/);
     expect(css).toMatch(/#need-help-now-button\s*\{[^}]*position:\s*fixed;/);
