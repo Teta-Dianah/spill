@@ -10,8 +10,9 @@
 // This file has no Firebase in it, so it is easy to unit test on its own.
 
 // Who an applicant writes to, quoting their reference code, to arrange
-// the in-person checks. Replace this with the real address for a pilot.
-var VETTING_CONTACT_EMAIL = 'listeners@spill.example';
+// the in-person checks. For now this is the project owner's address.
+// Change it here if someone else takes over as coordinator.
+var VETTING_CONTACT_EMAIL = 'd.teta@alustudent.com';
 
 var MIN_ANSWER_LENGTH = 30;
 var MAX_ANSWER_LENGTH = 1000;
