@@ -53,12 +53,24 @@ function signOutUser() {
 // FR 1.5: lets a user remove their account and data. Version 1.0 has no
 // safety cases yet (that's Sprint 3), so for now this always deletes
 // everything straight away.
+// Deletes the account. If the person ever applied to be a listener, their
+// listener record and their private application answers go with it, in
+// the same batch, so nothing they wrote is left behind.
 function deleteAccount(uid) {
-  return firebase
-    .firestore()
-    .collection('accounts')
-    .doc(uid)
-    .delete()
+  var db = firebase.firestore();
+  var listenerRef = db.collection('listeners').doc(uid);
+  var applicationRef = db.collection('listenerApplications').doc(uid);
+
+  // A delete of something that isn't there would be refused by the
+  // rules, so look first and only delete what exists.
+  return Promise.all([listenerRef.get(), applicationRef.get()])
+    .then(function (docs) {
+      var batch = db.batch();
+      batch.delete(db.collection('accounts').doc(uid));
+      if (docs[0].exists) batch.delete(listenerRef);
+      if (docs[1].exists) batch.delete(applicationRef);
+      return batch.commit();
+    })
     .then(function () {
       return firebase.auth().currentUser.delete();
     });

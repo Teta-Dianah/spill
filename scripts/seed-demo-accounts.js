@@ -62,8 +62,23 @@ async function createDemoAccount(auth, db, account) {
       clearedForMinors: true,
       available: true,
       trainingComplete: true,
-      motivation: 'Demo listener account.',
+      appliedAt: new Date(),
+    });
+    // The application behind it, with all four in-person checks ticked,
+    // the way an admin would leave it after approving (FR 5.2).
+    await db.collection('listenerApplications').doc(account.uid).set({
+      confirmedAge21: true,
+      motivation: 'I want to be there for people my age the way a friend once was for me.',
+      experience: 'I have supported classmates through exam stress.',
+      hoursPerWeek: '3-5',
+      scenarioCrisis: 'I would stay with them, listen, and let the crisis card and the moderators do their part.',
+      scenarioContact: 'I would say no kindly and remind them that everything stays on Spill.',
+      agreedConduct: true,
+      agreedChecks: true,
+      referenceCode: 'SPL-DEMO22',
       createdAt: new Date(),
+      checks: { identity: true, references: true, policeClearance: true, interview: true },
+      reviewedBy: 'demo-admin',
     });
   }
 }
