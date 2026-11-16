@@ -47,6 +47,17 @@ function getListenerApplication(uid, onLoaded) {
     });
 }
 
+// Withdraws an application that is still waiting: removes the private
+// answers and the listener record together. firestore.rules refuses this
+// once an admin has approved or rejected it.
+function withdrawListenerApplication(uid) {
+  var db = firebase.firestore();
+  var batch = db.batch();
+  batch.delete(db.collection('listenerApplications').doc(uid));
+  batch.delete(db.collection('listeners').doc(uid));
+  return batch.commit();
+}
+
 // Adds the auditLog entry every admin step on a listener must come with
 // (FR 6.9). firestore.rules refuses the step without it. Returns the new
 // entry's id.
@@ -185,6 +196,7 @@ function findEligibleListener(ageBand, excludeIds, onFound) {
 window.applyAsListener = applyAsListener;
 window.getListener = getListener;
 window.getListenerApplication = getListenerApplication;
+window.withdrawListenerApplication = withdrawListenerApplication;
 window.saveListenerChecks = saveListenerChecks;
 window.loadAllListeners = loadAllListeners;
 window.approveListener = approveListener;

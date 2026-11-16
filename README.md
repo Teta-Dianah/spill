@@ -160,6 +160,7 @@ What keeps this honest and private:
 
 - **Nothing is uploaded.** Spill never stores a real name, a phone number or an identity document (NFR 11). It records only that each check was done, and by which admin.
 - **The answers are private.** They are kept in `listenerApplications/{uid}`, which only the applicant and an admin can read. The `listeners/{uid}` record that every signed-in user can read (matching happens in the browser) holds no answers.
+- **The applicant can take their answers back.** While the application is still waiting they can withdraw it, which removes their answers, and apply again later. Deleting an account removes the application with it. Once an admin has approved or rejected, it can only be removed along with the account, so a rejected person can't wipe the decision and start again.
 - **Enforced in `firestore.rules`.** A listener can't be approved until all four checks are saved. A rejection needs a recorded reason. Every admin step needs its own new `auditLog` entry in the same write (FR 6.9). An applicant can't change their application or tick their own checks.
 
 The coordinator's address is `VETTING_CONTACT_EMAIL` at the top of `public/js/listener-application.js`. For now it is the project owner's address. Change it there if someone else takes over as coordinator.

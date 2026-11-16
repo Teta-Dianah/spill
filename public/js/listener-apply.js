@@ -51,6 +51,9 @@ function showApplicationStatus(listener, application) {
   document.getElementById('apply-steps').hidden = step === -1;
   renderSteps(step);
 
+  // Withdrawing is offered only while the application is still waiting.
+  document.getElementById('withdraw-application-button').hidden = step !== 2;
+
   if (step === 4) {
     var link = document.createElement('a');
     link.href = 'listener-training.html';
@@ -108,6 +111,28 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     startApplyPage(user);
   });
+
+  var withdrawButton = document.getElementById('withdraw-application-button');
+  if (withdrawButton) {
+    withdrawButton.addEventListener('click', function () {
+      var user = firebase.auth().currentUser;
+      if (!user) return;
+
+      var confirmed = window.confirm('This removes your application and your answers. You can apply again later. Continue?');
+      if (!confirmed) return;
+
+      withdrawListenerApplication(user.uid)
+        .then(function () {
+          document.getElementById('apply-status').hidden = true;
+          showApplyMessage('Your application has been withdrawn and your answers removed.');
+          startApplyPage(user);
+        })
+        .catch(function (error) {
+          showApplyMessage('Could not withdraw your application. Please try again.');
+          console.error(error);
+        });
+    });
+  }
 
   var form = document.getElementById('apply-form');
   if (!form) return;

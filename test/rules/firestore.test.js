@@ -329,9 +329,59 @@ describe('listeners and listener applications', () => {
     await assertFails(updateDoc(doc(db, 'listenerApplications/grace'), { motivation: 'A different answer, written after the review started.' }));
   });
 
-  test('nobody can delete an application', async () => {
+  // ---- withdrawing, and leaving ----
+
+  // Remove both documents together, the way listeners.js does. Options
+  // leave one out, or delete the account in the same batch.
+  function removeListenerData(db, uid, options = {}) {
+    const batch = writeBatch(db);
+    if (!options.skipApplication) batch.delete(doc(db, 'listenerApplications/' + uid));
+    if (!options.skipRecord) batch.delete(doc(db, 'listeners/' + uid));
+    if (options.withAccount) batch.delete(doc(db, 'accounts/' + uid));
+    return batch.commit();
+  }
+
+  test('an applicant can withdraw while the application is waiting', async () => {
     await seedApplicant('grace');
-    await assertFails(deleteDoc(doc(testEnv.authenticatedContext('grace').firestore(), 'listenerApplications/grace')));
+    await assertSucceeds(removeListenerData(testEnv.authenticatedContext('grace').firestore(), 'grace'));
+  });
+
+  test('after withdrawing, the person can apply again', async () => {
+    await seedApplicant('grace');
+    const db = testEnv.authenticatedContext('grace').firestore();
+    await removeListenerData(db, 'grace');
+    await assertSucceeds(apply(db, 'grace'));
+  });
+
+  test('withdrawing must remove both documents together', async () => {
+    await seedApplicant('grace');
+    const db = testEnv.authenticatedContext('grace').firestore();
+    await assertFails(removeListenerData(db, 'grace', { skipApplication: true }));
+    await assertFails(removeListenerData(db, 'grace', { skipRecord: true }));
+  });
+
+  test('a rejected applicant cannot wipe the decision and start again', async () => {
+    await seedApplicant('grace', { record: { status: 'rejected' }, application: { rejectionReason: 'References could not be reached.' } });
+    await assertFails(removeListenerData(testEnv.authenticatedContext('grace').firestore(), 'grace'));
+  });
+
+  test('an approved listener cannot remove their record on its own', async () => {
+    await seedApplicant('grace', { record: { status: 'approved' } });
+    await assertFails(removeListenerData(testEnv.authenticatedContext('grace').firestore(), 'grace'));
+  });
+
+  test('deleting the account removes the listener data with it, whatever its status', async () => {
+    await seedApplicant('grace', { record: { status: 'approved' } });
+    await assertSucceeds(removeListenerData(testEnv.authenticatedContext('grace').firestore(), 'grace', { withAccount: true }));
+    await seedApplicant('hope', { record: { status: 'rejected' } });
+    await assertSucceeds(removeListenerData(testEnv.authenticatedContext('hope').firestore(), 'hope', { withAccount: true }));
+  });
+
+  test('nobody else can remove an application: not another user, a moderator or an admin', async () => {
+    await seedApplicant('grace');
+    await assertFails(removeListenerData(testEnv.authenticatedContext('alice').firestore(), 'grace'));
+    await assertFails(removeListenerData(testEnv.authenticatedContext('mona').firestore(), 'grace'));
+    await assertFails(removeListenerData(testEnv.authenticatedContext('ada').firestore(), 'grace'));
     await assertFails(deleteDoc(doc(testEnv.authenticatedContext('ada').firestore(), 'listenerApplications/grace')));
   });
 

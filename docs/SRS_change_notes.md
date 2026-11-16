@@ -54,6 +54,8 @@ The SRS asks for "an application form for volunteers, including the details need
 - **The app records that each check was done, never the document.** This keeps NFR 11 (no real names or identity documents). An admin ticks each check; approval is refused until all four are ticked, and a rejection needs a reason.
 - **Every admin step is audited** (FR 6.9): saving checks, approving and rejecting each write an `auditLog` entry in the same batch, and the Security Rules refuse the step without it.
 
+- **The applicant can withdraw.** While an application is waiting, the applicant can remove it and their answers. Deleting an account (FR 1.5) now also removes the listener record and the application.
+
 Read FR 5.2 as: the administrator records each offline check in the app and can approve only when all are recorded.
 
 ## App Check
