@@ -9,11 +9,15 @@ var LISTENER_LINKS = [
   { href: 'listener-training.html', label: 'Listener training' },
 ];
 
+var STAFF_HOME_LINK = { href: 'staff.html', label: 'Staff home' };
+
 var MODERATOR_LINKS = [
+  STAFF_HOME_LINK,
   { href: 'moderator-queue.html', label: 'Moderator queue' },
 ];
 
 var ADMIN_LINKS = [
+  STAFF_HOME_LINK,
   { href: 'admin-listeners.html', label: 'Listener applications' },
   { href: 'admin-terms.html', label: 'Screening terms' },
   { href: 'admin-resources.html', label: 'Helplines and clinics' },
@@ -30,7 +34,21 @@ function staffLinksFor(role, isApprovedListener) {
   return links;
 }
 
+// Which page a person lands on after signing in. Each person goes
+// straight to the place they use most, with no extra screen to tap
+// through:
+//   a moderator or an admin  -> staff.html, what is waiting for them
+//   an approved listener     -> listener-dashboard.html
+//   everyone else            -> dashboard.html, mood check-in and chat
+// This only saves a step. firestore.rules still decides what each role
+// can read or change, whatever page they open.
+function homePageFor(role, isApprovedListener) {
+  if (role === 'moderator' || role === 'admin') return 'staff.html';
+  if (isApprovedListener) return 'listener-dashboard.html';
+  return 'dashboard.html';
+}
+
 // This guard only matters for our Jest tests, which run in Node.
 if (typeof module !== 'undefined') {
-  module.exports = { staffLinksFor };
+  module.exports = { staffLinksFor, homePageFor };
 }
