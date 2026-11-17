@@ -7,6 +7,40 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Shows the helplines built into Spill (crisis-card.js), for when the
+// admin-managed list is empty or can't be loaded. A visitor should never
+// land on an empty helplines card. note is a short line shown above the
+// list, or '' for none.
+function showBuiltInHelplines(list, note) {
+  list.innerHTML = '';
+
+  if (note) {
+    var noteItem = document.createElement('li');
+    noteItem.className = 'resource-note';
+    noteItem.textContent = note;
+    list.appendChild(noteItem);
+  }
+
+  var helplines = window.BUILT_IN_HELPLINES || [];
+  helplines.forEach(function (line) {
+    var item = document.createElement('li');
+    item.className = 'resource-item';
+
+    var name = document.createElement('span');
+    name.className = 'resource-name';
+    name.textContent = line.name;
+
+    var number = document.createElement('a');
+    number.className = 'resource-contact';
+    number.href = 'tel:' + line.number.replace(/ /g, '');
+    number.textContent = line.number;
+
+    item.appendChild(name);
+    item.appendChild(number);
+    list.appendChild(item);
+  });
+}
+
 function loadResources() {
   var list = document.getElementById('resources-list');
   if (!list) return;
@@ -20,7 +54,7 @@ function loadResources() {
       list.innerHTML = '';
 
       if (snapshot.empty) {
-        list.innerHTML = '<li>No resources added yet.</li>';
+        showBuiltInHelplines(list, '');
         return;
       }
 
@@ -40,7 +74,7 @@ function loadResources() {
       });
     })
     .catch(function (error) {
-      list.innerHTML = '<li>Could not load resources right now. Please try again later.</li>';
+      showBuiltInHelplines(list, "The full list couldn't load right now. These lines are always available.");
       console.error('Failed to load resources', error);
     });
 }
