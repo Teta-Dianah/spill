@@ -235,6 +235,7 @@ These accounts are for the emulators only. The script uses the emulator-only pro
 | Resources and crisis card | `/` | Anyone, no account |
 | Sign up, sign in | `/signup.html`, `/signin.html` | Anyone |
 | Dashboard | `/dashboard.html` | Any signed-in account |
+| Staff home | `/staff.html` | Moderator, admin |
 | Talk to a listener | `/request-chat.html` | User |
 | Chat | `/chat.html` (opened from a request or the listener dashboard) | The two people in the chat |
 | Apply as a listener | `/listener-apply.html` | User |
@@ -242,7 +243,9 @@ These accounts are for the emulators only. The script uses the emulator-only pro
 | Moderator queue, case view | `/moderator-queue.html`, `/moderator-case.html` | Moderator |
 | Admin pages | `/admin-listeners.html`, `/admin-terms.html`, `/admin-resources.html` | Admin |
 
-To reach the staff pages, sign in and look at the dashboard. An approved listener, a moderator or an admin sees a "Your Spill pages" section there with links to their own pages. An ordinary user doesn't see it, and no public page links to a staff page. The links are only a shortcut: `firestore.rules` decides who can read or change anything, so opening a staff page's address without the role shows nothing.
+After signing in, each person lands on their own home page: a user on the dashboard, an approved listener on the listener dashboard, and a moderator or admin on `staff.html`, which shows what is waiting for them (open flags and reports, or applications and suggested terms) with a link to each tool. Every one of these pages links back to the personal dashboard.
+
+To reach the staff pages later, sign in and look at the dashboard. An approved listener, a moderator or an admin sees a "Your Spill pages" section there with links to their own pages. An ordinary user doesn't see it, and no public page links to a staff page. The links are only a shortcut: `firestore.rules` decides who can read or change anything, so opening a staff page's address without the role shows nothing.
 
 ### Trying a chat
 

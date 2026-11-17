@@ -912,6 +912,48 @@ ul.plain-list li.resource-note {
   color: var(--color-muted);
 }
 
+/* ---- Staff home ---- */
+
+/* One tile per tool. Two side by side on a wide screen, stacked on a
+   phone. The whole tile is the link, so it is easy to hit. */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
+}
+
+a.card.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  color: var(--color-ink);
+  text-decoration: none;
+  border: 1.5px solid transparent;
+}
+
+a.card.tile:hover {
+  border-color: var(--color-ink);
+}
+
+.tile-count {
+  font-family: var(--font-heading);
+  font-size: 2.5rem;
+  line-height: 1;
+}
+
+.tile-title {
+  font-family: var(--font-heading);
+  font-size: var(--text-h2);
+  line-height: 1.2;
+}
+
+.tile-detail {
+  font-size: 0.9375rem;
+  color: var(--color-muted);
+}
+
 /* ---- Listener applications ---- */
 
 /* The progress list on the apply page. */
