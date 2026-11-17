@@ -10,7 +10,9 @@
     "seed": "node scripts/seed-resources.js",
     "seed:terms": "node scripts/seed-term-lists.js",
     "seed:accounts": "node scripts/seed-demo-accounts.js",
-    "emulators": "firebase emulators:start --project demo-spill-dev"
+    "emulators": "firebase emulators:start --project demo-spill-dev",
+    "report:screening": "node scripts/screening-report.js",
+    "test:report": "node scripts/test-report.js"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
