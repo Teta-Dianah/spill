@@ -102,6 +102,31 @@ describe('choices that replaced dropdowns', () => {
   });
 });
 
+describe('the home pages', () => {
+  const HOME_SCRIPTS = ['js/dashboard.js', 'js/listener-dashboard.js', 'js/staff.js', 'js/home-summary.js'];
+
+  test.each(HOME_SCRIPTS)('%s never reads chat messages (BR 3)', (script) => {
+    expect(read(script)).not.toMatch(/collection\('messages'\)/);
+  });
+
+  test.each([
+    ['dashboard.html', 'js/dashboard.js'],
+    ['listener-dashboard.html', 'js/listener-dashboard.js'],
+    ['staff.html', 'js/staff.js'],
+  ])('%s loads the shared helpers before %s', (page, script) => {
+    const html = read(page);
+    const helpers = html.indexOf('<script src="js/home-summary.js"></script>');
+    expect(helpers).toBeGreaterThan(-1);
+    expect(helpers).toBeLessThan(html.indexOf(`<script src="${script}"></script>`));
+  });
+
+  test('the moderator queue page loads the helpers its rows use', () => {
+    const html = read('moderator-queue.html');
+    expect(html.indexOf('js/home-summary.js')).toBeGreaterThan(-1);
+    expect(html.indexOf('js/home-summary.js')).toBeLessThan(html.indexOf('js/moderator.js'));
+  });
+});
+
 describe('the landing page helplines', () => {
   const script = read('js/resources.js');
 

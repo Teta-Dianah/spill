@@ -14,45 +14,123 @@
       <button type="button" id="sign-out-button">Sign out</button>
     </div>
     <p class="eyebrow" id="staff-role"></p>
-    <h1 id="staff-name">&nbsp;</h1>
+    <h1>Hello, <span id="staff-name"></span></h1>
   </header>
 
   <main>
     <p id="staff-message" class="message" role="status"></p>
 
     <!-- Shown to a moderator (staff.js). -->
-    <div id="moderator-home" class="tiles" hidden>
-      <a class="card tile" href="moderator-queue.html">
-        <span class="tile-count" id="open-items-count">…</span>
-        <span class="tile-title">Moderator queue</span>
-        <span class="tile-detail">Open flags and reports, most serious first.</span>
-      </a>
+    <div id="moderator-home" hidden>
+      <div class="stats">
+        <a class="stat" href="moderator-queue.html">
+          <span class="stat-number" id="stat-crisis">…</span>
+          <span class="stat-label">Crisis flags open</span>
+        </a>
+        <a class="stat" href="moderator-queue.html">
+          <span class="stat-number" id="stat-flags">…</span>
+          <span class="stat-label">Other flags open</span>
+        </a>
+        <a class="stat" href="moderator-queue.html">
+          <span class="stat-number" id="stat-reports">…</span>
+          <span class="stat-label">Reports open</span>
+        </a>
+        <a class="stat" href="moderator-queue.html">
+          <span class="stat-number stat-word" id="stat-oldest">…</span>
+          <span class="stat-label">Oldest has waited</span>
+        </a>
+      </div>
+
+      <div class="columns">
+        <section class="card">
+          <h2>Most urgent</h2>
+          <p class="hint">The most serious open items first. You see what was said only after you open a case, and opening one is logged.</p>
+          <ul id="urgent-list" class="plain-list queue-list">
+            <li>Loading...</li>
+          </ul>
+          <div class="actions">
+            <a href="moderator-queue.html" id="whole-queue-link">See the whole queue</a>
+          </div>
+        </section>
+
+        <div>
+          <section class="card">
+            <h2>Your recent actions</h2>
+            <ul id="moderator-actions" class="plain-list item-list">
+              <li>Loading...</li>
+            </ul>
+          </section>
+
+          <section class="card">
+            <h2>Your tools</h2>
+            <ul class="plain-list tool-list">
+              <li><a href="moderator-queue.html">Moderator queue</a><span class="resource-meta">Every open flag and report, most serious first.</span></li>
+              <li><a href="dashboard.html">My personal dashboard</a><span class="resource-meta">Your own check-ins and chats.</span></li>
+            </ul>
+          </section>
+        </div>
+      </div>
     </div>
 
     <!-- Shown to an admin (staff.js). -->
-    <div id="admin-home" class="tiles" hidden>
-      <a class="card tile" href="admin-listeners.html">
-        <span class="tile-count" id="pending-listeners-count">…</span>
-        <span class="tile-title">Listener applications</span>
-        <span class="tile-detail">Waiting for their in-person checks or a decision.</span>
-      </a>
-      <a class="card tile" href="admin-terms.html">
-        <span class="tile-count" id="pending-suggestions-count">…</span>
-        <span class="tile-title">Suggested terms</span>
-        <span class="tile-detail">Phrases moderators suggested, waiting for you to approve or reject.</span>
-      </a>
-      <a class="card tile" href="admin-terms.html">
-        <span class="tile-title">Screening terms</span>
-        <span class="tile-detail">The crisis, abuse and contact lists, and the starter terms.</span>
-      </a>
-      <a class="card tile" href="admin-resources.html">
-        <span class="tile-title">Helplines and clinics</span>
-        <span class="tile-detail">The list on the home page that anyone can see.</span>
-      </a>
-    </div>
+    <div id="admin-home" hidden>
+      <div class="stats">
+        <a class="stat" href="admin-listeners.html">
+          <span class="stat-number" id="stat-applications">…</span>
+          <span class="stat-label">Applications waiting</span>
+        </a>
+        <a class="stat" href="admin-terms.html">
+          <span class="stat-number" id="stat-suggestions">…</span>
+          <span class="stat-label">Suggested terms waiting</span>
+        </a>
+        <a class="stat" href="admin-listeners.html">
+          <span class="stat-number" id="stat-approved">…</span>
+          <span class="stat-label">Approved listeners</span>
+        </a>
+        <a class="stat" href="admin-listeners.html">
+          <span class="stat-number" id="stat-available-now">…</span>
+          <span class="stat-label">Listeners available now</span>
+        </a>
+      </div>
 
-    <div class="actions">
-      <a href="dashboard.html">My personal dashboard</a>
+      <div class="columns">
+        <div>
+          <section class="card">
+            <h2>Applications waiting</h2>
+            <p class="hint">Oldest first. Each one needs its in-person checks before you can approve it.</p>
+            <ul id="waiting-applications" class="plain-list item-list">
+              <li>Loading...</li>
+            </ul>
+          </section>
+
+          <section class="card">
+            <h2>Suggested terms waiting</h2>
+            <p class="hint">Words moderators want added to a screening list.</p>
+            <ul id="waiting-suggestions" class="plain-list item-list">
+              <li>Loading...</li>
+            </ul>
+          </section>
+        </div>
+
+        <div>
+          <section class="card">
+            <h2>Your recent actions</h2>
+            <ul id="admin-actions" class="plain-list item-list">
+              <li>Loading...</li>
+            </ul>
+          </section>
+
+          <section class="card">
+            <h2>Your tools</h2>
+            <ul class="plain-list tool-list">
+              <li><a href="admin-listeners.html">Listener applications</a><span class="resource-meta">Review, check and approve listeners.</span></li>
+              <li><a href="admin-terms.html">Screening terms</a><span class="resource-meta">The crisis, abuse and contact lists.</span></li>
+              <li><a href="admin-resources.html">Helplines and clinics</a><span class="resource-meta">The list anyone can see, with no account.</span></li>
+              <li><a href="dashboard.html">My personal dashboard</a><span class="resource-meta">Your own check-ins and chats.</span></li>
+            </ul>
+          </section>
+        </div>
+      </div>
     </div>
   </main>
 
@@ -62,6 +140,8 @@
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase-init.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/moderator.js"></script>
+  <script src="js/home-summary.js"></script>
   <script src="js/staff.js"></script>
   <script src="js/crisis-card.js"></script>
 </body>
