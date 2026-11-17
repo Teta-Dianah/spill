@@ -8,7 +8,19 @@ const {
   assertSucceeds,
   assertFails,
 } = require('@firebase/rules-unit-testing');
-const { doc, getDoc, setDoc, updateDoc, deleteDoc, writeBatch, arrayUnion } = require('firebase/firestore');
+const {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  writeBatch,
+  arrayUnion,
+  collection,
+  query,
+  where,
+  onSnapshot,
+} = require('firebase/firestore');
 
 let testEnv;
 
@@ -1303,6 +1315,54 @@ describe('flags and reports', () => {
       });
     });
   }
+
+  // NFR 4: a crisis flag must reach the moderator queue within 1 minute.
+  // A moderator watches the open flags live, the way the queue does, and
+  // a user sends a crisis message with its flag in one batch (FR 6.2).
+  // This runs on the emulator, so it shows the app adds no delay of its
+  // own (no polling, no server step), not the real network's speed.
+  test('a crisis flag reaches a moderator watching the queue within 1 minute (NFR 4)', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    await seedModerator('mona');
+
+    const moderatorDb = testEnv.authenticatedContext('mona').firestore();
+    const userDb = testEnv.authenticatedContext('alice').firestore();
+    const openFlags = query(collection(moderatorDb, 'flags'), where('status', '==', 'open'));
+
+    let sentAt = 0;
+    let stopWatching = () => {};
+    let watching;
+    const watchStarted = new Promise((resolve) => {
+      watching = resolve;
+    });
+    const arrived = new Promise((resolve, reject) => {
+      stopWatching = onSnapshot(
+        openFlags,
+        (snapshot) => {
+          watching();
+          if (sentAt && snapshot.docs.some((flagDoc) => flagDoc.id === 'flag-nfr4')) resolve(Date.now() - sentAt);
+        },
+        reject
+      );
+    });
+    const oneMinute = new Promise((resolve) => setTimeout(() => resolve(Infinity), 60000).unref());
+
+    await watchStarted;
+    const batch = writeBatch(userDb);
+    batch.set(doc(userDb, 'messages/msg-nfr4'), {
+      chatId: 'chat-1', senderId: 'alice', text: 'I want to kill myself', flagId: 'flag-nfr4',
+    });
+    batch.set(doc(userDb, 'flags/flag-nfr4'), {
+      type: 'crisis', chatId: 'chat-1', senderId: 'alice', messageId: 'msg-nfr4', severity: 3, status: 'open',
+    });
+    sentAt = Date.now();
+    await assertSucceeds(batch.commit());
+
+    const took = await Promise.race([arrived, oneMinute]);
+    stopWatching();
+    console.log(`NFR 4: the crisis flag reached the moderator's queue in ${took} ms`);
+    expect(took).toBeLessThan(60000);
+  }, 70000);
 
   test('a chat participant can create a flag for their own chat', async () => {
     await seedChat('chat-1', 'alice', 'grace');

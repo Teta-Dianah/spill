@@ -1,0 +1,762 @@
+{
+  "about": "What the model check answered for each labelled test sentence. Made-up test sentences only, no user data. null means the service gave no usable answer, which the app treats as adding nothing. Saved once from the same model and instructions as public/js/model-check.js; scripts/screening-report.js reads it, and nothing calls the service again.",
+  "model": "gemini-3.5-flash-lite",
+  "answeredOn": "2026-11-11",
+  "answers": {
+    "I want to kill myself": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "sometimes I think about ending my life": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I don't want to be here anymore, thinking about suicide": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I've been hurting myself again": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "there is no reason to live anymore": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I am suicidal right now": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I just want to die": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I keep thinking about self harm": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "SUICIDE is all I think about": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "i wanna d1e": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I want to kill myself, call me at 0788123456": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 3
+    },
+    "call me at 0788123456": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "my email is test@example.com": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "check out https://example.com": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "find me on instagram: myhandle": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "whatsapp me later": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 2
+    },
+    "let's move this to telegram": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "text me 123-456-7890": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "www.example.com has more info": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "message me on snap: userxyz": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "here's my number +250788123456": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "you are an idiot": {
+      "crisis": 0,
+      "abuse": 3,
+      "contact": 0
+    },
+    "that's so stupid": {
+      "crisis": 0,
+      "abuse": 1,
+      "contact": 0
+    },
+    "just shut up": {
+      "crisis": 0,
+      "abuse": 2,
+      "contact": 0
+    },
+    "I hate you so much": {
+      "crisis": 0,
+      "abuse": 2,
+      "contact": 0
+    },
+    "I could kill you": {
+      "crisis": 0,
+      "abuse": 3,
+      "contact": 0
+    },
+    "Hi, how are you today?": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I had a rough exam today": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Money stress has been hard lately": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Can we talk about my family situation?": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Thank you so much for listening": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I feel a bit better now": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "What time is it where you are?": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I've been feeling really down about school": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "My friends keep their numbers private": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 1
+    },
+    "I love talking to you here": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Loneliness has been tough this week": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I'm grateful for this chat": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Can you recommend self-help tips?": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I don't feel like doing anything today": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "That movie was killer!": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I'm really stressed about exams this week": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "My friend's birthday is tomorrow": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "This app helps me feel less alone": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I appreciate you being here for me": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Let's talk about something else": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Ndashaka kwiyahura": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Nta mpamvu yo kubaho": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Ndumva nshaka gupfa buri munsi": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I feel like ndashaka kwiyahura, I can't take it anymore": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Nibyiza ko nagiye, sinzongera kubaho": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I can't go on anymore, everything feels pointless": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "honestly? i don't want to be alive anymore": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "sometimes I just want to disappear, I think about suicide a lot": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Amakuru ki? Ndumva neza uyu munsi": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Narushye cyane n'ibizamini": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Mpamagara kuri 0788123456": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "Reba kuri whatsapp yanjye": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 2
+    },
+    "Twaganire kuri telegram": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "Urashobora kumbwira kuri +250788123456?": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "Uri igicucu, ndakwanga": {
+      "crisis": 0,
+      "abuse": 3,
+      "contact": 0
+    },
+    "You're an absolute waste of space, nobody likes you": {
+      "crisis": 0,
+      "abuse": 3,
+      "contact": 0
+    },
+    "Uyu munsi ndashaka gupfa.": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Mwaramutse, ndi umutwaro kuri buri wese.": {
+      "crisis": 2,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Byaba byiza mpfuye.": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Nanijwe n'ubu buzima.": {
+      "crisis": 2,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Ndi njyenyine nta muntu mfite.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Mpaze igihe nikomeretsa.": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Hari umuntu umpohotera, mfite ubwoba bw'ubuzima bwanjye.": {
+      "crisis": 2,
+      "abuse": 2,
+      "contact": 0
+    },
+    "I don't see the point in going on anymore.": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Sometimes I think everyone would be better off without me.": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I've been thinking about ending it all.": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "i just want to disappear forever and never wake up": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Mfite stress nyinshi, ndashaka gupfa.": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I feel so alone, ndi njyenyine nta muntu mfite.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Uri igicucu rwose.": {
+      "crisis": 0,
+      "abuse": 3,
+      "contact": 0
+    },
+    "Uri ikigoryi.": {
+      "crisis": 0,
+      "abuse": 2,
+      "contact": 0
+    },
+    "Ceceka, uri umubeshyi.": {
+      "crisis": 0,
+      "abuse": 2,
+      "contact": 0
+    },
+    "Ndakwanga, va hano.": {
+      "crisis": 0,
+      "abuse": 2,
+      "contact": 0
+    },
+    "Uri umwanda.": {
+      "crisis": 0,
+      "abuse": 3,
+      "contact": 0
+    },
+    "You're so stupid, nobody likes you.": {
+      "crisis": 0,
+      "abuse": 3,
+      "contact": 0
+    },
+    "Shut up you idiot, you're pathetic.": {
+      "crisis": 0,
+      "abuse": 3,
+      "contact": 0
+    },
+    "Uri umusazi, I hate you.": {
+      "crisis": 0,
+      "abuse": 3,
+      "contact": 0
+    },
+    "Mpa nimero yawe ya telefoni ukoresha kuri momo.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "Nyandikira kuri WhatsApp.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "Imeri yanjye ni jean.k@gmail.com": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "Utuye he?": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 1
+    },
+    "Nzakoherereza amafaranga cyangwa airtime.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 2
+    },
+    "Add me on Snapchat, I'm sam_rw.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "Text me on 0788 123 456": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "What's your WhatsApp number?": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "Nyandikira kuri Snapchat, give me your username.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "Nzakubona ejo kuri kaminuza.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 2
+    },
+    "Kuva hano ni kure cyane.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Genda buhoro, umuhanda uranyerera.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Nkurikira inama za mwarimu kandi ndabona zimfasha.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Ikizamini cyari kigoye, ndarambiwe kwiga uyu munsi.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Sinshaka kujya ku ishuri uyu munsi.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Mwaramutse, mumeze mute?": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Ndumva mfite umunaniro mwinshi nyuma y'akazi.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I'm dying to see that movie, the wait is killing me.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Exam stress is killing me lol.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I feel sad today because I failed my exam.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "My phone number changed because I got a new SIM.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 1
+    },
+    "Can you give me advice about talking to my parents?": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Nzagenda kwiga ejo, then we can talk after class.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Every time i try to be perfect abantu baranyanga ndashaka kwipfira it looks life has no worth": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "ako ubwo utekereza ute nta kintu uzimarira you are an idiot": {
+      "crisis": 0,
+      "abuse": 3,
+      "contact": 0
+    },
+    "njye nagufasha muri uwo mubabaro uzaze unsure that i also give you some money": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 1
+    },
+    "i wanna unalive myself": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "kms honestly, i can't do this anymore": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "nobody would even notice if i was gone": {
+      "crisis": 2,
+      "abuse": 0,
+      "contact": 0
+    },
+    "i'm so done with life fr": {
+      "crisis": 2,
+      "abuse": 0,
+      "contact": 0
+    },
+    "i wish i could just not exist": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "what's the point of anything anymore, i'm tired of being here": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "thinking of checking out for good": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "i don't wanna be here anymore": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "everyone would be happier if i just wasn't around": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "i keep hurting myself when it gets too much": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Ndananiwe, i just want everything to stop": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Nta muntu unkunda and i feel like disappearing": {
+      "crisis": 2,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Ubuzima bumaze kunanira, i don't wanna be here anymore": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Ndarambiwe ubuzima, nshaka kwipfira.": {
+      "crisis": 3,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Nta cyo bimaze kubaho.": {
+      "crisis": 2,
+      "abuse": 0,
+      "contact": 0
+    },
+    "you're such a loser, go away": {
+      "crisis": 0,
+      "abuse": 3,
+      "contact": 0
+    },
+    "ur trash and everybody knows it": {
+      "crisis": 0,
+      "abuse": 3,
+      "contact": 0
+    },
+    "stfu you clown": {
+      "crisis": 0,
+      "abuse": 3,
+      "contact": 0
+    },
+    "you're a joke, nobody wants to talk to you": {
+      "crisis": 0,
+      "abuse": 2,
+      "contact": 0
+    },
+    "send nudes babe": {
+      "crisis": 0,
+      "abuse": 3,
+      "contact": 0
+    },
+    "Uri trash rwose, genda.": {
+      "crisis": 0,
+      "abuse": 3,
+      "contact": 0
+    },
+    "dm me": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "slide into my dms": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "what's ur snap?": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "hit me up on ig, it's easier than here": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "my number is 0788000111": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "lets move to whatsapp, its easier": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "Nyandikira on insta, mfite akazi kenshi hano.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "Mpa ur number tuvugane on WhatsApp.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 3
+    },
+    "What's the point in going on that trip if it's raining?": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I'm ending it all with this group project today, finally done!": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "I wanted to disappear from the party, it was so boring.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "this exam is killing me lol": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "lol i'm dead, that joke was hilarious": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "my phone is dead, i'll charge it and text you later": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 1
+    },
+    "you're crazy good at football!": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Follow the school page for the exam updates.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 2
+    },
+    "I hate Mondays so much": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Nzakubona ejo, tuzaganire.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 1
+    },
+    "Ndavuye ku ishuri, ndananiwe cyane.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Genda uryame, bwije.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    },
+    "Ndarambiwe gutegereza bisi, yatinze cyane.": {
+      "crisis": 0,
+      "abuse": 0,
+      "contact": 0
+    }
+  }
+}
