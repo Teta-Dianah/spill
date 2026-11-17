@@ -306,7 +306,7 @@ Check which project `public/js/firebase-config.js` points at before every deploy
 **After the first deploy**
 
 - **Staff accounts.** Sign up on the deployed site with each person's own email and a private password. Then, in the Firebase console, open Firestore > `accounts` > that person's document and change `role` to `moderator` or `admin`. A listener applies on `listener-apply.html`, is checked in person, and is then approved by an admin on `admin-listeners.html` (see "How someone becomes a listener"). Don't run `npm run seed:accounts` here: it refuses, and its password is public.
-- **Helplines and clinics.** An admin adds the verified ones on `admin-resources.html`.
+- **Helplines and clinics.** An admin adds the verified ones on `admin-resources.html`. Until the first one is added, or whenever the list can't load, the landing page shows the three helplines built into the crisis card instead of an empty card.
 - **Screening terms.** Sign in as an admin, open `admin-terms.html` and press "Import starter terms". It adds the terms in `public/data/term-lists-seed.json` to the three lists, skips any already there, and records each term added in the audit log under that admin. It needs no key and no script, and it is safe to press again. Until it is done, screening uses the built-in lists and the fixed patterns in `firestore.rules`. (`npm run seed:terms` does the same job for the emulators only.)
 
 **Model check on a deployed development copy (optional, demo only)**

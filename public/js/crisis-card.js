@@ -4,6 +4,15 @@
 // The admin-managed resources page (index.html) has the fuller, kept-up-to-date
 // list; this is a fixed safety net that is always there.
 
+// The helplines built into Spill. They never depend on the database, so
+// they are always there: on the crisis card on every page, and on the
+// landing page when its admin-managed list is empty or can't load.
+var BUILT_IN_HELPLINES = [
+  { number: '114', name: 'Rwanda Biomedical Centre helpline' },
+  { number: '116', name: 'Child helpline / RIB' },
+  { number: '0793 902 059', name: 'Kigali Mental Health Referral Centre' },
+];
+
 // One helpline: its number, what it is, and a button that starts a call
 // on a phone. The numbers are fixed in this file, not typed by anyone,
 // so there is nothing here to escape.
@@ -36,9 +45,9 @@ function buildCrisisCard() {
     '<h2 id="crisis-modal-title">You are not alone.</h2>' +
     '<p>You can call any of these in Rwanda.</p>' +
     '<ul class="crisis-lines">' +
-    crisisLine('114', 'Rwanda Biomedical Centre helpline') +
-    crisisLine('116', 'Child helpline / RIB') +
-    crisisLine('0793 902 059', 'Kigali Mental Health Referral Centre') +
+    BUILT_IN_HELPLINES.map(function (line) {
+      return crisisLine(line.number, line.name);
+    }).join('') +
     '</ul>' +
     '<p>If you are in immediate danger, contact local emergency services or go to the nearest hospital.</p>' +
     '<button type="button" id="close-crisis-modal" class="button-secondary">Close</button>' +
@@ -66,3 +75,4 @@ function showCrisisCard() {
 document.addEventListener('DOMContentLoaded', buildCrisisCard);
 
 window.showCrisisCard = showCrisisCard;
+window.BUILT_IN_HELPLINES = BUILT_IN_HELPLINES;

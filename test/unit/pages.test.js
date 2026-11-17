@@ -102,6 +102,23 @@ describe('choices that replaced dropdowns', () => {
   });
 });
 
+describe('the landing page helplines', () => {
+  const script = read('js/resources.js');
+
+  test('an empty list shows the built-in helplines, not an empty card', () => {
+    expect(script).not.toContain('No resources added yet');
+    expect(script).toMatch(/if \(snapshot\.empty\) \{\s*showBuiltInHelplines\(list, ''\);/);
+  });
+
+  test('a list that fails to load shows the built-in helplines too', () => {
+    expect(script).toMatch(/\.catch\(function \(error\) \{\s*showBuiltInHelplines\(list, /);
+  });
+
+  test('the landing page loads the crisis card script, where the built-in list lives', () => {
+    expect(read('index.html')).toMatch(/<script src="js\/crisis-card\.js"><\/script>/);
+  });
+});
+
 describe('the crisis card', () => {
   const script = read('js/crisis-card.js');
 
@@ -109,8 +126,12 @@ describe('the crisis card', () => {
     ['114', 'Rwanda Biomedical Centre helpline'],
     ['116', 'Child helpline / RIB'],
     ['0793 902 059', 'Kigali Mental Health Referral Centre'],
-  ])('lists %s as "%s" with a button that starts a call', (number, name) => {
-    expect(script).toContain(`crisisLine('${number}', '${name}')`);
+  ])('lists %s as "%s" in the built-in helplines', (number, name) => {
+    expect(script).toContain(`{ number: '${number}', name: '${name}' }`);
+  });
+
+  test('every built-in helpline gets a line with a Call button on the card', () => {
+    expect(script).toMatch(/BUILT_IN_HELPLINES\.map\(function \(line\) \{\s*return crisisLine\(line\.number, line\.name\);/);
   });
 
   test('8015 is no longer listed', () => {

@@ -707,6 +707,26 @@ ul.plain-list li button {
   flex: 1 1 100%;
 }
 
+/* A built-in number is a link that starts a call. It keeps the size of
+   the number and is tall enough to tap. */
+a.resource-contact {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+a.resource-contact:hover {
+  color: var(--color-green);
+}
+
+/* The short line shown when the full list could not load. */
+ul.plain-list li.resource-note {
+  font-size: var(--text-small);
+  color: var(--color-muted);
+}
+
 /* ---- Landing page ---- */
 
 .hero {
