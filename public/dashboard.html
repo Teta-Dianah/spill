@@ -13,14 +13,39 @@
       <a class="brand" href="dashboard.html">Spill</a>
       <button type="button" id="sign-out-button">Sign out</button>
     </div>
-    <p class="eyebrow">You are known here as</p>
-    <h1 id="pseudonym-display">&nbsp;</h1>
+    <p class="eyebrow" id="today-date"></p>
+    <h1>Hello, <span id="pseudonym-display"></span></h1>
+    <p class="hint">This name is the only one anyone sees here.</p>
   </header>
 
   <main>
+    <!-- Shown when this person has a chat open (dashboard.js), so they
+         can go straight back to it. -->
+    <section class="card card-dark open-chat" id="open-chat" hidden>
+      <h2>Your chat is open</h2>
+      <p id="open-chat-text"></p>
+      <a class="button button-accent" id="open-chat-link" href="chat.html">Go to your chat</a>
+    </section>
+
+    <div class="stats">
+      <a class="stat" href="#check-ins">
+        <span class="stat-number" id="stat-month-count">…</span>
+        <span class="stat-label">Check-ins this month</span>
+      </a>
+      <a class="stat" href="#check-ins">
+        <span class="stat-number" id="stat-month-average">…</span>
+        <span class="stat-label">Average mood this month, out of 5</span>
+      </a>
+      <a class="stat" href="#mood-form">
+        <span class="stat-number stat-word" id="stat-last-check-in">…</span>
+        <span class="stat-label">Last check-in</span>
+      </a>
+    </div>
+
     <div class="columns">
       <section class="card">
         <h2>How's today going?</h2>
+        <p id="checked-in-today" class="hint" hidden>You already checked in today. You can add another if your day has changed.</p>
         <form id="mood-form">
           <fieldset>
             <legend class="visually-hidden">Mood from 1 to 5</legend>
@@ -43,15 +68,15 @@
       </section>
 
       <div>
-        <section class="card card-dark">
+        <section class="card card-dark" id="talk-card">
           <h2>Need to talk?</h2>
           <p>A trained listener can chat with you one-to-one.</p>
           <a class="button button-accent" href="request-chat.html">Talk to a listener</a>
         </section>
 
-        <section class="card">
-          <h2>Your check-ins</h2>
-          <p id="monthly-recap" class="hint"></p>
+        <section class="card" id="check-ins">
+          <h2>Your mood lately</h2>
+          <div class="mood-bars" id="mood-bars" role="img" aria-label="No check-ins yet" hidden></div>
           <ul id="mood-history" class="plain-list">
             <li>Loading...</li>
           </ul>
@@ -79,6 +104,7 @@
   <script src="js/mood.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/staff-links.js"></script>
+  <script src="js/home-summary.js"></script>
   <script src="js/dashboard.js"></script>
   <script src="js/crisis-card.js"></script>
 </body>

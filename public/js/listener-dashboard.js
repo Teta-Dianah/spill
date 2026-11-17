@@ -1,5 +1,6 @@
-// Wires up the listener dashboard: status, availability and active chats
-// (FR 5.4, FR 5.5). Needs auth.js and listeners.js loaded first.
+// Wires up the listener dashboard: what is waiting at a glance, incoming
+// requests, status, availability and active chats (FR 5.4, FR 5.5).
+// Needs auth.js, listeners.js and home-summary.js loaded first.
 
 var MAX_CONCURRENT_CHATS = 2;
 
@@ -8,9 +9,34 @@ function showStatusMessage(text) {
   if (box) box.textContent = text;
 }
 
+function showListenerMessage(text) {
+  var box = document.getElementById('listener-message');
+  if (box) box.textContent = text;
+}
+
 function showAvailabilityNote(text) {
   var box = document.getElementById('availability-note');
   if (box) box.textContent = text;
+}
+
+function renderListenerName(uid) {
+  firebase
+    .firestore()
+    .collection('accounts')
+    .doc(uid)
+    .get()
+    .then(function (accountDoc) {
+      var box = document.getElementById('listener-name');
+      if (box) box.textContent = accountDoc.exists ? accountDoc.data().pseudonym : 'listener';
+    });
+}
+
+function showAvailableStat(available) {
+  setStat('stat-available', available ? 'Available' : 'Away');
+}
+
+function chatTime(chat) {
+  return chat.createdAt ? chat.createdAt.toMillis() : 0;
 }
 
 function renderActiveChats(uid) {
@@ -24,19 +50,24 @@ function renderActiveChats(uid) {
     .where('listenerId', '==', uid)
     .where('status', '==', 'active')
     .onSnapshot(function (snapshot) {
-      list.innerHTML = '';
+      setStat('stat-active', snapshot.size + ' of ' + MAX_CONCURRENT_CHATS);
 
+      list.innerHTML = '';
       if (snapshot.empty) {
-        list.innerHTML = '<li>No active chats right now.</li>';
+        showListNote(list, 'No active chats right now.');
       }
 
+      var now = Date.now();
       snapshot.forEach(function (docSnap) {
-        var item = document.createElement('li');
-        var link = document.createElement('a');
-        link.href = 'chat.html?chatId=' + docSnap.id;
-        link.textContent = 'Open chat (' + (docSnap.data().topic || 'no topic') + ')';
-        item.appendChild(link);
-        list.appendChild(item);
+        var chat = docSnap.data();
+        list.appendChild(
+          makeItemRow(
+            topicWord(chat.topic),
+            'Asked ' + timeAgo(chatTime(chat), now),
+            'Open chat',
+            'chat.html?chatId=' + encodeURIComponent(docSnap.id)
+          )
+        );
       });
 
       // FR 5.5: a listener can only take two chats at once. There's no
@@ -45,6 +76,7 @@ function renderActiveChats(uid) {
       if (snapshot.size >= MAX_CONCURRENT_CHATS && toggle && toggle.checked) {
         setListenerAvailability(uid, false).then(function () {
           toggle.checked = false;
+          showAvailableStat(false);
           showAvailabilityNote('You reached the ' + MAX_CONCURRENT_CHATS + '-chat limit, so availability was turned off.');
         });
       }
@@ -101,6 +133,39 @@ function declineChatRequest(chatId) {
     });
 }
 
+// One request: the topic, how long they have waited and how they said
+// they were feeling, then Accept and Decline.
+function renderRequestRow(uid, chatId, chat, now) {
+  var detail = 'Asked ' + timeAgo(chatTime(chat), now);
+  if (chat.moodBefore) {
+    detail += ' · feeling ' + moodWord(chat.moodBefore).toLowerCase() + ' (' + chat.moodBefore + ' out of 5)';
+  }
+  var row = makeItemRow(topicWord(chat.topic), detail);
+
+  var buttons = document.createElement('div');
+  buttons.className = 'item-buttons';
+
+  var acceptButton = document.createElement('button');
+  acceptButton.type = 'button';
+  acceptButton.textContent = 'Accept';
+  acceptButton.addEventListener('click', function () {
+    acceptChatRequest(uid, chatId);
+  });
+  buttons.appendChild(acceptButton);
+
+  var declineButton = document.createElement('button');
+  declineButton.type = 'button';
+  declineButton.textContent = 'Decline';
+  declineButton.className = 'button-secondary';
+  declineButton.addEventListener('click', function () {
+    declineChatRequest(chatId);
+  });
+  buttons.appendChild(declineButton);
+
+  row.appendChild(buttons);
+  return row;
+}
+
 function renderPendingRequests(uid) {
   var list = document.getElementById('pending-requests');
   if (!list) return;
@@ -111,40 +176,17 @@ function renderPendingRequests(uid) {
     .where('listenerId', '==', uid)
     .where('status', '==', 'pending')
     .onSnapshot(function (snapshot) {
-      list.innerHTML = '';
+      setStat('stat-requests', String(snapshot.size), snapshot.size > 0);
 
       if (snapshot.empty) {
-        list.innerHTML = '<li>No incoming requests right now.</li>';
+        showListNote(list, 'No incoming requests right now.');
         return;
       }
 
+      list.innerHTML = '';
+      var now = Date.now();
       snapshot.forEach(function (docSnap) {
-        var chatId = docSnap.id;
-        var topic = docSnap.data().topic || 'no topic';
-
-        var item = document.createElement('li');
-        var label = document.createElement('span');
-        label.textContent = 'Someone wants to talk about: ' + topic;
-        item.appendChild(label);
-
-        var acceptButton = document.createElement('button');
-        acceptButton.type = 'button';
-        acceptButton.textContent = 'Accept';
-        acceptButton.addEventListener('click', function () {
-          acceptChatRequest(uid, chatId);
-        });
-        item.appendChild(acceptButton);
-
-        var declineButton = document.createElement('button');
-        declineButton.type = 'button';
-        declineButton.textContent = 'Decline';
-        declineButton.className = 'button-secondary';
-        declineButton.addEventListener('click', function () {
-          declineChatRequest(chatId);
-        });
-        item.appendChild(declineButton);
-
-        list.appendChild(item);
+        list.appendChild(renderRequestRow(uid, docSnap.id, docSnap.data(), now));
       });
     });
 }
@@ -154,6 +196,7 @@ function setUpAvailabilityToggle(uid, listener) {
   if (!toggle) return;
 
   toggle.checked = listener.available;
+  showAvailableStat(listener.available);
 
   if (!listener.trainingComplete) {
     toggle.disabled = true;
@@ -162,32 +205,40 @@ function setUpAvailabilityToggle(uid, listener) {
   }
 
   toggle.addEventListener('change', function () {
-    setListenerAvailability(uid, toggle.checked).catch(function () {
-      showAvailabilityNote('Could not update your availability. Please try again.');
-    });
+    setListenerAvailability(uid, toggle.checked)
+      .then(function () {
+        showAvailableStat(toggle.checked);
+      })
+      .catch(function () {
+        showAvailabilityNote('Could not update your availability. Please try again.');
+      });
   });
 }
 
 function startDashboard(uid) {
   getListener(uid, function (listener) {
     if (!listener) {
-      showStatusMessage('You have not applied as a listener yet.');
+      showListenerMessage('You have not applied as a listener yet. You can apply from your personal dashboard.');
       return;
     }
 
     if (listener.status === 'pending') {
-      showStatusMessage('Your application is still waiting for admin review.');
+      showListenerMessage('Your application is still waiting for admin review.');
       return;
     }
 
     if (listener.status === 'rejected') {
-      showStatusMessage('Your application was not approved.');
+      showListenerMessage('Your application was not approved.');
       return;
     }
 
+    document.getElementById('listener-home').hidden = false;
     showStatusMessage(
       'Approved' + (listener.clearedForMinors ? ', cleared to talk with 16-17 year olds.' : '.')
     );
+    setStat('stat-training', listener.trainingComplete ? 'Done' : 'Not done', !listener.trainingComplete);
+    document.getElementById('training-card').hidden = listener.trainingComplete === true;
+
     setUpAvailabilityToggle(uid, listener);
     renderPendingRequests(uid);
     renderActiveChats(uid);
@@ -200,6 +251,7 @@ document.addEventListener('DOMContentLoaded', function () {
       window.location.href = 'signin.html';
       return;
     }
+    renderListenerName(user.uid);
     startDashboard(user.uid);
   });
 

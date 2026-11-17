@@ -10,10 +10,11 @@
 <body class="wide">
   <header>
     <div class="topbar">
-      <a class="brand" href="dashboard.html">Spill</a>
+      <a class="brand" href="listener-dashboard.html">Spill</a>
       <button type="button" id="sign-out-button">Sign out</button>
     </div>
-    <h1>Listener dashboard</h1>
+    <p class="eyebrow">Listener dashboard</p>
+    <h1>Hello, <span id="listener-name"></span></h1>
   </header>
 
   <main>
@@ -26,38 +27,68 @@
       <button type="button" id="model-check-decline" class="quiet-button">No thanks</button>
     </div>
 
-    <div class="columns">
-      <section class="card">
-        <h2>Incoming requests</h2>
-        <p id="pending-message" class="message" role="status"></p>
-        <ul id="pending-requests" class="plain-list">
-          <li>Loading...</li>
-        </ul>
+    <!-- For someone who has not been approved yet (listener-dashboard.js). -->
+    <p id="listener-message" class="message" role="status"></p>
+
+    <div id="listener-home" hidden>
+      <div class="stats">
+        <a class="stat" href="#requests-card">
+          <span class="stat-number" id="stat-requests">…</span>
+          <span class="stat-label">Requests waiting</span>
+        </a>
+        <a class="stat" href="#active-card">
+          <span class="stat-number" id="stat-active">…</span>
+          <span class="stat-label">Active chats</span>
+        </a>
+        <a class="stat" href="#status-card">
+          <span class="stat-number stat-word" id="stat-available">…</span>
+          <span class="stat-label">Your status</span>
+        </a>
+        <a class="stat" href="listener-training.html">
+          <span class="stat-number stat-word" id="stat-training">…</span>
+          <span class="stat-label">Training</span>
+        </a>
+      </div>
+
+      <section class="card card-dark" id="training-card" hidden>
+        <h2>Finish your training</h2>
+        <p>You can go available and take chats once your training is done.</p>
+        <a class="button button-accent" href="listener-training.html">Go to training</a>
       </section>
 
-      <div>
-        <section class="card">
-          <h2>Your status</h2>
-          <p id="status-message"></p>
-          <label class="option">
-            <input type="checkbox" id="available-toggle">
-            Available to take chats
-          </label>
-          <p id="availability-note" class="message"></p>
-        </section>
-
-        <section class="card">
-          <h2>Your active chats</h2>
-          <ul id="active-chats" class="plain-list">
+      <div class="columns">
+        <section class="card" id="requests-card">
+          <h2>Incoming requests</h2>
+          <p id="pending-message" class="message" role="status"></p>
+          <ul id="pending-requests" class="plain-list item-list">
             <li>Loading...</li>
           </ul>
         </section>
+
+        <div>
+          <section class="card" id="status-card">
+            <h2>Your status</h2>
+            <p id="status-message"></p>
+            <label class="option">
+              <input type="checkbox" id="available-toggle">
+              Available to take chats
+            </label>
+            <p id="availability-note" class="message"></p>
+          </section>
+
+          <section class="card" id="active-card">
+            <h2>Your active chats</h2>
+            <ul id="active-chats" class="plain-list item-list">
+              <li>Loading...</li>
+            </ul>
+          </section>
+        </div>
       </div>
     </div>
 
     <div class="actions">
       <a href="listener-training.html">Listener training</a>
-      <a href="dashboard.html">Dashboard</a>
+      <a href="dashboard.html">My personal dashboard</a>
     </div>
   </main>
 
@@ -68,6 +99,7 @@
   <script src="js/firebase-init.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/listeners.js"></script>
+  <script src="js/home-summary.js"></script>
   <script src="js/listener-dashboard.js"></script>
   <script src="js/model-check-settings.js"></script>
   <script src="js/model-check-notice.js"></script>

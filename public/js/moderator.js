@@ -38,6 +38,49 @@ function loadQueueItems(onLoaded) {
   });
 }
 
+function escapeForDisplay(text) {
+  var div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// The short title of a queue row. (moderator-case.js has its own,
+// longer description for the case page.)
+function queueItemTitle(item) {
+  if (item.itemType === 'report') return 'Report: ' + item.reason;
+  if (item.type === 'contact-sharing') return 'Blocked contact-sharing attempt';
+  if (item.type === 'crisis') return 'Crisis wording';
+  if (item.type === 'abusive-language') return 'Abusive language';
+  return item.type || 'Flag';
+}
+
+// One row of the queue, used on the queue page and on the staff home.
+// It never shows message text: only what kind of item it is, how
+// serious, and when it came in. Needs home-summary.js for timeAgo.
+function renderQueueRow(item) {
+  var row = document.createElement('li');
+  var ageText = 'Came in ' + timeAgo(item.createdAt ? item.createdAt.toMillis() : 0, Date.now());
+
+  // The severity is written out in the tag, so it never depends on
+  // colour alone. Number() keeps anything but a number out of the class.
+  var severity = Number(item.severity) || 0;
+  row.innerHTML =
+    '<div class="queue-text">' +
+    '<span class="tag tag-severity-' + severity + '">Severity ' + severity + '</span>' +
+    '<span class="queue-title">' + escapeForDisplay(queueItemTitle(item)) + '</span>' +
+    '<span class="resource-meta">' + escapeForDisplay(ageText) + '</span>' +
+    '</div>';
+
+  var openButton = document.createElement('a');
+  openButton.className = 'button';
+  openButton.href = 'moderator-case.html?chatId=' + encodeURIComponent(item.chatId) +
+    '&itemType=' + encodeURIComponent(item.itemType) + '&itemId=' + encodeURIComponent(item.id);
+  openButton.textContent = 'Open case';
+  row.appendChild(openButton);
+
+  return row;
+}
+
 function loadQueueItem(itemType, itemId, onLoaded) {
   firebase
     .firestore()
@@ -164,6 +207,7 @@ function applyModeratorAction(item, action, reason, moderatorUid) {
 }
 
 window.loadQueueItems = loadQueueItems;
+window.renderQueueRow = renderQueueRow;
 window.loadQueueItem = loadQueueItem;
 window.openCase = openCase;
 window.loadChatMessages = loadChatMessages;
