@@ -1,14 +1,22 @@
-// Wires up the dashboard: mood check-in, mood history and sign-out
-// (FR 1.4, FR 3.1, FR 3.3). Needs auth.js and mood.js loaded first.
+// Wires up the dashboard: what is going on for this person at a glance,
+// the mood check-in, recent check-ins and sign-out (FR 1.4, FR 3.1,
+// FR 3.3, FR 3.4). Needs auth.js, mood.js and home-summary.js loaded
+// first.
 
 function showMoodMessage(text) {
   var box = document.getElementById('mood-message');
   if (box) box.textContent = text;
 }
 
+// Today's date above the greeting, such as "Tuesday 17 November".
+function renderTodayDate() {
+  var box = document.getElementById('today-date');
+  if (!box) return;
+  box.textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
 // Shows the account's pseudonym, since this is the only "name" a user
-// ever has in Spill (FR 1.2) and it should stay visible, not just appear
-// once in the sign-up message.
+// ever has in Spill (FR 1.2) and it should stay visible.
 function renderPseudonym(uid) {
   var box = document.getElementById('pseudonym-display');
   if (!box) return;
@@ -20,10 +28,36 @@ function renderPseudonym(uid) {
     .get()
     .then(function (accountDoc) {
       if (accountDoc.exists) {
-        // The line "You are known here as" is already in dashboard.html,
-        // just above this heading.
         box.textContent = accountDoc.data().pseudonym;
       }
+    });
+}
+
+// If this person has a chat open with a listener, the first thing they
+// see is a way back into it, and the "Need to talk?" card steps aside.
+function renderOpenChat(uid) {
+  var card = document.getElementById('open-chat');
+  var talkCard = document.getElementById('talk-card');
+  if (!card) return;
+
+  firebase
+    .firestore()
+    .collection('chats')
+    .where('userId', '==', uid)
+    .where('status', '==', 'active')
+    .get()
+    .then(function (snapshot) {
+      if (snapshot.empty) return;
+
+      var chatDoc = snapshot.docs[0];
+      document.getElementById('open-chat-text').textContent =
+        'You are talking with a listener about ' + topicWord(chatDoc.data().topic).toLowerCase() + '.';
+      document.getElementById('open-chat-link').href = 'chat.html?chatId=' + encodeURIComponent(chatDoc.id);
+      card.hidden = false;
+      if (talkCard) talkCard.hidden = true;
+    })
+    .catch(function (error) {
+      console.error('Could not check for an open chat', error);
     });
 }
 
@@ -63,32 +97,42 @@ function renderStaffLinks(uid) {
     });
 }
 
-// FR 3.4: a private "how has this month been" summary. Off by default in
-// the sense that it only ever shows to the signed-in user themselves —
-// there's no sharing feature at all in version 1.0.
-function renderMonthlyRecap(entries) {
-  var box = document.getElementById('monthly-recap');
+// The three numbers at the top (FR 3.4). They are private: only the
+// signed-in person ever sees them.
+function renderMoodStats(entries) {
+  var now = Date.now();
+  var summary = moodSummary(entries, now);
+
+  setStat('stat-month-count', String(summary.countThisMonth));
+  setStat('stat-month-average', summary.averageThisMonth === null ? '–' : String(summary.averageThisMonth));
+  setStat('stat-last-check-in', lastCheckInText(summary.lastCheckIn, now));
+
+  var note = document.getElementById('checked-in-today');
+  if (note) note.hidden = !summary.checkedInToday;
+}
+
+// A small bar for each of the last 7 check-ins, oldest on the left. The
+// bars are a picture only; the list under them says the same in words.
+function renderMoodBars(entries) {
+  var box = document.getElementById('mood-bars');
   if (!box) return;
 
-  var now = new Date();
-  var thisMonthEntries = entries.filter(function (entry) {
-    if (!entry.createdAt) return false;
-    var entryDate = entry.createdAt.toDate();
-    return entryDate.getMonth() === now.getMonth() && entryDate.getFullYear() === now.getFullYear();
+  var recent = entries.slice(0, 7).reverse();
+  box.innerHTML = '';
+  box.hidden = recent.length === 0;
+  if (recent.length === 0) return;
+
+  recent.forEach(function (entry) {
+    var bar = document.createElement('span');
+    // Number() keeps anything but a number out of the class name.
+    bar.className = 'mood-bar mood-bar-' + (Number(entry.score) || 0);
+    box.appendChild(bar);
   });
 
-  if (thisMonthEntries.length === 0) {
-    box.textContent = 'No check-ins yet this month.';
-    return;
-  }
-
-  var total = thisMonthEntries.reduce(function (sum, entry) {
-    return sum + entry.score;
-  }, 0);
-  var average = Math.round((total / thisMonthEntries.length) * 10) / 10;
-
-  box.textContent =
-    'This month: ' + thisMonthEntries.length + ' check-in(s), average mood ' + average + ' out of 5.';
+  var words = recent.map(function (entry) {
+    return moodWord(entry.score);
+  });
+  box.setAttribute('aria-label', 'Your last ' + recent.length + ' check-ins, oldest first: ' + words.join(', '));
 }
 
 function renderMoodHistory(uid) {
@@ -96,29 +140,37 @@ function renderMoodHistory(uid) {
   if (!list) return;
 
   loadMoodHistory(uid, function (entries) {
-    list.innerHTML = '';
+    var now = Date.now();
+    var timed = entries.map(function (entry) {
+      return { score: entry.score, note: entry.note, time: entry.createdAt ? entry.createdAt.toMillis() : 0 };
+    });
 
-    if (entries.length === 0) {
-      list.innerHTML = '<li>No check-ins yet.</li>';
-    } else {
-      entries.forEach(function (entry) {
-        var item = document.createElement('li');
-        item.textContent = 'Mood: ' + entry.score + (entry.note ? ' - ' + entry.note : '');
-        list.appendChild(item);
-      });
+    renderMoodStats(timed);
+    renderMoodBars(timed);
+
+    list.innerHTML = '';
+    if (timed.length === 0) {
+      showListNote(list, 'No check-ins yet. They will show here once you save one.');
+      return;
     }
 
-    renderMonthlyRecap(entries);
+    timed.slice(0, 7).forEach(function (entry) {
+      var title = moodWord(entry.score) + ' (' + entry.score + ' out of 5)';
+      list.appendChild(makeItemRow(title, timeAgo(entry.time, now) + (entry.note ? ' · ' + entry.note : '')));
+    });
   });
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+  renderTodayDate();
+
   firebase.auth().onAuthStateChanged(function (user) {
     if (!user) {
       window.location.href = 'signin.html';
       return;
     }
     renderPseudonym(user.uid);
+    renderOpenChat(user.uid);
     renderStaffLinks(user.uid);
     renderMoodHistory(user.uid);
   });
@@ -137,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function () {
       recordMood(user.uid, score, note)
         .then(function () {
           moodForm.reset();
-          showMoodMessage('Mood recorded.');
+          showMoodMessage('Check-in saved. Thank you.');
           renderMoodHistory(user.uid);
         })
         .catch(function (error) {

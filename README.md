@@ -243,7 +243,16 @@ These accounts are for the emulators only. The script uses the emulator-only pro
 | Moderator queue, case view | `/moderator-queue.html`, `/moderator-case.html` | Moderator |
 | Admin pages | `/admin-listeners.html`, `/admin-terms.html`, `/admin-resources.html` | Admin |
 
-After signing in, each person lands on their own home page: a user on the dashboard, an approved listener on the listener dashboard, and a moderator or admin on `staff.html`, which shows what is waiting for them (open flags and reports, or applications and suggested terms) with a link to each tool. Every one of these pages links back to the personal dashboard.
+After signing in, each person lands on their own home page: a user on the dashboard, an approved listener on the listener dashboard, and a moderator or admin on `staff.html`. Each home page opens with a row of numbers showing what is waiting, then the items themselves, each one a tap away:
+
+| Who | Numbers at the top | Then |
+|---|---|---|
+| User | Check-ins this month, average mood, last check-in | Their open chat (if any), the check-in form, and their mood lately |
+| Listener | Requests waiting, active chats out of 2, available or away, training | Requests to accept or decline, their status, and active chats |
+| Moderator | Crisis flags, other flags, reports, how long the oldest has waited | The five most serious open items, and their own recent actions |
+| Admin | Applications waiting, suggested terms waiting, approved listeners, listeners available now | The waiting applications and suggested terms, and their own recent actions |
+
+A number that needs attention now (a crisis flag, a request waiting) is shown in orange, and its label always says what it is. No home page shows any chat message text. The counting and wording live in `public/js/home-summary.js`, which has its own unit tests. Every home page links back to the personal dashboard.
 
 To reach the staff pages later, sign in and look at the dashboard. An approved listener, a moderator or an admin sees a "Your Spill pages" section there with links to their own pages. An ordinary user doesn't see it, and no public page links to a staff page. The links are only a shortcut: `firestore.rules` decides who can read or change anything, so opening a staff page's address without the role shows nothing.
 
