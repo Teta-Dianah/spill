@@ -1,6 +1,12 @@
 // Sign-up, sign-in and sign-out (FR 1.1, FR 1.2, FR 1.4).
 // Needs pseudonym.js and firebase-init.js loaded first.
 
+// The version of the privacy notice and terms (privacy.html) that a new
+// account agrees to (FR 1.3, NFR 14). Change it whenever privacy.html
+// changes in a way people should agree to again. A page test checks that
+// privacy.html shows this same version.
+var PRIVACY_NOTICE_VERSION = '2026-11-17';
+
 function createAccountDocument(uid, ageBand, firstTimeSeekingHelp) {
   var pseudonym = generatePseudonym();
   return firebase
@@ -20,6 +26,11 @@ function createAccountDocument(uid, ageBand, firstTimeSeekingHelp) {
       status: 'active',
       blockedUids: [],
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      // FR 1.3: a record that this person agreed to the privacy notice
+      // and terms, which version, and when. firestore.rules refuses an
+      // account without it.
+      privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+      consentedAt: firebase.firestore.FieldValue.serverTimestamp(),
     })
     .then(function () {
       return pseudonym;
@@ -76,6 +87,13 @@ function deleteOwnMoods(uid) {
     });
 }
 
+// Spill is for people aged 16 to 25 (FR 1.1, NFR 14). Rwanda's data
+// protection law needs a guardian's consent for a child under 16, so a
+// declared age under 16 is refused before any account is made.
+function isAllowedAgeBand(ageBand) {
+  return ageBand === '16-17' || ageBand === '18-25';
+}
+
 // Deletes the account and the person's own data (FR 1.5): their mood
 // history first, then the account itself. If they ever applied to be a
 // listener, their listener record and their private application answers
@@ -111,3 +129,5 @@ window.registerUser = registerUser;
 window.signIn = signIn;
 window.signOutUser = signOutUser;
 window.deleteAccount = deleteAccount;
+window.isAllowedAgeBand = isAllowedAgeBand;
+window.PRIVACY_NOTICE_VERSION = PRIVACY_NOTICE_VERSION;

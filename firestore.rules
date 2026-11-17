@@ -223,9 +223,9 @@ service cloud.firestore {
     }
 
     // accounts/{uid} — one document per registered user (FR 1, FR 7.4).
-    // A user can write most of their own account, but never their own
-    // role or status (BR 7 — a suspended account can't just un-suspend
-    // itself). An admin can change role and status on any account
+    // A user creates their own account once and afterwards can only
+    // change their block list — never their role, status or age band
+    // (BR 7 — a suspended account can't just un-suspend itself). An admin can change role and status on any account
     // (approving a listener for moderator duty, for example). A
     // moderator can change status only (FR 6.8), and only as the
     // audited, same-batch resolution of a flag or report that actually
@@ -239,14 +239,34 @@ service cloud.firestore {
       allow read: if request.auth != null &&
         (request.auth.uid == uid || hasRole('admin') || hasRole('moderator'));
 
+      // A new account (FR 1.1, FR 1.3, NFR 11, NFR 14):
+      // - is an ordinary, active user;
+      // - is 16 to 25: no other age band is accepted, so nobody under 16
+      //   can have an account, and BR 1 can rely on the age band;
+      // - records which privacy notice was agreed to, and when;
+      // - holds only these fields, so nothing else about a person, such
+      //   as a real name or phone number, can ever be stored here.
       allow create: if request.auth != null &&
         request.auth.uid == uid &&
-        request.resource.data.role == 'user';
+        request.resource.data.keys().hasAll(['pseudonym', 'ageBand', 'role', 'status', 'privacyNoticeVersion', 'consentedAt']) &&
+        request.resource.data.keys().hasOnly([
+          'pseudonym', 'ageBand', 'firstTimeSeekingHelp', 'role', 'status', 'blockedUids',
+          'createdAt', 'privacyNoticeVersion', 'consentedAt'
+        ]) &&
+        request.resource.data.role == 'user' &&
+        request.resource.data.status == 'active' &&
+        request.resource.data.ageBand in ['16-17', '18-25'] &&
+        request.resource.data.privacyNoticeVersion is string &&
+        request.resource.data.privacyNoticeVersion.size() > 0 &&
+        request.resource.data.consentedAt == request.time;
 
+      // The owner can only change who they have blocked (FR 6.6). Their
+      // age band, role, status and consent record stay as they were, so
+      // a 16 to 17 year old can't change their age band to get round
+      // BR 1, and a suspended account can't un-suspend itself (BR 7).
       allow update: if request.auth != null && (
         (request.auth.uid == uid &&
-          request.resource.data.role == resource.data.role &&
-          request.resource.data.status == resource.data.status) ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['blockedUids'])) ||
         (hasRole('admin') &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role', 'status'])) ||
         (hasRole('moderator') &&

@@ -20,6 +20,7 @@ const {
   query,
   where,
   onSnapshot,
+  serverTimestamp,
 } = require('firebase/firestore');
 
 let testEnv;
@@ -42,25 +43,109 @@ afterEach(async () => {
 });
 
 describe('accounts', () => {
+  // A new account the way signup.html makes it (auth.js).
+  function newAccount(overrides = {}) {
+    return {
+      pseudonym: 'CalmRiver12',
+      ageBand: '18-25',
+      firstTimeSeekingHelp: true,
+      role: 'user',
+      status: 'active',
+      blockedUids: [],
+      createdAt: serverTimestamp(),
+      privacyNoticeVersion: '2026-11-17',
+      consentedAt: serverTimestamp(),
+      ...overrides,
+    };
+  }
+
   test('a signed-in user can create their own account as role "user"', async () => {
     const db = testEnv.authenticatedContext('alice').firestore();
-    await assertSucceeds(
-      setDoc(doc(db, 'accounts/alice'), { pseudonym: 'CalmRiver12', role: 'user' })
-    );
+    await assertSucceeds(setDoc(doc(db, 'accounts/alice'), newAccount()));
+  });
+
+  test('a 16 to 17 year old can create an account (FR 1.1)', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(setDoc(doc(db, 'accounts/alice'), newAccount({ ageBand: '16-17' })));
   });
 
   test('a user cannot create their own account with a different role', async () => {
     const db = testEnv.authenticatedContext('alice').firestore();
-    await assertFails(
-      setDoc(doc(db, 'accounts/alice'), { pseudonym: 'CalmRiver12', role: 'admin' })
-    );
+    await assertFails(setDoc(doc(db, 'accounts/alice'), newAccount({ role: 'admin' })));
   });
 
   test('signed-out visitors cannot create an account', async () => {
     const db = testEnv.unauthenticatedContext().firestore();
-    await assertFails(
-      setDoc(doc(db, 'accounts/alice'), { pseudonym: 'CalmRiver12', role: 'user' })
-    );
+    await assertFails(setDoc(doc(db, 'accounts/alice'), newAccount()));
+  });
+
+  test.each([['under-16'], ['15'], ['26-30'], ['']])(
+    'an account with age band "%s" is refused, so nobody under 16 can join (FR 1.1, NFR 14)',
+    async (ageBand) => {
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertFails(setDoc(doc(db, 'accounts/alice'), newAccount({ ageBand })));
+    }
+  );
+
+  test('an account with no age band is refused (FR 1.1)', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    const account = newAccount();
+    delete account.ageBand;
+    await assertFails(setDoc(doc(db, 'accounts/alice'), account));
+  });
+
+  test('an account with no record of consent is refused (FR 1.3)', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    const noVersion = newAccount();
+    delete noVersion.privacyNoticeVersion;
+    await assertFails(setDoc(doc(db, 'accounts/alice'), noVersion));
+
+    const noTime = newAccount();
+    delete noTime.consentedAt;
+    await assertFails(setDoc(doc(db, 'accounts/alice'), noTime));
+  });
+
+  test('consent must be recorded at the moment the account is made, not backdated (FR 1.3)', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(setDoc(doc(db, 'accounts/alice'), newAccount({ consentedAt: new Date(2020, 0, 1) })));
+  });
+
+  test('a new account must start active, not suspended or anything else', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(setDoc(doc(db, 'accounts/alice'), newAccount({ status: 'suspended' })));
+  });
+
+  test('an account cannot hold any other field, such as a real name or phone number (NFR 11)', async () => {
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(setDoc(doc(db, 'accounts/alice'), newAccount({ realName: 'Alice Uwase' })));
+    await assertFails(setDoc(doc(db, 'accounts/alice'), newAccount({ phone: '0788123456' })));
+  });
+
+  test('a 16 to 17 year old cannot change their own age band later (BR 1)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/alice'), newAccount({ ageBand: '16-17' }));
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(updateDoc(doc(db, 'accounts/alice'), { ageBand: '18-25' }));
+  });
+
+  test('a user cannot change their own consent record', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/alice'), newAccount());
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(updateDoc(doc(db, 'accounts/alice'), { privacyNoticeVersion: 'something else' }));
+  });
+
+  test('a user can still add someone to their block list (FR 6.6)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/alice'), newAccount());
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(updateDoc(doc(db, 'accounts/alice'), { blockedUids: arrayUnion('grace') }));
   });
 
   test('a user can read their own account', async () => {
