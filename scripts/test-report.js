@@ -26,6 +26,7 @@ const FILE_NOTES = {
   'test/unit/deploy-checks.test.js': 'A deploy goes to the right project, from the right branch, with the model check off for the pilot',
   'test/unit/pages.test.js': 'Every page: "Need help now", viewport, no inline styles, home page privacy',
   'test/unit/home-summary.test.js': 'The numbers and wording on each home page',
+  'test/unit/stats-summary.test.js': 'The anonymised statistics: counting, and hiding groups smaller than 5',
   'test/unit/staff-links.test.js': 'Staff links, and which home page each role lands on',
   'test/unit/listener-application.test.js': 'The listener application and its checks',
   'test/unit/mood-validate.test.js': 'Mood check-in validation',

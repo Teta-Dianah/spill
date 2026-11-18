@@ -2422,3 +2422,143 @@ describe('termSuggestions (FR 7.1)', () => {
     }
   });
 });
+
+describe('anonymised statistics (FR 7.3)', () => {
+  const { getDocs: listDocs, collection: col } = require('firebase/firestore');
+  const createdAt = { seconds: 1, nanoseconds: 0 };
+
+  async function seed(path, data) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), path), data);
+    });
+  }
+
+  async function seedPeople() {
+    await seed('accounts/ada', { pseudonym: 'Ada', role: 'admin' });
+    await seed('accounts/mona', { pseudonym: 'Mona', role: 'moderator' });
+    await seed('accounts/alice', { pseudonym: 'Alice', role: 'user' });
+    await seed('accounts/grace', { pseudonym: 'Grace', role: 'user' });
+  }
+
+  async function seedChat(status = 'ended', extra = {}) {
+    await seed('chats/chat-1', {
+      userId: 'alice', listenerId: 'grace', topic: 'money', moodBefore: 2, moodAfter: 4, status, createdAt, ...extra,
+    });
+  }
+
+  const tally = (kind) => ({ kind, createdAt: serverTimestamp() });
+  const stats = (overrides = {}) => ({ topic: 'money', moodBefore: 2, moodAfter: 4, recordedAt: serverTimestamp(), ...overrides });
+
+  describe('safetyTally: one count per flag or report, no content', () => {
+    test('the sender can count their own flag, with its kind', async () => {
+      await seed('flags/flag-1', { type: 'crisis', chatId: 'chat-1', senderId: 'alice', status: 'open' });
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertSucceeds(setDoc(doc(db, 'safetyTally/flag-1'), tally('crisis')));
+    });
+
+    test('a count with the wrong kind is refused', async () => {
+      await seed('flags/flag-1', { type: 'crisis', chatId: 'chat-1', senderId: 'alice', status: 'open' });
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertFails(setDoc(doc(db, 'safetyTally/flag-1'), tally('abusive-language')));
+    });
+
+    test("nobody can count someone else's flag", async () => {
+      await seed('flags/flag-1', { type: 'crisis', chatId: 'chat-1', senderId: 'alice', status: 'open' });
+      const db = testEnv.authenticatedContext('grace').firestore();
+      await assertFails(setDoc(doc(db, 'safetyTally/flag-1'), tally('crisis')));
+    });
+
+    test('a count for a flag that does not exist is refused', async () => {
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertFails(setDoc(doc(db, 'safetyTally/made-up'), tally('crisis')));
+    });
+
+    test('a flag is counted only once', async () => {
+      await seed('flags/flag-1', { type: 'crisis', chatId: 'chat-1', senderId: 'alice', status: 'open' });
+      await seed('safetyTally/flag-1', { kind: 'crisis', createdAt });
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertFails(setDoc(doc(db, 'safetyTally/flag-1'), tally('crisis')));
+    });
+
+    test('a count holds nothing but the kind and the time', async () => {
+      await seed('flags/flag-1', { type: 'contact-sharing', chatId: 'chat-1', senderId: 'alice', status: 'open', blockedText: 'call me' });
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertFails(setDoc(doc(db, 'safetyTally/flag-1'), { ...tally('contact-sharing'), text: 'call me' }));
+      await assertFails(setDoc(doc(db, 'safetyTally/flag-1'), { ...tally('contact-sharing'), chatId: 'chat-1' }));
+      await assertFails(setDoc(doc(db, 'safetyTally/flag-1'), { kind: 'contact-sharing', createdAt: new Date(2020, 0, 1) }));
+    });
+
+    test('the reporter can count their own report, and nobody else can', async () => {
+      await seed('reports/report-1', { chatId: 'chat-1', reporterId: 'alice', reportedId: 'grace', reason: 'Rude', status: 'open' });
+      await assertFails(setDoc(doc(testEnv.authenticatedContext('grace').firestore(), 'safetyTally/report-1'), tally('report')));
+      await assertSucceeds(setDoc(doc(testEnv.authenticatedContext('alice').firestore(), 'safetyTally/report-1'), tally('report')));
+    });
+
+    test('only an admin can read the counts', async () => {
+      await seedPeople();
+      await seed('safetyTally/flag-1', { kind: 'crisis', createdAt });
+      await assertSucceeds(listDocs(col(testEnv.authenticatedContext('ada').firestore(), 'safetyTally')));
+      await assertFails(listDocs(col(testEnv.authenticatedContext('mona').firestore(), 'safetyTally')));
+      await assertFails(listDocs(col(testEnv.authenticatedContext('alice').firestore(), 'safetyTally')));
+    });
+  });
+
+  describe('chatStats: the measured parts of an ended chat, no people or text', () => {
+    test("the user can record their ended chat's topic and moods", async () => {
+      await seedChat();
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertSucceeds(setDoc(doc(db, 'chatStats/chat-1'), stats()));
+    });
+
+    test('the listener cannot record them', async () => {
+      await seedChat();
+      const db = testEnv.authenticatedContext('grace').firestore();
+      await assertFails(setDoc(doc(db, 'chatStats/chat-1'), stats()));
+    });
+
+    test('a chat still going cannot be recorded', async () => {
+      await seedChat('active');
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertFails(setDoc(doc(db, 'chatStats/chat-1'), stats()));
+    });
+
+    test('numbers that do not match the chat are refused', async () => {
+      await seedChat();
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertFails(setDoc(doc(db, 'chatStats/chat-1'), stats({ moodAfter: 5 })));
+      await assertFails(setDoc(doc(db, 'chatStats/chat-1'), stats({ moodBefore: 1 })));
+      await assertFails(setDoc(doc(db, 'chatStats/chat-1'), stats({ topic: 'family' })));
+    });
+
+    test('no person, message or comment can be stored with them', async () => {
+      await seedChat();
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertFails(setDoc(doc(db, 'chatStats/chat-1'), stats({ userId: 'alice' })));
+      await assertFails(setDoc(doc(db, 'chatStats/chat-1'), stats({ ratingComment: 'Thanks' })));
+    });
+
+    test('the answers after the chat can be added when they match the chat', async () => {
+      await seedChat('ended', { rating: 'helpful', useAgain: 'yes' });
+      await seed('chatStats/chat-1', { topic: 'money', moodBefore: 2, moodAfter: 4, recordedAt: createdAt });
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertFails(updateDoc(doc(db, 'chatStats/chat-1'), { rating: 'helpful', useAgain: 'no' }));
+      await assertFails(updateDoc(doc(db, 'chatStats/chat-1'), { moodAfter: 5 }));
+      await assertSucceeds(updateDoc(doc(db, 'chatStats/chat-1'), { rating: 'helpful', useAgain: 'yes' }));
+    });
+
+    test('a skipped answer is recorded as no answer', async () => {
+      await seedChat('ended', { rating: 'helpful' });
+      await seed('chatStats/chat-1', { topic: 'money', moodBefore: 2, moodAfter: 4, recordedAt: createdAt });
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertSucceeds(updateDoc(doc(db, 'chatStats/chat-1'), { rating: 'helpful', useAgain: null }));
+    });
+
+    test('only an admin can read them', async () => {
+      await seedPeople();
+      await seed('chatStats/chat-1', { topic: 'money', moodBefore: 2, moodAfter: 4, recordedAt: createdAt });
+      await assertSucceeds(listDocs(col(testEnv.authenticatedContext('ada').firestore(), 'chatStats')));
+      await assertFails(listDocs(col(testEnv.authenticatedContext('mona').firestore(), 'chatStats')));
+      await assertFails(listDocs(col(testEnv.authenticatedContext('alice').firestore(), 'chatStats')));
+    });
+  });
+});

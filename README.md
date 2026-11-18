@@ -17,7 +17,7 @@ The full requirements and reasoning live in [`docs/Spill_Proposal_and_SRS.pdf`](
 | Tool | What it's for |
 |---|---|
 | Firebase Hosting | Serves the web app; no separate backend server |
-| Cloud Firestore | The database. From the SRS: accounts, moods, chats, messages, flags, reports, resources, audit log. Added since: `listeners` (listener applications and availability), `termLists` and `termSuggestions` (the screening term lists and moderators' suggestions for them), and three marker collections that hold no chat content: `chatFlagged`, `chatCases` and `pendingChats` |
+| Cloud Firestore | The database. From the SRS: accounts, moods, chats, messages, flags, reports, resources, audit log. Added since: `listeners` (listener applications and availability), `termLists` and `termSuggestions` (the screening term lists and moderators' suggestions for them), `chatStats` and `safetyTally` (content-free copies for the admin's anonymised statistics), and three marker collections that hold no chat content: `chatFlagged`, `chatCases` and `pendingChats` |
 | Firebase Authentication | Handles sign-up, sign-in, and password hashing |
 | Firestore Security Rules | Controls who can read/write what, throttles abuse, and screens messages at write time |
 | Firebase Local Emulator Suite | Runs Firestore and Auth locally so tests don't touch the live project |
@@ -247,6 +247,7 @@ These accounts are for the emulators only. The script uses the emulator-only pro
 | Sign up, sign in | `/signup.html`, `/signin.html` | Anyone |
 | Dashboard | `/dashboard.html` | Any signed-in account |
 | Staff home | `/staff.html` | Moderator, admin |
+| Pilot statistics | `/stats.html` | Admin |
 | Talk to a listener | `/request-chat.html` | User |
 | Chat | `/chat.html` (opened from a request or the listener dashboard) | The two people in the chat |
 | Apply as a listener | `/listener-apply.html` | User |

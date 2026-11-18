@@ -8,9 +8,9 @@ This file is written by `npm run test:report` (`scripts/test-report.js`). Run it
 
 | | Count |
 |---|---|
-| Test files | 14 |
-| Tests | 654 |
-| Passed | 654 |
+| Test files | 15 |
+| Tests | 690 |
+| Passed | 690 |
 | Failed | 0 |
 | Skipped | 0 |
 
@@ -20,19 +20,20 @@ This file is written by `npm run test:report` (`scripts/test-report.js`). Run it
 
 | File | What it covers | Tests | Passed |
 |---|---|---|---|
-| `test/rules/firestore.test.js` | Security Rules on the Firestore emulator: who can read and write what | 198 | 198 |
+| `test/rules/firestore.test.js` | Security Rules on the Firestore emulator: who can read and write what | 214 | 214 |
 | `test/rules/lockdown.test.js` | The lock-down rules for a data breach refuse everything but the helplines | 8 | 8 |
 | `test/unit/deploy-checks.test.js` | A deploy goes to the right project, from the right branch, with the model check off for the pilot | 11 | 11 |
 | `test/unit/home-summary.test.js` | The numbers and wording on each home page | 25 | 25 |
 | `test/unit/listener-application.test.js` | The listener application and its checks | 33 | 33 |
 | `test/unit/model-check-settings.test.js` | When the model check may switch on | 22 | 22 |
 | `test/unit/mood-validate.test.js` | Mood check-in validation | 6 | 6 |
-| `test/unit/pages.test.js` | Every page: "Need help now", viewport, no inline styles, home page privacy | 230 | 230 |
+| `test/unit/pages.test.js` | Every page: "Need help now", viewport, no inline styles, home page privacy | 240 | 240 |
 | `test/unit/pseudonym.test.js` | Pseudonym generation | 4 | 4 |
 | `test/unit/screening-report.test.js` | The screening report stays in step with the code | 7 | 7 |
 | `test/unit/screening.test.js` | Message screening, admin terms and the model check answer handling | 87 | 87 |
 | `test/unit/seed-demo-accounts.test.js` | The demo accounts script refuses to run unless both emulators are on this computer | 6 | 6 |
 | `test/unit/staff-links.test.js` | Staff links, and which home page each role lands on | 12 | 12 |
+| `test/unit/stats-summary.test.js` | The anonymised statistics: counting, and hiding groups smaller than 5 | 10 | 10 |
 | `test/unit/test-report.test.js` | This report: finding requirement IDs and listing failures | 5 | 5 |
 
 ## Requirements named in the tests
@@ -52,8 +53,9 @@ Each row counts the tests whose name, or the name of the group they sit in, give
 | FR 6.8 | 2 | 2 | firestore.test.js |
 | FR 6.9 | 2 | 2 | firestore.test.js |
 | FR 7.1 | 58 | 58 | firestore.test.js, screening.test.js |
+| FR 7.3 | 16 | 16 | firestore.test.js |
 | NFR 4 | 1 | 1 | firestore.test.js |
-| NFR 5 | 16 | 16 | pages.test.js |
+| NFR 5 | 17 | 17 | pages.test.js |
 | NFR 11 | 1 | 1 | firestore.test.js |
 | NFR 14 | 20 | 20 | firestore.test.js, lockdown.test.js, pages.test.js |
 | NFR 19 | 2 | 2 | firestore.test.js |
