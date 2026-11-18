@@ -64,6 +64,20 @@ The SRS says a user can delete "their account and personal data", and that mood 
 
 Chats, messages, flags and reports are not removed. The SRS keeps data tied to an open safety case until the case closes; the app does not yet tell open cases from closed ones, so it keeps all of these. They are tied to a pseudonymous ID, not to a name.
 
+## FR 1.1, FR 1.3 and NFR 14: sign-up, consent and the privacy notice
+
+The SRS says registration is refused for a declared age under 16 (FR 1.1), that the privacy notice, the limits of confidentiality and the peer-support notice are shown and accepted before the account is made (FR 1.3), and lists the NFR 14 items needed before any public launch. The app now does this as follows.
+
+- **"Under 16" is one of the age choices.** Choosing it shows a short, kind note pointing to the helplines, and no account is made. Before, the form only offered 16 to 17 and 18 to 25, so a younger person had no honest answer to give.
+- **The privacy notice and terms are a page of their own**, `privacy.html`, linked from sign-up, the landing page and the dashboard. It works with no account. It names Dianah Teta as responsible for the data, with a contact email. The short notice on the sign-up page stays.
+- **Consent is recorded.** Each new account stores `privacyNoticeVersion` (which version of the notice was agreed to) and `consentedAt` (when). The Security Rules refuse an account without them.
+- **The Security Rules check the account itself:** the age band must be 16 to 17 or 18 to 25, the account must start as an active user, and it may hold only the known fields, so nothing like a real name or phone number can be stored (NFR 11). After that, the owner can only change their block list. Before, an owner could change their own age band, which could have got round BR 1.
+- **A breach procedure** (`docs/breach-procedure.md`) and **lock-down rules** (`firestore.lockdown.rules`) cover the 48-hour breach notification (Art. 43).
+
+`docs/legal-privacy-checklist.md` lists every NFR 14 item with its status. Three need a decision outside the app: registration with the NCSA (Art. 29), whether a data protection officer is needed (Art. 40), and storing data in Rwanda (Arts. 48 and 50). The development database is in Google's `africa-south1` region (South Africa), so the last of these is not met, which is why the pilot uses test data and consenting adults only.
+
+**Fields.** `accounts` gains `privacyNoticeVersion` and `consentedAt`.
+
 ## App Check
 
 Firebase App Check is **not set up** in Spill, and the SRS does not mention it. It matters only for the model check: Google requires App Check for the service the model check uses. In the development project, enforcement for that one service has been switched off by hand in the Firebase console so the prototype can run. Google has delayed the requirement until 21 January 2027 at the latest.
@@ -88,4 +102,4 @@ The three markers hold no chat content, only these facts. Two fields were also a
 
 ## Requirements this touches
 
-FR 5.1, FR 5.2, FR 6.2, FR 6.4, FR 6.9, FR 7.1, BR 2, NFR 4, NFR 11, NFR 14, NFR 21.
+FR 1.1, FR 1.3, FR 5.1, FR 5.2, FR 6.2, FR 6.4, FR 6.9, FR 7.1, BR 1, BR 2, NFR 4, NFR 11, NFR 14, NFR 21.

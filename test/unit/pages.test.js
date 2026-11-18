@@ -127,6 +127,39 @@ describe('the home pages', () => {
   });
 });
 
+describe('privacy notice and consent (FR 1.3, NFR 14)', () => {
+  const privacy = read('privacy.html');
+
+  test('the privacy page shows the same version that sign-up records', () => {
+    const recorded = (read('js/auth.js').match(/var PRIVACY_NOTICE_VERSION = '([^']+)';/) || [])[1];
+    expect(recorded).toBeTruthy();
+    expect(privacy).toContain(`<span id="privacy-notice-version">${recorded}</span>`);
+  });
+
+  test('the privacy page works with no account: it loads no Firebase at all (BR 8)', () => {
+    expect(privacy).not.toMatch(/gstatic\.com|firebase/);
+  });
+
+  test('the privacy page names who is responsible and how to reach them', () => {
+    expect(privacy).toContain('Dianah Teta');
+    expect(privacy).toContain('mailto:d.teta@alustudent.com');
+  });
+
+  test('the privacy page covers what NFR 14 and section 2.6 ask for', () => {
+    ['Confidentiality and its limits', 'Where it is stored', 'outside Rwanda', 'within 48 hours', 'Terms of use', 'under 16', 'not therapy'].forEach(
+      (words) => expect(privacy).toContain(words)
+    );
+  });
+
+  test.each(['signup.html', 'index.html', 'dashboard.html'])('%s links to the privacy page', (page) => {
+    expect(read(page)).toContain('href="privacy.html"');
+  });
+
+  test('sign-up offers "Under 16" so a younger person is told, not left to pick 16 to 17', () => {
+    expect(read('signup.html')).toContain('<input type="radio" name="ageBand" value="under-16"');
+  });
+});
+
 describe('the landing page helplines', () => {
   const script = read('js/resources.js');
 

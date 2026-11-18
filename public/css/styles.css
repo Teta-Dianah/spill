@@ -335,7 +335,8 @@ legend {
   margin-top: 0;
 }
 
-form > .option-plain {
+form > .option-plain,
+.form-part > .option-plain {
   margin-top: var(--space-5);
 }
 
@@ -408,8 +409,10 @@ button:disabled {
   cursor: default;
 }
 
-/* The main button of a form fills the width, so it is easy to hit. */
-form > button[type='submit'] {
+/* The main button of a form fills the width, so it is easy to hit. A
+   .form-part is a group of fields the page can hide all at once. */
+form > button[type='submit'],
+.form-part > button[type='submit'] {
   width: 100%;
   min-height: 52px;
   font-size: var(--text-lead);
@@ -794,6 +797,25 @@ ul.plain-list li.resource-note {
 
 .notice-card li + li {
   margin-top: var(--space-2);
+}
+
+.notice-card ul + p {
+  margin-top: var(--space-3);
+}
+
+/* The privacy notice: a long page, so each section gets a real heading
+   that is easy to find while scrolling. */
+.legal-section h2 {
+  margin-bottom: var(--space-3);
+  font-family: var(--font-heading);
+  font-size: var(--text-h2);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* The note shown on sign-up to someone under 16. */
+#under-16-note {
+  margin-top: var(--space-5);
 }
 
 /* The "Safety check" notice: small and plain on purpose, with no warning

@@ -1,0 +1,18 @@
+rules_version = '2';
+
+// Lock-down rules, for a suspected data breach only (docs/breach-procedure.md).
+// Deploying these instead of firestore.rules stops every read and write
+// at once, for everyone, including staff. The one thing left on is the
+// public list of helplines and clinics, so the "Need help now" card and
+// the home page still work during a lock-down (BR 8).
+//
+// They are never deployed by "firebase deploy" on their own: the steps in
+// docs/breach-procedure.md copy them over firestore.rules for one deploy.
+// test/rules/lockdown.test.js checks they refuse everything else.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /resources/{resourceId} {
+      allow read: if true;
+    }
+  }
+}

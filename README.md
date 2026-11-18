@@ -144,6 +144,17 @@ On the third set, which is held-out, the term lists caught 2 of the 15 crisis me
 
 Two more limits to know about: the model's flag is written a few seconds after the message, not in the same write as it, and it is lost if the sender closes the page before the answer arrives. `docs/SRS_change_notes.md` lists where this differs from the SRS.
 
+## Privacy and the law (NFR 14)
+
+Spill follows Rwanda's data protection law, Law No. 058/2021, as far as a prototype can. Spill handles sensitive data (people's mental health), so:
+
+- **Nobody under 16 can join.** Sign-up offers "Under 16", which makes no account and points to the helplines. `firestore.rules` refuses any age band but 16 to 17 and 18 to 25, and an owner can't change their age band afterwards.
+- **The privacy notice and terms** are at `privacy.html`, linked from sign-up, the landing page and the dashboard. Each new account records which version was agreed to and when (`privacyNoticeVersion`, `consentedAt`), and the Rules refuse an account without them. If you change `privacy.html` in a way people should agree to again, change `PRIVACY_NOTICE_VERSION` in `public/js/auth.js` and the version on the page; a test checks they match.
+- **Accounts hold only known fields,** so no real name, phone number or other detail can be stored (NFR 11).
+- **If data may have leaked,** follow [docs/breach-procedure.md](docs/breach-procedure.md): it must be reported to the National Cyber Security Authority within 48 hours. `firestore.lockdown.rules` shuts off every read and write except the public helplines in one deploy.
+
+[docs/legal-privacy-checklist.md](docs/legal-privacy-checklist.md) lists each legal item and its status. Some need decisions outside the app. The main one is that the data is stored outside Rwanda (the development database is in South Africa), which is why Spill is only used with test data and adult volunteers for now.
+
 ## How someone becomes a listener (FR 5.1, FR 5.2)
 
 Users only ever talk to vetted listeners, so becoming one takes more than filling in a form. Every listener must be 21 or older.

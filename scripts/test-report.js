@@ -19,6 +19,7 @@ const REPORT_FILE = path.join(ROOT, 'docs', 'test-report.md');
 // What each test file covers, in plain words.
 const FILE_NOTES = {
   'test/rules/firestore.test.js': 'Security Rules on the Firestore emulator: who can read and write what',
+  'test/rules/lockdown.test.js': 'The lock-down rules for a data breach refuse everything but the helplines',
   'test/unit/screening.test.js': 'Message screening, admin terms and the model check answer handling',
   'test/unit/screening-report.test.js': 'The screening report stays in step with the code',
   'test/unit/test-report.test.js': 'This report: finding requirement IDs and listing failures',
