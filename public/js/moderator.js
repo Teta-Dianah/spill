@@ -160,15 +160,15 @@ function loadChatMessages(chatId, onLoaded) {
 
 // FR 7.3: dismiss, warn, suspend, reinstate or escalate a queue item,
 // always with a reason, always logged (FR 6.9). Suspend and reinstate
-// target the subject of the flag/report itself — the flag's sender, or
-// the person a report names — never anyone else. "Escalate" only marks
+// target the subject of the flag/report itself; the flag's sender, or
+// the person a report names; never anyone else. "Escalate" only marks
 // the item itself for closer review; there's no second queue tier to
 // move it to yet.
 //
 // The item update and the account update (when there is one) both
 // carry the audit entry's own id (auditLogId / lastAuditLogId) and are
 // committed in the same batch as that entry. firestore.rules checks
-// this pairing — an action with no matching audit entry, or an account
+// this pairing: an action with no matching audit entry, or an account
 // update that doesn't trace back to the actual subject of this exact
 // flag/report, is refused.
 function applyModeratorAction(item, action, reason, moderatorUid) {

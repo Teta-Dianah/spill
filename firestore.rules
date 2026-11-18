@@ -8,11 +8,11 @@ rules_version = '2';
 // A note on message screening (FR 6.1-6.3): there are two layers, on
 // purpose. This file has its own small, FIXED set of crisis and
 // contact-sharing patterns, hardcoded below and not editable without a
-// redeploy — that is the real safety backstop, enforced at write time no
+// redeploy: that is the real safety backstop, enforced at write time no
 // matter what any client does. public/js/screening.js has a richer,
 // admin-editable set of term lists (FR 7.1) that the app uses for the
 // actual chat experience (showing the crisis card promptly, warning
-// messages, etc.) — editing those lists changes the app's behaviour, not
+// messages, etc.): editing those lists changes the app's behaviour, not
 // what the database will actually accept. Admin terms are only ever
 // added on top of the built-in lists (see termLists below).
 
@@ -53,7 +53,7 @@ service cloud.firestore {
 
     // Helper: is this person a participant AND is the chat actually
     // accepted? Messages only flow once the listener has accepted the
-    // request (FR 5.5) — not while it's still pending, and not once it's
+    // request (FR 5.5): not while it's still pending, and not once it's
     // ended.
     function isActiveChatParticipant(chatId, uid) {
       let chat = get(/databases/$(database)/documents/chats/$(chatId)).data;
@@ -61,14 +61,14 @@ service cloud.firestore {
     }
 
     // Helper: has a moderator opened a case on this chat? chatCases is
-    // only ever written by a moderator (see that collection below) — this
+    // only ever written by a moderator (see that collection below); this
     // is the one and only path in to chat content for them (BR 3).
     function chatHasCase(chatId) {
       return exists(/databases/$(database)/documents/chatCases/$(chatId));
     }
 
     // Helper: does the flag named on this crisis message actually belong
-    // to it — same chat, same message, same sender — and is it really a
+    // to it (same chat, same message, same sender) and is it really a
     // high-priority crisis flag? Checking the flag merely exists isn't
     // enough: a stale or mismatched flag id would satisfy that and let a
     // crisis message through unflagged in all the ways that matter.
@@ -83,7 +83,7 @@ service cloud.firestore {
 
     // Helper: does this flag/report update carry a matching auditLog
     // entry in the same batch (same actor, same item)? Mirrors
-    // hasMatchingCrisisFlag — a moderator action and its audit trail are
+    // hasMatchingCrisisFlag: a moderator action and its audit trail are
     // written together or not at all (FR 6.9, FR 7.3).
     function hasMatchingAuditEntry(auditLogId, itemType, itemId) {
       let entry = getAfter(/databases/$(database)/documents/auditLog/$(auditLogId)).data;
@@ -206,7 +206,7 @@ service cloud.firestore {
     }
 
     // Fixed, non-editable crisis-language check (FR 6.2). Deliberately
-    // small — this is a backstop, not the primary detector.
+    // small: this is a backstop, not the primary detector.
     function hasCrisisLanguage(text) {
       return text.lower().matches(
         '.*(kill myself|kill me|suicide|suicidal|end my life|want to die|self harm|hurt myself).*'
@@ -222,18 +222,18 @@ service cloud.firestore {
       ) || text.matches('.*[0-9][0-9 -]{6,}[0-9].*');
     }
 
-    // accounts/{uid} — one document per registered user (FR 1, FR 7.4).
+    // accounts/{uid}: one document per registered user (FR 1, FR 7.4).
     // A user creates their own account once and afterwards can only
-    // change their block list — never their role, status or age band
-    // (BR 7 — a suspended account can't just un-suspend itself). An admin can change role and status on any account
+    // change their block list: never their role, status or age band
+    // (BR 7: a suspended account can't just un-suspend itself). An admin can change role and status on any account
     // (approving a listener for moderator duty, for example). A
     // moderator can change status only (FR 6.8), and only as the
     // audited, same-batch resolution of a flag or report that actually
-    // names this account (auditedModerationOf) — never an unrelated
+    // names this account (auditedModerationOf): never an unrelated
     // account, and never an admin or another moderator, so a moderator
     // can't silence oversight of their own work. Admins and moderators
     // can also read any account, since safety work means seeing who
-    // applied or who was flagged — just their pseudonym, never real
+    // applied or who was flagged; just their pseudonym, never real
     // identity, and never chat content (BR 4).
     match /accounts/{uid} {
       allow read: if request.auth != null &&
@@ -278,7 +278,7 @@ service cloud.firestore {
       allow delete: if request.auth != null && request.auth.uid == uid;
     }
 
-    // resources/{resourceId} — helplines, clinics and self-help content
+    // resources/{resourceId}: helplines, clinics and self-help content
     // (FR 2, FR 7.2, BR 8). Anyone can read, even signed out. Only an
     // admin account can add, edit or remove a resource.
     match /resources/{resourceId} {
@@ -286,7 +286,7 @@ service cloud.firestore {
       allow write: if hasRole('admin');
     }
 
-    // termLists/{category} — extra screening terms an admin adds for
+    // termLists/{category}: extra screening terms an admin adds for
     // crisis, abuse or contact-sharing (FR 7.1), as { terms: [...] }.
     // Any signed-in user can read them, since screening runs in each
     // person's own browser while they chat. Only an admin can write,
@@ -308,7 +308,7 @@ service cloud.firestore {
         hasNewTermListAuditEntry(category);
     }
 
-    // termSuggestions/{suggestionId} — a phrase a moderator suggests for
+    // termSuggestions/{suggestionId}: a phrase a moderator suggests for
     // the crisis or abuse term list after reviewing a flagged chat
     // (FR 7.1). It holds only the phrase, its category, an optional
     // note, the moderator's own ID and a time: no message text and no
@@ -354,7 +354,7 @@ service cloud.firestore {
         (request.resource.data.status == 'rejected' || approvedPhraseIsOnList());
     }
 
-    // moods/{moodId} — one document per mood check-in (FR 3). A user can
+    // moods/{moodId}: one document per mood check-in (FR 3). A user can
     // only create and read their own mood entries. An entry can never be
     // changed. Its owner can delete it, which is how deleting an account
     // removes the person's mood history with it (FR 1.5). Nobody else
@@ -367,7 +367,7 @@ service cloud.firestore {
         request.auth.uid == resource.data.uid;
     }
 
-    // listenerApplications/{uid} — what a person answered when they
+    // listenerApplications/{uid}: what a person answered when they
     // applied to be a listener (FR 5.1), plus what an admin recorded
     // while reviewing it (FR 5.2). It is kept apart from listeners/{uid}
     // because that record is readable by every signed-in user, and these
@@ -432,7 +432,7 @@ service cloud.firestore {
         mayRemoveOwnListenerData(uid, get(/databases/$(database)/documents/listeners/$(uid)).data.status);
     }
 
-    // listeners/{uid} — the small record used for matching (FR 5).
+    // listeners/{uid}: the small record used for matching (FR 5).
     // Anyone signed in can read the whole collection: matching a user to
     // a listener happens in the browser (the free plan has no Cloud
     // Functions to do it on a server), so a user's client needs to see
@@ -477,21 +477,21 @@ service cloud.firestore {
         mayRemoveOwnListenerData(uid, resource.data.status);
     }
 
-    // chats/{chatId} — one document per chat session (FR 4, FR 5.5). Only
+    // chats/{chatId}: one document per chat session (FR 4, FR 5.5). Only
     // a user can start a chat (FR 4.4), and only with a listener who is
-    // actually eligible right now (BR 1, BR 7, FR 6.6 — see
+    // actually eligible right now (BR 1, BR 7, FR 6.6; see
     // isEligibleListener), and only alongside a pendingChats claim
-    // naming this exact chat in the same batch (FR 4.1 — see that
+    // naming this exact chat in the same batch (FR 4.1; see that
     // collection below, and hasMatchingCrisisFlag above for the same
     // pairing pattern). pendingChats has no update rule, so a second
-    // chat can never be created while the first claim still stands —
+    // chat can never be created while the first claim still stands;
     // that's what actually stops a user ending up with two pending
     // chats at once, even from a tampered client that skips
-    // request-chat.js entirely. A new chat always starts "pending" —
+    // request-chat.js entirely. A new chat always starts "pending";
     // the listener accepts or declines it (FR 5.5) before any messages
     // can flow. The two participants can always read or change it; a
     // moderator can read it too, but only once a case exists for it
-    // (BR 3) — an admin never can (BR 4).
+    // (BR 3): an admin never can (BR 4).
     match /chats/{chatId} {
       allow create: if request.auth != null &&
         request.resource.data.userId == request.auth.uid &&
@@ -517,7 +517,7 @@ service cloud.firestore {
             request.resource.data.useAgain in ['yes', 'no', 'not-sure']));
     }
 
-    // pendingChats/{uid} — a marker naming the one chat this user
+    // pendingChats/{uid}: a marker naming the one chat this user
     // currently has outstanding (FR 4.1). request-chat.js creates it in
     // the same batch as each chats/{chatId} it creates (first attempt,
     // or a retry after a decline) and deletes it once matched, declined
@@ -525,18 +525,18 @@ service cloud.firestore {
     // given up anyway. There's deliberately no update rule: Firestore
     // treats a second create-style write to an existing document as an
     // update, so a second chat can never get its own claim in here
-    // while the first one's claim still stands — a user can only ever
+    // while the first one's claim still stands; a user can only ever
     // hold one at a time, for exactly one chat.
     match /pendingChats/{uid} {
       allow read, delete: if request.auth != null && request.auth.uid == uid;
       allow create: if request.auth != null && request.auth.uid == uid;
     }
 
-    // messages/{messageId} — one document per chat message (FR 4.3,
+    // messages/{messageId}: one document per chat message (FR 4.3,
     // FR 6.1-6.3). Contact-sharing is always rejected outright. Crisis
     // wording is never blocked, but the write must bring its own
     // matching high-priority flag along in the same batch (same chat,
-    // message and sender — see hasMatchingCrisisFlag). A tampered client
+    // message and sender; see hasMatchingCrisisFlag). A tampered client
     // could try to skip or mismatch the flag, but then the whole write
     // (crisis message included) is refused, not silently delivered
     // unflagged or flagged against the wrong message.
@@ -553,16 +553,16 @@ service cloud.firestore {
           (hasRole('moderator') && chatHasCase(resource.data.chatId)));
     }
 
-    // flags/{flagId} — system-raised safety flags: crisis wording,
+    // flags/{flagId}: system-raised safety flags for crisis wording,
     // blocked contact-sharing attempts, and flagged abusive language
-    // (FR 6.2, FR 6.3, FR 6.4). Written by the sender themselves — a
-    // chat participant — since Security Rules can only allow or deny a
+    // (FR 6.2, FR 6.3, FR 6.4). Written by the sender themselves (a
+    // chat participant), since Security Rules can only allow or deny a
     // write, never create data on their own. Only moderators work the
     // queue (FR 6.7, BR 3); this is safety data, so admins don't read it
     // either, matching BR 4's spirit. A moderator's update (dismiss,
-    // warn, suspend, reinstate, escalate — FR 7.3) must bring its own
+    // warn, suspend, reinstate, escalate; FR 7.3) must bring its own
     // matching auditLog entry in the same batch, same as the crisis
-    // message/flag pairing above — an action with no audit trail is
+    // message/flag pairing above: an action with no audit trail is
     // refused outright, not silently applied unlogged (FR 6.9).
     match /flags/{flagId} {
       allow create: if request.auth != null &&
@@ -575,9 +575,9 @@ service cloud.firestore {
         hasMatchingAuditEntry(request.resource.data.auditLogId, 'flag', flagId);
     }
 
-    // reports/{reportId} — a participant reporting a chat or the other
+    // reports/{reportId}: a participant reporting a chat or the other
     // person, with a reason (FR 6.5). Same visibility as flags. Severity
-    // on creation is fixed at 2 (not crisis-level 3) — a reporter hasn't
+    // on creation is fixed at 2 (not crisis-level 3); a reporter hasn't
     // been through moderation, so they can't self-assign high priority;
     // a moderator reviewing the report can still re-triage it freely
     // once it's in the queue. As with flags, a moderator's update must
@@ -594,7 +594,7 @@ service cloud.firestore {
         hasMatchingAuditEntry(request.resource.data.auditLogId, 'report', reportId);
     }
 
-    // chatFlagged/{chatId} — a marker saying "at least one flag or
+    // chatFlagged/{chatId}: a marker saying "at least one flag or
     // report has been raised for this chat", written by the participant
     // alongside that flag or report. On its own this gives nobody access
     // to anything new; it only exists so chatCases (below) has something
@@ -605,9 +605,9 @@ service cloud.firestore {
       allow read: if hasRole('moderator');
     }
 
-    // chatCases/{chatId} — a moderator deliberately opening a case on a
-    // flagged chat (BR 3). Only a moderator can create this — never a
-    // participant, never an admin — and only once chatFlagged confirms a
+    // chatCases/{chatId}: a moderator deliberately opening a case on a
+    // flagged chat (BR 3). Only a moderator can create this, never a
+    // participant or an admin, and only once chatFlagged confirms a
     // flag or report genuinely exists for that chat, so a moderator
     // can't just open an arbitrary chat with nothing raised against it.
     // This is what chatHasCase() checks, and it is the only path in to
@@ -619,9 +619,9 @@ service cloud.firestore {
       allow read: if hasRole('moderator');
     }
 
-    // auditLog/{entryId} — every moderator/admin action and every case
+    // auditLog/{entryId}: every moderator/admin action and every case
     // opened, logged by the client at the moment it happens (FR 6.9,
-    // NFR 19). Entries can never be edited or removed through the app —
+    // NFR 19). Entries can never be edited or removed through the app;
     // there is no update or delete rule for this collection at all.
     match /auditLog/{entryId} {
       allow create: if request.auth != null &&

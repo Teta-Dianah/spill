@@ -9,8 +9,8 @@ This file is written by `npm run test:report` (`scripts/test-report.js`). Run it
 | | Count |
 |---|---|
 | Test files | 14 |
-| Tests | 563 |
-| Passed | 563 |
+| Tests | 654 |
+| Passed | 654 |
 | Failed | 0 |
 | Skipped | 0 |
 
@@ -27,7 +27,7 @@ This file is written by `npm run test:report` (`scripts/test-report.js`). Run it
 | `test/unit/listener-application.test.js` | The listener application and its checks | 33 | 33 |
 | `test/unit/model-check-settings.test.js` | When the model check may switch on | 22 | 22 |
 | `test/unit/mood-validate.test.js` | Mood check-in validation | 6 | 6 |
-| `test/unit/pages.test.js` | Every page: "Need help now", viewport, no inline styles, home page privacy | 139 | 139 |
+| `test/unit/pages.test.js` | Every page: "Need help now", viewport, no inline styles, home page privacy | 230 | 230 |
 | `test/unit/pseudonym.test.js` | Pseudonym generation | 4 | 4 |
 | `test/unit/screening-report.test.js` | The screening report stays in step with the code | 7 | 7 |
 | `test/unit/screening.test.js` | Message screening, admin terms and the model check answer handling | 87 | 87 |

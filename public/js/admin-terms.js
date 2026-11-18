@@ -1,5 +1,5 @@
 // Lets an admin add, edit and remove extra screening terms (FR 7.1).
-// Firestore Security Rules are the real gatekeeper here — this page just
+// Firestore Security Rules are the real gatekeeper here; this page just
 // gives an admin a form to use. Needs screening.js loaded first (for
 // applyTermChange, planStarterTermImport and DEFAULT_TERM_LISTS).
 //
@@ -264,7 +264,7 @@ function wireAddForm(category, adminUid) {
   });
 }
 
-// Checking the role here is just a friendlier message for non-admins —
+// Checking the role here is just a friendlier message for non-admins;
 // firestore.rules is what actually blocks a non-admin's write either way.
 function checkAdminAndStart() {
   firebase.auth().onAuthStateChanged(function (user) {
