@@ -1,5 +1,5 @@
 // Lets an admin add and remove resources (FR 7.2).
-// Firestore Security Rules are the real gatekeeper here — this page just
+// Firestore Security Rules are the real gatekeeper here; this page just
 // gives an admin a form to use. A non-admin trying this will have their
 // write rejected by firestore.rules.
 
@@ -84,7 +84,7 @@ function addResource(event) {
     });
 }
 
-// Checking the role here is just a friendlier message for non-admins —
+// Checking the role here is just a friendlier message for non-admins;
 // firestore.rules is what actually blocks a non-admin's write either way.
 function checkAdminAndStart() {
   var form = document.getElementById('add-resource-form');

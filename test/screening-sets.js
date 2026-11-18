@@ -6,11 +6,11 @@
 const { screenMessage } = require('../public/js/screening.js');
 
 // Labelled sample messages for NFR 21 (at least 40, precision and recall
-// reported). Each message says what it SHOULD be flagged as — crisis,
-// contact-sharing, abuse — so we can score the screener against real
+// reported). Each message says what it SHOULD be flagged as (crisis,
+// contact-sharing, abuse), so we can score the screener against real
 // expectations, not just check it runs.
 const LABELLED_MESSAGES = [
-  // Crisis — positive cases
+  // Crisis: positive cases
   { text: 'I want to kill myself', crisis: true, contact: false, abuse: false },
   { text: 'sometimes I think about ending my life', crisis: true, contact: false, abuse: false },
   { text: "I don't want to be here anymore, thinking about suicide", crisis: true, contact: false, abuse: false },
@@ -24,12 +24,12 @@ const LABELLED_MESSAGES = [
 
   // Combined: crisis wording and contact-sharing in the same message.
   // chat.js must still catch both at once (see the dedicated describe
-  // block below) — firestore.rules always rejects the contact details,
+  // block below): firestore.rules always rejects the contact details,
   // so the message itself is never delivered, but the crisis flag and
   // card still need to happen.
   { text: 'I want to kill myself, call me at 0788123456', crisis: true, contact: true, abuse: false },
 
-  // Contact-sharing — positive cases
+  // Contact-sharing: positive cases
   { text: 'call me at 0788123456', crisis: false, contact: true, abuse: false },
   { text: 'my email is test@example.com', crisis: false, contact: true, abuse: false },
   { text: 'check out https://example.com', crisis: false, contact: true, abuse: false },
@@ -41,14 +41,14 @@ const LABELLED_MESSAGES = [
   { text: 'message me on snap: userxyz', crisis: false, contact: true, abuse: false },
   { text: "here's my number +250788123456", crisis: false, contact: true, abuse: false },
 
-  // Abuse — positive cases
+  // Abuse: positive cases
   { text: 'you are an idiot', crisis: false, contact: false, abuse: true },
   { text: "that's so stupid", crisis: false, contact: false, abuse: true },
   { text: 'just shut up', crisis: false, contact: false, abuse: true },
   { text: 'I hate you so much', crisis: false, contact: false, abuse: true },
   { text: 'I could kill you', crisis: false, contact: false, abuse: true },
 
-  // Clean — true negatives for every category
+  // Clean: true negatives for every category
   { text: 'Hi, how are you today?', crisis: false, contact: false, abuse: false },
   { text: 'I had a rough exam today', crisis: false, contact: false, abuse: false },
   { text: 'Money stress has been hard lately', crisis: false, contact: false, abuse: false },
@@ -95,12 +95,12 @@ function scoreCategory(messages, expectedKey, predicate) {
 // above. Some are English phrased differently from anything in the term
 // list; some are Kinyarwanda or mixed Kinyarwanda/English. The point is
 // to see how the screener actually generalises, not to tune it until
-// this set passes too — the SRS already documents English-only term
+// this set passes too: the SRS already documents English-only term
 // lists as a known limitation (section 2.5, Design and Implementation
 // Constraints), and this set measures exactly that gap honestly instead
 // of asserting it away.
 const HELD_OUT_MESSAGES = [
-  // Kinyarwanda crisis language — expected to be missed: the crisis term
+  // Kinyarwanda crisis language: expected to be missed: the crisis term
   // list only has English phrases, so there is nothing for these to
   // match against.
   { text: 'Ndashaka kwiyahura', crisis: true, contact: false, abuse: false, note: 'Kinyarwanda: "I want to kill myself"' },
@@ -110,17 +110,17 @@ const HELD_OUT_MESSAGES = [
   { text: 'Nibyiza ko nagiye, sinzongera kubaho', crisis: true, contact: false, abuse: false, note: 'Kinyarwanda: "better that I\'m gone, I won\'t live anymore"' },
 
   // English crisis language, reworded away from anything in the term
-  // list — tests whether phrase-matching generalises within English too.
+  // list: tests whether phrase-matching generalises within English too.
   { text: "I can't go on anymore, everything feels pointless", crisis: true, contact: false, abuse: false },
   { text: "honestly? i don't want to be alive anymore", crisis: true, contact: false, abuse: false },
   { text: 'sometimes I just want to disappear, I think about suicide a lot', crisis: true, contact: false, abuse: false, note: 'contains "suicide" verbatim, so this one should still hit' },
 
-  // Clean Kinyarwanda — checking we don't false-positive just because
+  // Clean Kinyarwanda: checking we don't false-positive just because
   // the text isn't English.
   { text: 'Amakuru ki? Ndumva neza uyu munsi', crisis: false, contact: false, abuse: false, note: 'Kinyarwanda: "what\'s new? I\'m feeling fine today"' },
   { text: "Narushye cyane n'ibizamini", crisis: false, contact: false, abuse: false, note: 'Kinyarwanda: "I\'m very tired from exams"' },
 
-  // Contact-sharing in Kinyarwanda/mixed text — this is pattern-based
+  // Contact-sharing in Kinyarwanda/mixed text: this is pattern-based
   // (phone numbers, platform names), not term-list based, so it should
   // generalise across languages much better than crisis/abuse do.
   { text: 'Mpamagara kuri 0788123456', crisis: false, contact: true, abuse: false, note: 'Kinyarwanda: "call me at 0788123456"' },
@@ -128,7 +128,7 @@ const HELD_OUT_MESSAGES = [
   { text: 'Twaganire kuri telegram', crisis: false, contact: true, abuse: false, note: 'Kinyarwanda: "let\'s talk on telegram"' },
   { text: 'Urashobora kumbwira kuri +250788123456?', crisis: false, contact: true, abuse: false, note: 'mixed Kinyarwanda/English, phone number' },
 
-  // Abuse — Kinyarwanda and reworded English, both expected to miss.
+  // Abuse: Kinyarwanda and reworded English, both expected to miss.
   { text: 'Uri igicucu, ndakwanga', crisis: false, contact: false, abuse: true, note: 'Kinyarwanda insult + "I hate you"' },
   { text: "You're an absolute waste of space, nobody likes you", crisis: false, contact: false, abuse: true, note: 'English, reworded away from the term list' },
 ];

@@ -1,5 +1,5 @@
 // The moderator queue page (FR 7.1). Firestore Security Rules are the
-// real gatekeeper — this page just gives a moderator a list to work
+// real gatekeeper: this page just gives a moderator a list to work
 // from. Needs moderator.js loaded first.
 
 function showQueueMessage(text) {

@@ -4,7 +4,7 @@
 // This is the richer, admin-editable half of screening (FR 7.1 lets an
 // admin add terms without redeploying). firestore.rules has
 // its own smaller, fixed set of the same core patterns, hardcoded and
-// not editable from the admin pages — that is the actual safety
+// not editable from the admin pages; that is the actual safety
 // backstop, enforced at write time no matter what this file does. See
 // the comment at the top of firestore.rules for why the two are split
 // this way.
@@ -66,7 +66,7 @@ function containsAnyTerm(normalisedText, terms) {
 var PHONE_PATTERN = /(\+?\d[\d\s-]{6,}\d)/;
 var EMAIL_PATTERN = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
 var URL_PATTERN = /(https?:\/\/|www\.)\S+/i;
-// Naming the platform at all is enough to flag — being specific about
+// Naming the platform at all is enough to flag; being specific about
 // which handle follows it isn't necessary and was missing real cases
 // like "whatsapp me later".
 var HANDLE_PATTERN = /\b(instagram|insta|whatsapp|snapchat|snap|telegram)\b/i;

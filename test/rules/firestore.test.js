@@ -1,4 +1,4 @@
-// Tests for firestore.rules — these run against the Firestore emulator,
+// Tests for firestore.rules: these run against the Firestore emulator,
 // never against the real Spill database. "npm test" starts the emulator
 // before Jest and stops it afterwards.
 
@@ -632,7 +632,7 @@ describe('chats', () => {
   }
 
   // FR 4.1: a chat can only ever be created alongside a pendingChats
-  // claim naming that exact chat (see pendingChats below) — this is
+  // claim naming that exact chat (see pendingChats below); this is
   // what stops a user ending up with two pending chats at once. Every
   // chat-creation test below needs this claimed first, same as the
   // real client (request-chat.js) always does in the same batch.
@@ -759,7 +759,7 @@ describe('chats', () => {
     );
   });
 
-  // FR 4.1: the requester can cancel their own still-pending request —
+  // FR 4.1: the requester can cancel their own still-pending request;
   // this is how request-chat.js's cancelRequest() takes a chat out of
   // the matched listener's incoming-requests list rather than leaving
   // it there for someone who's no longer waiting.
@@ -813,7 +813,7 @@ describe('chats', () => {
     );
   });
 
-  // FR 3.2, FR 4.6: mood check-in and rating are two distinct steps —
+  // FR 3.2, FR 4.6: mood check-in and rating are two distinct steps;
   // ending the chat with a required moodAfter, then (optionally) a
   // separate rating written afterward. Each write must succeed on its
   // own, and skipping the rating entirely must be fine too.
@@ -837,7 +837,7 @@ describe('chats', () => {
     expect(afterMood.data().moodAfter).toBe(2);
     expect(afterMood.data().rating).toBeUndefined();
 
-    // Step 2: a later, separate write adds the optional rating — never
+    // Step 2: a later, separate write adds the optional rating; never
     // sending this update at all is just as valid, since skipping it
     // must not be blocked.
     await assertSucceeds(
@@ -958,7 +958,7 @@ describe('chats', () => {
     });
 
     // The marker is still there (not released until matched), so a
-    // second chat — even with a different listener — must be refused.
+    // second chat (even with a different listener) must be refused.
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(
       setDoc(doc(db, 'chats/chat-2'), { userId: 'alice', listenerId: 'henry', status: 'pending' })
@@ -967,7 +967,7 @@ describe('chats', () => {
 });
 
 // FR 4.1: at most one pending request per user. There's no update rule
-// here, only create — Firestore treats a second create-style write to
+// here, only create: Firestore treats a second create-style write to
 // an existing document as an update, so a user can never hold more
 // than one of these at once, which is what the chats create rule above
 // relies on.
@@ -1023,9 +1023,9 @@ describe('pendingChats', () => {
 
   // FR 4.1: a user can never be permanently locked out of starting a
   // new request. A stale marker left behind by an abandoned session
-  // (closed tab, browser crash — chatId pointing at a chat nobody's
+  // (closed tab, browser crash: chatId pointing at a chat nobody's
   // watching any more) can always be released by its own owner, and a
-  // fresh claim + chat can always follow — this is what
+  // fresh claim + chat can always follow; this is what
   // clearStalePendingSlot() in request-chat.js relies on.
   test('a user is never locked out: a stale marker can be cleared and a fresh request claimed', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
@@ -1229,8 +1229,8 @@ describe('messages', () => {
 
   // FR 6.2 + FR 6.3 together: a message with both crisis wording and
   // contact details is still never delivered (contact-sharing always
-  // wins), but the client's recovery path — a blocked-attempt flag and
-  // a separate crisis flag, no message — must still succeed, mirroring
+  // wins), but the client's recovery path (a blocked-attempt flag and
+  // a separate crisis flag, no message) must still succeed, mirroring
   // sendBlockedAttempt(..., alsoHasCrisis: true) in chat.js.
   test('combined case: crisis wording plus contact details is refused as a message, but both flags can be saved', async () => {
     await seedChat('chat-1', 'alice', 'grace');
@@ -1255,7 +1255,7 @@ describe('messages', () => {
 });
 
 // Report, block and end chat must all work from the moment a chat goes
-// active — not just after the first message, and not only once the
+// active: not just after the first message, and not only once the
 // chat is about to end (BR 5). None of these three writes depend on
 // any message existing, so a chat with zero messages must behave
 // exactly the same as one with messages already in it.
@@ -1628,7 +1628,7 @@ describe('flags and reports', () => {
       });
     });
 
-    // flag-1's sender is alice, not carol — targeting carol must fail
+    // flag-1's sender is alice, not carol; targeting carol must fail
     // even though the audit entry itself looks otherwise legitimate.
     await assertFails(resolveItem('mod1', 'flag', 'flag-1', 'suspend', 'Wrong target on purpose', 'carol'));
   });

@@ -5,17 +5,17 @@
 // Whether nobody's free right now, or the listener who was found
 // declines, the user sees the exact same wait status (self-help
 // resources are always on this page below the form either way) and the
-// request is retried automatically — neither path is a dead end. The
+// request is retried automatically: neither path is a dead end. The
 // retry gives up after MAX_WAIT_MS of nobody being free, stops
 // scheduling itself the moment the user leaves this page, and
 // firestore.rules refuses a second pending chat while one is already
-// claimed (FR 4.1) — see the pendingChats collection there.
+// claimed (FR 4.1): see the pendingChats collection there.
 //
 // The pendingChats marker is released whenever this search genuinely
 // ends: matched (watchPendingChat's active branch), declined (released
 // and immediately re-claimed for the retry), given up on after
 // MAX_WAIT_MS, cancelled by the user, or found stale on a later page
-// load (clearStalePendingSlot) — a user is never permanently stuck
+// load (clearStalePendingSlot): a user is never permanently stuck
 // holding a slot they can't start a fresh request with.
 
 var RETRY_DELAY_MS = 15000;
@@ -28,7 +28,7 @@ window.addEventListener('beforeunload', function () {
 });
 
 // The chat (if any) currently being watched while waiting for a
-// listener to respond — tracked so cancelRequest() can stop watching
+// listener to respond: tracked so cancelRequest() can stop watching
 // it and mark it cancelled, not just release the marker.
 var currentWatch = null;
 
@@ -85,7 +85,7 @@ function cancelRequest(user) {
 }
 
 // A marker left behind by an abandoned session (closed tab, browser
-// crash) shouldn't block a fresh request forever — once it's old
+// crash) shouldn't block a fresh request forever; once it's old
 // enough that we'd have given up retrying anyway, it no longer counts.
 function clearStalePendingSlot(uid, onDone) {
   pendingChatRef(uid)
@@ -145,7 +145,7 @@ function watchPendingChat(chatId, user, ageBand, topic, moodBefore, declinedList
 }
 
 // FR 4.1: the chat and the pendingChats claim naming it are written in
-// one atomic batch — firestore.rules refuses the chat unless the claim
+// one atomic batch: firestore.rules refuses the chat unless the claim
 // names this exact chat, and refuses a second claim while one already
 // stands, so a user can never end up with two pending chats at once.
 function claimAndCreateChat(user, listenerId, topic, moodBefore) {
@@ -173,11 +173,11 @@ function claimAndCreateChat(user, listenerId, topic, moodBefore) {
 
 // Whether this is the very first attempt or a retry after a decline,
 // "nobody's free right now" gets exactly the same wait status as
-// "someone's been asked and we're waiting for them to accept" — the
+// "someone's been asked and we're waiting for them to accept"; the
 // user has no reason to see a different, more alarming message just
 // because the retry mechanics underneath happen to differ. Either way,
 // this quietly tries again shortly rather than leaving the request
-// stuck (FR 4.1, FR 5.5) — but not forever: searchStartedAt (set once,
+// stuck (FR 4.1, FR 5.5); but not forever: searchStartedAt (set once,
 // on the first call of each new search) caps how long it keeps trying.
 function requestChat(user, ageBand, topic, moodBefore, declinedListenerIds, searchStartedAt) {
   searchStartedAt = searchStartedAt || Date.now();

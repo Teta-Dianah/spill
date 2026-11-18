@@ -9,7 +9,7 @@
 // firestore.rules independently re-checks crisis/contact-sharing with
 // its own small, fixed patterns too, so what this file decides is not
 // the final word on whether a write is accepted. But a flag is only
-// ever created for what this file's own screening actually found — if
+// ever created for what this file's own screening actually found; if
 // a message this file considered clean is refused anyway, that's shown
 // as a plain error, not guessed at and retried as a crisis or blocked
 // attempt. Guessing risks raising a flag (crisis, especially) for a
@@ -46,7 +46,7 @@ function renderMessages(docs, myUid) {
 
   // A message you just sent has no createdAt yet locally (the real
   // server timestamp arrives a moment later), so treat that as "now"
-  // rather than the start of time — otherwise it would briefly jump to
+  // rather than the start of time; otherwise it would briefly jump to
   // the top of the list instead of the bottom.
   messages.sort(function (a, b) {
     var aTime = a.createdAt ? a.createdAt.toMillis() : Date.now();
@@ -56,7 +56,8 @@ function renderMessages(docs, myUid) {
 
   list.innerHTML = '';
   if (messages.length === 0) {
-    list.innerHTML = '<li class="message-note">No messages yet. Say hello.</li>';
+    list.innerHTML = '<li class="message-note" id="no-messages-note"></li>';
+    showNoMessagesNote();
     return;
   }
 
@@ -112,6 +113,25 @@ function loadExtraScreeningTerms() {
     });
 }
 
+// The note shown when a chat has no messages. Its words depend on whether
+// the chat is still open, which may only be known once the chat's status
+// has loaded, so listenForChatStatus calls this again.
+function showNoMessagesNote() {
+  var note = document.getElementById('no-messages-note');
+  if (!note) return;
+  var ended = currentChat && currentChat.status === 'ended';
+  note.textContent = ended ? 'No messages were sent in this chat.' : 'No messages yet. Say hello.';
+}
+
+// The line under the heading: where the chat is up to, and its topic in
+// the same words as the request form, such as "Topic: Money stress".
+function chatStatusText(chat) {
+  var status = 'Chat in progress.';
+  if (chat.status === 'pending') status = 'Waiting for the listener to accept.';
+  if (chat.status === 'ended') status = 'This chat has ended.';
+  return chat.topic ? status + ' Topic: ' + topicWord(chat.topic) + '.' : status;
+}
+
 function listenForChatStatus(chatId) {
   firebase
     .firestore()
@@ -122,16 +142,17 @@ function listenForChatStatus(chatId) {
 
       var chat = docSnap.data();
       currentChat = chat;
-      var topicLabel = chat.topic ? ' — ' + chat.topic : '';
-      var statusText = 'Chat in progress' + topicLabel;
-      if (chat.status === 'pending') statusText = 'Waiting for the listener to accept...' + topicLabel;
-      if (chat.status === 'ended') statusText = 'This chat has ended.' + topicLabel;
-      showChatStatus(statusText);
+      showChatStatus(chatStatusText(chat));
+      showNoMessagesNote();
 
+      // Before the listener accepts, the message box shows but can't be
+      // used. Once the chat has ended it goes away, along with Report
+      // and Block, so only the after-chat questions are left.
       var messageForm = document.getElementById('message-form');
       var safetyActions = document.getElementById('safety-actions');
       var disabled = chat.status !== 'active';
       if (messageForm) {
+        messageForm.hidden = chat.status === 'ended';
         messageForm.messageText.disabled = disabled;
         messageForm.querySelector('button').disabled = disabled;
       }
@@ -148,7 +169,7 @@ function otherParticipant(chat, myUid) {
 
 // FR 6.5: either participant can report the chat with a reason. Writing
 // the chatFlagged marker in the same batch is what lets a moderator
-// later open a case on it (BR 3) — a report on its own doesn't give
+// later open a case on it (BR 3); a report on its own doesn't give
 // anyone new access to anything.
 function sendReport(chatId, user, otherUid, reason) {
   var db = firebase.firestore();
@@ -171,7 +192,7 @@ function sendReport(chatId, user, otherUid, reason) {
 
 // FR 6.6, BR 5: either side can block the other at any time, no reason
 // needed, and isn't matched with them again (see isEligibleListener in
-// firestore.rules). Blocking also ends the current chat — there's no
+// firestore.rules). Blocking also ends the current chat; there's no
 // reason to keep talking to someone you just blocked.
 function blockPerson(chatId, user, otherUid) {
   var accountUpdate = firebase
@@ -187,7 +208,7 @@ function blockPerson(chatId, user, otherUid) {
 
 // FR 4.5: either side can end a chat any time, no reason needed.
 // FR 3.2: only the user (not the listener) records a mood-after, since
-// that describes how the chat felt to them — the chat is already ended
+// that describes how the chat felt to them; the chat is already ended
 // by the time this runs, moodAfter included, so it's never optional or
 // separable from ending the chat the way the rating is (see saveRating).
 function endChat(chatId, updates) {
@@ -207,7 +228,7 @@ function endChat(chatId, updates) {
 }
 
 // FR 4.6: a separate, optional step after the chat has already ended
-// and the mood check-in is already stored — rating can be skipped
+// and the mood check-in is already stored; rating can be skipped
 // without skipping the (required) mood check-in that came before it.
 // useAgain answers the pilot goal "would use Spill again" (SRS section 1):
 // 'yes', 'no' or 'not-sure'. It is only saved if the person answered it,
@@ -224,7 +245,7 @@ function markChatFlagged(batch, chatId) {
 }
 
 // FR 6.1: a plain, unflagged message. This is also the fallback target
-// for the retry below — the happy path for almost every message sent.
+// for the retry below: the happy path for almost every message sent.
 // Resolves to the new message's id.
 function sendPlainMessage(chatId, user, text) {
   return firebase
@@ -242,7 +263,7 @@ function sendPlainMessage(chatId, user, text) {
 }
 
 // FR 6.2: the message is still delivered. The message and its
-// high-priority flag are written in one atomic batch — firestore.rules
+// high-priority flag are written in one atomic batch; firestore.rules
 // refuses a crisis message with no matching flag, so this is the only
 // way a crisis message can be sent at all.
 function sendCrisisMessage(chatId, user, text) {
@@ -277,7 +298,7 @@ function sendCrisisMessage(chatId, user, text) {
 // write, not create data of their own. A listener account sending this
 // is a bigger trust problem than a user doing it, so it's flagged at
 // higher severity. If the blocked text also had crisis wording, a
-// crisis flag is raised too — the sender still gets help even though
+// crisis flag is raised too; the sender still gets help even though
 // the message itself never goes out.
 function sendBlockedAttempt(chatId, user, text, isListener, alsoHasCrisis) {
   var db = firebase.firestore();
@@ -311,7 +332,7 @@ function sendBlockedAttempt(chatId, user, text, isListener, alsoHasCrisis) {
   return batch.commit();
 }
 
-// FR 6.4: abusive language is flagged, but still delivered — the
+// FR 6.4: abusive language is flagged, but still delivered; the
 // recipient can already end the chat at any time if they need to.
 // Resolves to the new message's id.
 function sendAbuseFlaggedMessage(chatId, user, text) {
@@ -433,7 +454,7 @@ function screenAndSendMessage(chatId, user, text, isListener, form) {
     sendBlockedAttempt(chatId, user, text, isListener, screened.hasCrisisLanguage)
       .then(function () {
         form.reset();
-        showChatMessage("That message wasn't sent — don't share phone numbers, emails, links or other ways to contact you here. Everything stays on Spill.");
+        showChatMessage("That message wasn't sent. Don't share phone numbers, emails, links or other ways to contact you here. Everything stays on Spill.");
         if (screened.hasCrisisLanguage) showCrisisCard();
       })
       .catch(function (error) {
@@ -474,7 +495,7 @@ function screenAndSendMessage(chatId, user, text, isListener, form) {
   // Looks clean to this file's screening, so it's sent as a plain
   // message. If the write is refused anyway (firestore.rules has its
   // own independent, fixed crisis/contact-sharing check), that's not
-  // retried as a crisis or blocked-attempt flag — this file's own
+  // retried as a crisis or blocked-attempt flag; this file's own
   // screening didn't find crisis wording here, so raising a crisis flag
   // would be a guess, not a fact. Just show the error.
   sendPlainMessage(chatId, user, text)
@@ -554,7 +575,7 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(function () {
           reportForm.reset();
           reportForm.hidden = true;
-          showChatMessage('Thanks — a moderator will review this.');
+          showChatMessage('Thanks. A moderator will review this.');
         })
         .catch(function (error) {
           showChatMessage('Could not send that report. Please try again.');
@@ -617,7 +638,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       // FR 3.2: the user's side always goes through a required mood
       // check-in first. The rating is a separate, optional step after
-      // that, not part of the same form — it can be skipped on its own
+      // that, not part of the same form; it can be skipped on its own
       // without skipping the mood check-in.
       endChatButton.hidden = true;
       if (moodAfterForm) moodAfterForm.hidden = false;

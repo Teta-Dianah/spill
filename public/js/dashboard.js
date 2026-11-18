@@ -104,7 +104,7 @@ function renderMoodStats(entries) {
   var summary = moodSummary(entries, now);
 
   setStat('stat-month-count', String(summary.countThisMonth));
-  setStat('stat-month-average', summary.averageThisMonth === null ? '–' : String(summary.averageThisMonth));
+  setStat('stat-month-average', summary.averageThisMonth === null ? 'None' : String(summary.averageThisMonth));
   setStat('stat-last-check-in', lastCheckInText(summary.lastCheckIn, now));
 
   var note = document.getElementById('checked-in-today');
