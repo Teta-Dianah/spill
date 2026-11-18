@@ -68,7 +68,7 @@ The SRS sets four pilot goals (section 1, "The hypothesis of the solution"). Whe
 | People who had not looked for support before | At least half of pilot users | `accounts.firstTimeSeekingHelp`, asked once at sign-up (FR 1.6) | Count yes and no over all user accounts. |
 | Feeling a little better after a chat | At least 60% of chats | `chats.moodBefore` and `chats.moodAfter` (FR 3.2) | Over ended chats that have both, count those where the mood after is higher than before. Also test whether the difference is real (the null hypothesis is that it is not). |
 | Screening catches crisis and contact-sharing | At least 90% of each, in a test set | `docs/screening-report.md` | Already measured: met for crisis only with the model check, which the pilot does not use; not met for contact-sharing. Report this as it is. |
-| Would use Spill again | At least 70% | **Not collected yet** | The after-chat question asks "Was this chat helpful?", not whether they would use Spill again. Either add that question before the pilot, or ask it in a short survey at the end. |
+| Would use Spill again | At least 70% | `chats.useAgain`: "Would you use Spill again?" after each chat, answered `yes`, `no` or `not-sure` (optional) | Count each person once, using their last answer. Report yes over everyone who answered, and say how many answered "not sure" or skipped it. |
 
 Getting these numbers needs the data, and the Security Rules let **no one** read every chat in the app, which is on purpose (BR 4). Until the anonymised stats page (#23) exists, the owner exports only these fields from the Firebase console, never message text, and counts them as totals. Never report a number about one person.
 

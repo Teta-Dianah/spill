@@ -78,6 +78,17 @@ The SRS says registration is refused for a declared age under 16 (FR 1.1), that 
 
 **Fields.** `accounts` gains `privacyNoticeVersion` and `consentedAt`.
 
+## FR 4.6: "Would you use Spill again?"
+
+The SRS pilot goal is that at least 70% would use Spill again, "by post-chat survey". The after-chat step asked only "Was this chat helpful?", which can't measure that. It now asks both, and both stay optional:
+
+- "Was this chat helpful?" (unchanged, `rating`);
+- "Would you use Spill again?", answered Yes, No or Not sure, saved on the chat as `useAgain` (`yes`, `no` or `not-sure`).
+
+Only the user in the chat can set `useAgain`, and only to one of those three values; the Security Rules refuse the listener, so the pilot number can't be changed by the other side. The privacy notice lists the new answer, and its version moved to 2026-11-18.
+
+**Fields.** `chats` gains `useAgain`.
+
 ## App Check
 
 Firebase App Check is **not set up** in Spill, and the SRS does not mention it. It matters only for the model check: Google requires App Check for the service the model check uses. In the development project, enforcement for that one service has been switched off by hand in the Firebase console so the prototype can run. Google has delayed the requirement until 21 January 2027 at the latest.
@@ -102,4 +113,4 @@ The three markers hold no chat content, only these facts. Two fields were also a
 
 ## Requirements this touches
 
-FR 1.1, FR 1.3, FR 5.1, FR 5.2, FR 6.2, FR 6.4, FR 6.9, FR 7.1, BR 1, BR 2, NFR 4, NFR 11, NFR 14, NFR 21.
+FR 1.1, FR 1.3, FR 4.6, FR 5.1, FR 5.2, FR 6.2, FR 6.4, FR 6.9, FR 7.1, BR 1, BR 2, NFR 4, NFR 11, NFR 14, NFR 21.

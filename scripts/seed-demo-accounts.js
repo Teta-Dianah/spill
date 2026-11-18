@@ -55,7 +55,7 @@ async function createDemoAccount(auth, db, account) {
     blockedUids: [],
     createdAt: new Date(),
     // The same consent record a real sign-up writes (FR 1.3).
-    privacyNoticeVersion: '2026-11-17',
+    privacyNoticeVersion: '2026-11-18',
     consentedAt: new Date(),
   });
 
