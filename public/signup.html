@@ -24,10 +24,30 @@
         <li>Spill offers peer support, not therapy or an emergency service.</li>
         <li>Chats are confidential, except where there is serious risk of harm — in that case, limited information may be shared with emergency services.</li>
         <li>We never collect your real name, phone number or location.</li>
+        <li>Spill is a student prototype. Its data is stored by Google Firebase, outside Rwanda.</li>
       </ul>
+      <p><a href="privacy.html">Read the full privacy notice and terms</a></p>
     </div>
 
     <form id="signup-form">
+      <fieldset>
+        <legend>Your age</legend>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="ageBand" value="under-16" required><span>Under 16</span></label>
+          <label class="choice"><input type="radio" name="ageBand" value="16-17"><span>16 to 17</span></label>
+          <label class="choice"><input type="radio" name="ageBand" value="18-25"><span>18 to 25</span></label>
+        </div>
+      </fieldset>
+
+      <!-- Shown instead of the rest of the form when "Under 16" is chosen
+           (signup.js). No account is made. -->
+      <div class="card notice-card" id="under-16-note" role="status" hidden>
+        <h2>Spill is for ages 16 to 25</h2>
+        <p>So you can't make an account here. Thank you for being honest about your age.</p>
+        <p>You can still use the helplines and clinics on the <a href="index.html">home page</a> without an account. If you need to talk to someone now, press "Need help now" for free helplines. A parent, teacher or another adult you trust can help too.</p>
+      </div>
+
+      <div id="signup-rest" class="form-part">
       <label for="email">Email</label>
       <input type="email" id="email" name="email" autocomplete="email" required>
       <p class="hint">Only for signing in. Nobody else sees it.</p>
@@ -35,14 +55,6 @@
       <label for="password">Password</label>
       <input type="password" id="password" name="password" minlength="8" autocomplete="new-password" required>
       <p class="hint">At least 8 characters.</p>
-
-      <fieldset>
-        <legend>Your age</legend>
-        <div class="choices">
-          <label class="choice"><input type="radio" name="ageBand" value="16-17" required><span>16 to 17</span></label>
-          <label class="choice"><input type="radio" name="ageBand" value="18-25"><span>18 to 25</span></label>
-        </div>
-      </fieldset>
 
       <fieldset>
         <legend>Is this the first time you've looked for this kind of support?</legend>
@@ -58,11 +70,12 @@
 
       <label class="option option-plain">
         <input type="checkbox" name="consent">
-        I have read the notice above and agree to it.
+        <span>I have read the notice above and the <a href="privacy.html">privacy notice and terms</a>, and I agree to them.</span>
       </label>
 
       <button type="submit">Create account</button>
       <p id="signup-message" class="message"></p>
+      </div>
     </form>
 
     <p class="fine-print">Already have an account? <a href="signin.html">Sign in</a></p>

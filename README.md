@@ -80,7 +80,7 @@ What keeps this safe:
 - **The admin is warned** when a phrase is under 6 characters or a single word. Matching ignores word breaks, so "ass" would also match "classic".
 - **Enforced in `firestore.rules`.** Only a moderator can create a suggestion, under their own ID, and can read only their own. Only an admin can review one, once, and only together with a new `auditLog` entry; an approval must also really put the phrase on the list. The author can't edit a suggestion, nobody can delete one, and users and listeners can't read or write them at all.
 
-`test/unit/screening.test.js` measures `screenMessage()` against four sets (NFR 21):
+`test/unit/screening.test.js` measures `screenMessage()` against four sets (NFR 21), kept in `test/screening-sets.js` and `test/data/`. The full results, including the model check, are in [docs/screening-report.md](docs/screening-report.md).
 
 - A 46-message labelled set, used while writing the built-in term lists and patterns.
 - A held-out set of 16 messages never used while tuning, including Kinyarwanda and mixed Kinyarwanda/English.
@@ -97,7 +97,7 @@ Each set is scored with the built-in lists only ("before") and with the terms in
 | Second set (47), tuned after this change | P n/a → 1.00, R 0.00 → 1.00 | P 1.00 → 1.00, R 0.60 → 0.90 | P 1.00 → 1.00, R 0.44 → 1.00 |
 | Third set (42), held-out | P 1.00 → 0.50, R 0.07 → 0.13 | P 1.00 → 1.00, R 0.63 → 0.63 | P n/a → n/a, R 0.00 → 0.00 |
 
-"n/a" means nothing in that category was flagged, so there is no precision to measure. The third set's misses and false positives are printed in full by `npm test`.
+"n/a" means nothing in that category was flagged, so there is no precision to measure. The third set's misses and false positives are printed in full by `npm test`, and listed in the screening report.
 
 The first-run row is the honest held-out result for the second set. After that run, "kwipfira" and seven English crisis phrases were added ("point in going on", "better off without me", "end it all", "ending it all", "disappear forever", "never wake up", "life has no worth"), and "nzakubona" and "va hano" were removed from the abuse list because they matched everyday messages ("Nzakubona ejo", "Kuva hano"). The tuned row only shows that those changes did what they were meant to. A fresh, unseen set is needed for a new held-out number.
 
@@ -143,6 +143,17 @@ On the third set, which is held-out, the term lists caught 2 of the 15 crisis me
 **If you are testing the demo, use made-up messages only.** Don't type anything real or personal while the model check is on.
 
 Two more limits to know about: the model's flag is written a few seconds after the message, not in the same write as it, and it is lost if the sender closes the page before the answer arrives. `docs/SRS_change_notes.md` lists where this differs from the SRS.
+
+## Privacy and the law (NFR 14)
+
+Spill follows Rwanda's data protection law, Law No. 058/2021, as far as a prototype can. Spill handles sensitive data (people's mental health), so:
+
+- **Nobody under 16 can join.** Sign-up offers "Under 16", which makes no account and points to the helplines. `firestore.rules` refuses any age band but 16 to 17 and 18 to 25, and an owner can't change their age band afterwards.
+- **The privacy notice and terms** are at `privacy.html`, linked from sign-up, the landing page and the dashboard. Each new account records which version was agreed to and when (`privacyNoticeVersion`, `consentedAt`), and the Rules refuse an account without them. If you change `privacy.html` in a way people should agree to again, change `PRIVACY_NOTICE_VERSION` in `public/js/auth.js` and the version on the page; a test checks they match.
+- **Accounts hold only known fields,** so no real name, phone number or other detail can be stored (NFR 11).
+- **If data may have leaked,** follow [docs/breach-procedure.md](docs/breach-procedure.md): it must be reported to the National Cyber Security Authority within 48 hours. `firestore.lockdown.rules` shuts off every read and write except the public helplines in one deploy.
+
+[docs/legal-privacy-checklist.md](docs/legal-privacy-checklist.md) lists each legal item and its status. Some need decisions outside the app. The main one is that the data is stored outside Rwanda (the development database is in South Africa), which is why Spill is only used with test data and adult volunteers for now.
 
 ## How someone becomes a listener (FR 5.1, FR 5.2)
 
@@ -283,6 +294,15 @@ To run only the unit tests, which need no emulator:
 ```bash
 npm run test:unit
 ```
+
+### Reports (NFR 21)
+
+Two reports in `docs/` record what the tests show. Both are written by a script, so no number in them is typed by hand.
+
+- **[docs/test-report.md](docs/test-report.md):** a full run, with every test file, how many passed, and which requirements (FR, NFR, BR) the tests name. Run `npm run test:report` to bring it up to date. It runs every test the same way as `npm test`, so stop `npm run emulators` first.
+- **[docs/screening-report.md](docs/screening-report.md):** precision and recall of message screening on each labelled set, for the built-in lists, with the starter terms, and with the model check, against the SRS goal of catching 90% of crisis and contact-sharing messages. It also lists by language, and every message the held-out set still gets wrong. Run `npm run report:screening` after changing the screening code, the terms or the sets; a unit test fails until you do. It needs no emulator and no network: the model check's answers to the test messages were saved once in `test/data/model-check-answers.json`.
+
+A Security Rules test also checks NFR 4: a moderator watching the open flags live sees a new crisis flag within 1 minute. It prints the time it took.
 
 ## Linting
 

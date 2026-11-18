@@ -6,9 +6,26 @@ function showSignupMessage(text) {
   if (box) box.textContent = text;
 }
 
+// Shown instead of the rest of the form to someone under 16. Kind, and
+// points to help that needs no account.
+function showUnder16Note(show) {
+  var note = document.getElementById('under-16-note');
+  var rest = document.getElementById('signup-rest');
+  if (note) note.hidden = !show;
+  if (rest) rest.hidden = show;
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   var form = document.getElementById('signup-form');
   if (!form) return;
+
+  // FR 1.1: choosing "Under 16" shows a note and hides the rest of the
+  // form straight away, so nobody fills it in for nothing.
+  form.querySelectorAll('input[name="ageBand"]').forEach(function (choice) {
+    choice.addEventListener('change', function () {
+      showUnder16Note(form.ageBand.value === 'under-16');
+    });
+  });
 
   form.addEventListener('submit', function (event) {
     event.preventDefault();
@@ -19,13 +36,21 @@ document.addEventListener('DOMContentLoaded', function () {
     var firstTimeAnswer = form.firstTimeSeekingHelp.value;
     var consentGiven = form.consent.checked;
 
+    // Checked before anything is created, so no sign-in is ever made for
+    // someone under 16. firestore.rules refuses any other age band too.
+    if (!isAllowedAgeBand(ageBand)) {
+      showUnder16Note(ageBand === 'under-16');
+      showSignupMessage(ageBand === 'under-16' ? '' : 'Please choose your age.');
+      return;
+    }
+
     if (!firstTimeAnswer) {
       showSignupMessage('Please answer whether this is your first time seeking support.');
       return;
     }
 
     if (!consentGiven) {
-      showSignupMessage('Please read and accept the notice above before continuing.');
+      showSignupMessage('Please read and accept the privacy notice and terms before continuing.');
       return;
     }
 
