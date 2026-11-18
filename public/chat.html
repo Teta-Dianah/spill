@@ -13,12 +13,15 @@
       <a class="brand" href="dashboard.html">Spill</a>
     </div>
     <h1>Chat</h1>
-    <p id="chat-status"></p>
+    <p id="chat-status" role="status"></p>
     <p class="not-therapy-notice">This is peer support, not therapy or an emergency service.</p>
   </header>
 
   <main>
-    <ul id="message-list" class="plain-list">
+    <!-- Read out by screen readers when the other person sends a message
+         (chat.js, announceNewMessages). Never shown on screen. -->
+    <p id="message-announcer" class="visually-hidden" aria-live="polite"></p>
+    <ul id="message-list" class="plain-list" aria-label="Messages">
       <li class="message-note">Loading...</li>
     </ul>
 
