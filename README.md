@@ -319,21 +319,27 @@ Spill deploys to Firebase Hosting and Cloud Firestore on the free Spark plan. `.
 1. Authentication > Sign-in method: turn on Email/Password.
 2. Firestore Database: create the database.
 3. Authentication > Settings > Authorised domains: check the Hosting domain (`<project-id>.web.app`) is listed.
-4. Project settings > General > Your apps: copy the web app's config values into your local `public/js/firebase-config.js`. The file is gitignored; it is uploaded with the site but never committed.
+4. Project settings > General > Your apps: copy the web app's config values into `config/firebase-config.<target>.js` on your computer, where `<target>` is `dev` or `pilot`. Start from `public/js/firebase-config.example.js`. The `config/` folder is gitignored: these files are uploaded with the site but never committed. Keep `modelCheckEnabled = false` in the pilot one.
 
-**Deploy**
+**Deploy (NFR 22)**
 
 ```bash
 npx firebase login
-npx firebase use dev
-npm test
-npm run lint
-npx firebase deploy --only hosting,firestore
+npm run deploy:dev      # the development project, from any clean branch
+npm run deploy:pilot    # the pilot project, from a clean main only
 ```
 
-`--only hosting,firestore` uploads the `public/` folder, `firestore.rules` and the indexes in `firestore.indexes.json`. To deploy one part only, use `--only hosting`, `--only firestore:rules` or `--only firestore:indexes`.
+`scripts/deploy.js` does the whole deploy, and stops at the first problem:
 
-Check which project `public/js/firebase-config.js` points at before every deploy: the site talks to whichever project that file names, not the one chosen with `firebase use`.
+1. It refuses if the config file is for a different project than the target, still has `REPLACE_ME` values, or has the model check on for the pilot. It also refuses if anything is uncommitted, or if the pilot deploy isn't from `main`.
+2. It runs `npm test` and `npm run lint`.
+3. It uploads the site with that target's config, **then** the Security Rules and indexes. The site goes first because new rules can expect what a new page sends: the rules refuse an account without the consent record that the new sign-up page adds.
+4. It puts your own `public/js/firebase-config.js` back as it was. That file stays yours for local work (the emulator template, or a project you are trying out).
+5. It runs `npm run smoke:<target>`, which only reads the live site. It checks that every page loads with "Need help now", that the site talks to the right project, that the model check is off on the pilot, that the live files match this folder, and that scripts are served with no-cache.
+
+`npm run smoke:dev` and `npm run smoke:pilot` can be run on their own at any time.
+
+Before the pilot starts, work through [docs/pilot-runbook.md](docs/pilot-runbook.md). [docs/demo-script.md](docs/demo-script.md) is a walk-through for demonstrating Spill on the emulators.
 
 **After the first deploy**
 
@@ -353,10 +359,10 @@ By hand in the Firebase console, in the development project:
 
 Then on your computer:
 
-4. In your local `public/js/firebase-config.js` (the one holding the development project's values), set `var modelCheckEnabled = true;`. Leave the template, `firebase-config.example.js`, as `false`.
-5. Deploy Hosting again: `npx firebase deploy --only hosting`.
+4. In `config/firebase-config.dev.js`, set `var modelCheckEnabled = true;`. Leave the template, `firebase-config.example.js`, as `false`. The pilot one must stay `false`: `npm run deploy:pilot` refuses otherwise.
+5. Deploy again: `npm run deploy:dev`.
 
-To check it worked, sign in on the deployed site and open "Talk to a listener": the small "Safety check" notice appears. To turn the model check off again, set `modelCheckEnabled` back to `false` and deploy Hosting again. Nothing else changes: screening carries on with the term lists and `firestore.rules`.
+To check it worked, sign in on the deployed site and open "Talk to a listener": the small "Safety check" notice appears. To turn the model check off again, set `modelCheckEnabled` back to `false` in `config/firebase-config.dev.js` and run `npm run deploy:dev` again. Nothing else changes: screening carries on with the term lists and `firestore.rules`.
 
 `firebase.json` sets `Cache-Control: no-cache` on every `.js` and `.css` file, so a deploy that fixes a safety bug (screening, chat) takes effect immediately for everyone instead of waiting out a browser's cached copy. This only applies on a real deploy — the local Hosting emulator doesn't implement custom headers, so you won't see it in `curl` or dev tools while running `npm run emulators`.
 
