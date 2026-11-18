@@ -23,6 +23,7 @@ describe('staffLinksFor', () => {
       'admin-listeners.html',
       'admin-terms.html',
       'admin-resources.html',
+      'stats.html',
     ]);
   });
 

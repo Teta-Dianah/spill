@@ -167,6 +167,62 @@ function otherParticipant(chat, myUid) {
   return chat.userId === myUid ? chat.listenerId : chat.userId;
 }
 
+// ---- Anonymised statistics (FR 7.3)
+//
+// The admin's stats page counts flags and chats without reading either.
+// So, after a flag, report or ended chat is safely saved, a small copy
+// with no names, IDs or text is written for it. These copies are written
+// AFTER the real write and never wait on it: if one fails, the message,
+// flag or chat is already saved, and only a count is missed. That way a
+// statistic can never get in the way of a safety action.
+
+// One count for each flag or report: only its kind and when. The copy
+// uses the same document ID, so firestore.rules can check it matches a
+// real flag or report by this sender, and it can only be counted once.
+function recordSafetyTally(id, kind) {
+  firebase
+    .firestore()
+    .collection('safetyTally')
+    .doc(id)
+    .set({ kind: kind, createdAt: firebase.firestore.FieldValue.serverTimestamp() })
+    .catch(function (error) {
+      console.error('Could not record a safety count', error);
+    });
+}
+
+// The parts of an ended chat the pilot measures: its topic and the moods
+// before and after (FR 3.2). No user, listener or message. firestore.rules
+// checks every value matches the chat. Resolves either way.
+function recordChatStats(chatId, chat, moodAfter) {
+  return firebase
+    .firestore()
+    .collection('chatStats')
+    .doc(chatId)
+    .set({
+      topic: chat.topic,
+      moodBefore: chat.moodBefore,
+      moodAfter: moodAfter,
+      recordedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    })
+    .catch(function (error) {
+      console.error('Could not record chat statistics', error);
+    });
+}
+
+// Adds the answers to "Was this chat helpful?" and "Would you use Spill
+// again?" to the chat's statistics, once they are saved on the chat.
+// Resolves either way.
+function recordChatAnswers(chatId, rating, useAgain) {
+  return firebase
+    .firestore()
+    .collection('chatStats')
+    .doc(chatId)
+    .update({ rating: rating || null, useAgain: useAgain || null })
+    .catch(function (error) {
+      console.error('Could not record chat answers', error);
+    });
+}
+
 // FR 6.5: either participant can report the chat with a reason. Writing
 // the chatFlagged marker in the same batch is what lets a moderator
 // later open a case on it (BR 3); a report on its own doesn't give
@@ -187,7 +243,9 @@ function sendReport(chatId, user, otherUid, reason) {
   });
   markChatFlagged(batch, chatId);
 
-  return batch.commit();
+  return batch.commit().then(function () {
+    recordSafetyTally(reportRef.id, 'report');
+  });
 }
 
 // FR 6.6, BR 5: either side can block the other at any time, no reason
@@ -290,7 +348,9 @@ function sendCrisisMessage(chatId, user, text) {
   });
   markChatFlagged(batch, chatId);
 
-  return batch.commit();
+  return batch.commit().then(function () {
+    recordSafetyTally(flagRef.id, 'crisis');
+  });
 }
 
 // FR 6.3: contact-sharing is never delivered. A separate "blocked
@@ -315,8 +375,9 @@ function sendBlockedAttempt(chatId, user, text, isListener, alsoHasCrisis) {
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
 
+  var crisisFlagRef = null;
   if (alsoHasCrisis) {
-    var crisisFlagRef = db.collection('flags').doc();
+    crisisFlagRef = db.collection('flags').doc();
     batch.set(crisisFlagRef, {
       type: 'crisis',
       chatId: chatId,
@@ -329,7 +390,10 @@ function sendBlockedAttempt(chatId, user, text, isListener, alsoHasCrisis) {
 
   markChatFlagged(batch, chatId);
 
-  return batch.commit();
+  return batch.commit().then(function () {
+    recordSafetyTally(contactFlagRef.id, 'contact-sharing');
+    if (crisisFlagRef) recordSafetyTally(crisisFlagRef.id, 'crisis');
+  });
 }
 
 // FR 6.4: abusive language is flagged, but still delivered; the
@@ -359,6 +423,7 @@ function sendAbuseFlaggedMessage(chatId, user, text) {
   markChatFlagged(batch, chatId);
 
   return batch.commit().then(function () {
+    recordSafetyTally(flagRef.id, 'abusive-language');
     return messageRef.id;
   });
 }
@@ -399,9 +464,11 @@ function askModel(text) {
 function sendModelFlag(chatId, user, messageId, finding) {
   var db = firebase.firestore();
   var batch = db.batch();
+  var flagRef = db.collection('flags').doc();
+  var kind = finding === 'crisis' ? 'crisis' : 'abusive-language';
 
-  batch.set(db.collection('flags').doc(), {
-    type: finding === 'crisis' ? 'crisis' : 'abusive-language',
+  batch.set(flagRef, {
+    type: kind,
     chatId: chatId,
     senderId: user.uid,
     messageId: messageId,
@@ -411,7 +478,9 @@ function sendModelFlag(chatId, user, messageId, finding) {
   });
   markChatFlagged(batch, chatId);
 
-  return batch.commit();
+  return batch.commit().then(function () {
+    recordSafetyTally(flagRef.id, kind);
+  });
 }
 
 // Runs after a message has been sent. The model check never holds a
@@ -650,8 +719,14 @@ document.addEventListener('DOMContentLoaded', function () {
       event.preventDefault();
 
       var moodAfter = parseInt(moodAfterForm.moodAfter.value, 10);
+      var chatBefore = currentChat;
 
       endChat(chatId, { moodAfter: moodAfter })
+        .then(function () {
+          // The chat is ended and saved; now its statistics. Waiting here
+          // means the answers below can add to them. It never fails.
+          return recordChatStats(chatId, chatBefore, moodAfter);
+        })
         .then(function () {
           moodAfterForm.hidden = true;
           if (ratingForm) ratingForm.hidden = false;
@@ -674,6 +749,10 @@ document.addEventListener('DOMContentLoaded', function () {
       var useAgain = useAgainInput ? useAgainInput.value : null;
 
       saveRating(chatId, rating, ratingComment, useAgain)
+        .then(function () {
+          // The comment is never copied: it is free text.
+          return recordChatAnswers(chatId, rating, useAgain);
+        })
         .then(function () {
           window.location.href = 'dashboard.html';
         })

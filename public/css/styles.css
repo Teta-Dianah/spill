@@ -942,7 +942,7 @@ ul.plain-list li.resource-note {
   margin-bottom: var(--space-5);
 }
 
-a.stat {
+.stat {
   flex: 1 1 128px;
   display: flex;
   flex-direction: column;
@@ -984,11 +984,11 @@ a.stat:hover {
 
 /* Something that needs doing now. The label still says what it is, so
    this never depends on colour alone. */
-a.stat.stat-attention {
+.stat.stat-attention {
   background: var(--color-accent);
 }
 
-a.stat.stat-attention .stat-label {
+.stat.stat-attention .stat-label {
   color: var(--color-ink);
 }
 
