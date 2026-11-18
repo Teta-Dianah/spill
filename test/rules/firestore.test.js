@@ -21,6 +21,7 @@ const {
   where,
   onSnapshot,
   serverTimestamp,
+  deleteField,
 } = require('firebase/firestore');
 
 let testEnv;
@@ -53,7 +54,7 @@ describe('accounts', () => {
       status: 'active',
       blockedUids: [],
       createdAt: serverTimestamp(),
-      privacyNoticeVersion: '2026-11-17',
+      privacyNoticeVersion: '2026-11-18',
       consentedAt: serverTimestamp(),
       ...overrides,
     };
@@ -842,6 +843,53 @@ describe('chats', () => {
     await assertSucceeds(
       updateDoc(doc(db, 'chats/chat-1'), { rating: 'helpful', ratingComment: 'Thanks' })
     );
+  });
+
+  // The pilot goal "would use Spill again" (SRS section 1) is read from
+  // useAgain, so only the user can answer it.
+  async function seedEndedChat() {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'chats/chat-1'), {
+        userId: 'alice', listenerId: 'grace', status: 'ended', moodAfter: 4, createdAt: { seconds: 1, nanoseconds: 0 },
+      });
+    });
+  }
+
+  test.each([['yes'], ['no'], ['not-sure']])('the user can answer "Would you use Spill again?" with %s', async (answer) => {
+    await seedEndedChat();
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      updateDoc(doc(db, 'chats/chat-1'), { rating: 'helpful', ratingComment: '', useAgain: answer })
+    );
+  });
+
+  test('the listener cannot answer "Would you use Spill again?" for the user', async () => {
+    await seedEndedChat();
+    const db = testEnv.authenticatedContext('grace').firestore();
+    await assertFails(updateDoc(doc(db, 'chats/chat-1'), { useAgain: 'yes' }));
+  });
+
+  test('the listener cannot change or remove the user\'s answer', async () => {
+    await seedEndedChat();
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await updateDoc(doc(context.firestore(), 'chats/chat-1'), { useAgain: 'no' });
+    });
+    const db = testEnv.authenticatedContext('grace').firestore();
+    await assertFails(updateDoc(doc(db, 'chats/chat-1'), { useAgain: 'yes' }));
+    await assertFails(updateDoc(doc(db, 'chats/chat-1'), { useAgain: deleteField() }));
+  });
+
+  test('only the three answers the page offers are accepted', async () => {
+    await seedEndedChat();
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(updateDoc(doc(db, 'chats/chat-1'), { useAgain: 'definitely' }));
+    await assertFails(updateDoc(doc(db, 'chats/chat-1'), { useAgain: true }));
+  });
+
+  test('the listener can still end a chat without touching the answer', async () => {
+    await seedEndedChat();
+    const db = testEnv.authenticatedContext('grace').firestore();
+    await assertSucceeds(updateDoc(doc(db, 'chats/chat-1'), { status: 'ended' }));
   });
 
   test('a suspended user cannot request a chat (BR 7)', async () => {

@@ -69,10 +69,19 @@
     </form>
 
     <form id="rating-form" class="card" hidden>
-      <h2>Was this chat helpful?</h2>
-      <p>This step is optional. Skip it if you'd rather not say.</p>
-      <label class="option"><input type="radio" name="rating" value="helpful"> Helpful</label>
-      <label class="option"><input type="radio" name="rating" value="not-helpful"> Not helpful</label>
+      <h2>Two quick questions</h2>
+      <p>Both are optional. Skip them if you'd rather not say.</p>
+      <fieldset>
+        <legend>Was this chat helpful?</legend>
+        <label class="option"><input type="radio" name="rating" value="helpful"> Helpful</label>
+        <label class="option"><input type="radio" name="rating" value="not-helpful"> Not helpful</label>
+      </fieldset>
+      <fieldset>
+        <legend>Would you use Spill again?</legend>
+        <label class="option"><input type="radio" name="useAgain" value="yes"> Yes</label>
+        <label class="option"><input type="radio" name="useAgain" value="no"> No</label>
+        <label class="option"><input type="radio" name="useAgain" value="not-sure"> Not sure</label>
+      </fieldset>
 
       <label for="ratingComment">Anything else? (optional)</label>
       <textarea id="ratingComment" name="ratingComment" rows="3" maxlength="280"></textarea>

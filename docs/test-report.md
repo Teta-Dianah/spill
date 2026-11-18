@@ -1,6 +1,6 @@
 # Test report
 
-A full run of Spill's automated tests on 2026-11-17: the unit tests and the Security Rules tests on the Firestore emulator (NFR 21). The same tests run on GitHub Actions on every push.
+A full run of Spill's automated tests on 2026-11-18: the unit tests and the Security Rules tests on the Firestore emulator (NFR 21). The same tests run on GitHub Actions on every push.
 
 This file is written by `npm run test:report` (`scripts/test-report.js`). Run it again to bring it up to date.
 
@@ -8,9 +8,9 @@ This file is written by `npm run test:report` (`scripts/test-report.js`). Run it
 
 | | Count |
 |---|---|
-| Test files | 13 |
-| Tests | 544 |
-| Passed | 544 |
+| Test files | 14 |
+| Tests | 563 |
+| Passed | 563 |
 | Failed | 0 |
 | Skipped | 0 |
 
@@ -20,13 +20,14 @@ This file is written by `npm run test:report` (`scripts/test-report.js`). Run it
 
 | File | What it covers | Tests | Passed |
 |---|---|---|---|
-| `test/rules/firestore.test.js` | Security Rules on the Firestore emulator: who can read and write what | 191 | 191 |
+| `test/rules/firestore.test.js` | Security Rules on the Firestore emulator: who can read and write what | 198 | 198 |
 | `test/rules/lockdown.test.js` | The lock-down rules for a data breach refuse everything but the helplines | 8 | 8 |
+| `test/unit/deploy-checks.test.js` | A deploy goes to the right project, from the right branch, with the model check off for the pilot | 11 | 11 |
 | `test/unit/home-summary.test.js` | The numbers and wording on each home page | 25 | 25 |
 | `test/unit/listener-application.test.js` | The listener application and its checks | 33 | 33 |
 | `test/unit/model-check-settings.test.js` | When the model check may switch on | 22 | 22 |
 | `test/unit/mood-validate.test.js` | Mood check-in validation | 6 | 6 |
-| `test/unit/pages.test.js` | Every page: "Need help now", viewport, no inline styles, home page privacy | 138 | 138 |
+| `test/unit/pages.test.js` | Every page: "Need help now", viewport, no inline styles, home page privacy | 139 | 139 |
 | `test/unit/pseudonym.test.js` | Pseudonym generation | 4 | 4 |
 | `test/unit/screening-report.test.js` | The screening report stays in step with the code | 7 | 7 |
 | `test/unit/screening.test.js` | Message screening, admin terms and the model check answer handling | 87 | 87 |
@@ -57,6 +58,7 @@ Each row counts the tests whose name, or the name of the group they sit in, give
 | NFR 14 | 20 | 20 | firestore.test.js, lockdown.test.js, pages.test.js |
 | NFR 19 | 2 | 2 | firestore.test.js |
 | NFR 21 | 17 | 17 | screening-report.test.js, screening.test.js |
+| NFR 22 | 8 | 8 | deploy-checks.test.js |
 | BR 1 | 3 | 3 | firestore.test.js |
 | BR 3 | 13 | 13 | firestore.test.js, pages.test.js |
 | BR 4 | 5 | 5 | firestore.test.js |

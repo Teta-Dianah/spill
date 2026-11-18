@@ -5,7 +5,7 @@
 // account agrees to (FR 1.3, NFR 14). Change it whenever privacy.html
 // changes in a way people should agree to again. A page test checks that
 // privacy.html shows this same version.
-var PRIVACY_NOTICE_VERSION = '2026-11-17';
+var PRIVACY_NOTICE_VERSION = '2026-11-18';
 
 function createAccountDocument(uid, ageBand, firstTimeSeekingHelp) {
   var pseudonym = generatePseudonym();

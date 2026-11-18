@@ -72,6 +72,7 @@ module.exports = [
       // Config data, not logic — nothing in here to lint.
       'public/js/firebase-config.js',
       'public/js/firebase-config.example.js',
+      'config/**',
     ],
   },
 ];

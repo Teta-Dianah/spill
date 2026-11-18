@@ -12,7 +12,11 @@
     "seed:accounts": "node scripts/seed-demo-accounts.js",
     "emulators": "firebase emulators:start --project demo-spill-dev",
     "report:screening": "node scripts/screening-report.js",
-    "test:report": "node scripts/test-report.js"
+    "test:report": "node scripts/test-report.js",
+    "deploy:dev": "node scripts/deploy.js dev",
+    "deploy:pilot": "node scripts/deploy.js pilot",
+    "smoke:dev": "node scripts/smoke-check.js dev",
+    "smoke:pilot": "node scripts/smoke-check.js pilot"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

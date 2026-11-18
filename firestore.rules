@@ -504,11 +504,17 @@ service cloud.firestore {
           resource.data.listenerId == request.auth.uid ||
           (hasRole('moderator') && chatHasCase(chatId)));
 
+      // "Would you use Spill again?" (useAgain) measures a pilot goal, so
+      // only the user in the chat can answer it, and only with one of the
+      // three answers the page offers. The listener can't set or change it.
       allow update: if request.auth != null &&
         (resource.data.userId == request.auth.uid || resource.data.listenerId == request.auth.uid) &&
         request.resource.data.userId == resource.data.userId &&
         request.resource.data.listenerId == resource.data.listenerId &&
-        request.resource.data.createdAt == resource.data.createdAt;
+        request.resource.data.createdAt == resource.data.createdAt &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['useAgain']) ||
+          (resource.data.userId == request.auth.uid &&
+            request.resource.data.useAgain in ['yes', 'no', 'not-sure']));
     }
 
     // pendingChats/{uid} — a marker naming the one chat this user

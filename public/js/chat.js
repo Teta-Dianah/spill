@@ -209,12 +209,13 @@ function endChat(chatId, updates) {
 // FR 4.6: a separate, optional step after the chat has already ended
 // and the mood check-in is already stored — rating can be skipped
 // without skipping the (required) mood check-in that came before it.
-function saveRating(chatId, rating, ratingComment) {
-  return firebase
-    .firestore()
-    .collection('chats')
-    .doc(chatId)
-    .update({ rating: rating, ratingComment: ratingComment });
+// useAgain answers the pilot goal "would use Spill again" (SRS section 1):
+// 'yes', 'no' or 'not-sure'. It is only saved if the person answered it,
+// and firestore.rules lets only the user in the chat set it.
+function saveRating(chatId, rating, ratingComment, useAgain) {
+  var answers = { rating: rating, ratingComment: ratingComment };
+  if (useAgain) answers.useAgain = useAgain;
+  return firebase.firestore().collection('chats').doc(chatId).update(answers);
 }
 
 function markChatFlagged(batch, chatId) {
@@ -648,8 +649,10 @@ document.addEventListener('DOMContentLoaded', function () {
       var ratingInput = ratingForm.querySelector('input[name="rating"]:checked');
       var rating = ratingInput ? ratingInput.value : null;
       var ratingComment = ratingForm.ratingComment.value.trim();
+      var useAgainInput = ratingForm.querySelector('input[name="useAgain"]:checked');
+      var useAgain = useAgainInput ? useAgainInput.value : null;
 
-      saveRating(chatId, rating, ratingComment)
+      saveRating(chatId, rating, ratingComment, useAgain)
         .then(function () {
           window.location.href = 'dashboard.html';
         })

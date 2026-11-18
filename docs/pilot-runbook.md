@@ -1,0 +1,80 @@
+# Pilot runbook
+
+How to get Spill's pilot ready, run it and close it. The SRS plans a small pilot after Sprint 4: about **30 users and 5 trained listeners**, adults (18 or over) who agree to take part, in the pilot project `spill-pilot`, kept apart from development (NFR 22).
+
+Each step says who does it. "Owner" is the person responsible for Spill's data (Dianah Teta).
+
+## 1. Before the pilot
+
+### Decisions that must come first
+
+These are in [legal-privacy-checklist.md](legal-privacy-checklist.md). The pilot does not start until each one has an answer.
+
+- [ ] Owner, with supervisor: does the pilot need NCSA registration (Art. 29)?
+- [ ] Owner, with supervisor: confirm no data protection officer is needed for about 30 people (Art. 40).
+- [ ] Owner, with supervisor: the data is stored outside Rwanda (the pilot database is in South Africa). Confirm the pilot may go ahead with adult volunteers who agree to this, as the SRS plans.
+- [ ] Owner: ethics approval from the university for the pilot, if it is required, and the consent form volunteers sign.
+- [ ] Owner: only adults (18 or over) are invited. 16 and 17 year olds wait until an adviser has confirmed the consent rules (SRS 2.7).
+
+### The pilot project, once (Firebase console, `spill-pilot`)
+
+Already done: the project, its Firestore database (`africa-south1`), its web app and its Hosting site.
+
+- [ ] Owner: Authentication > Sign-in method: turn on **Email/Password**.
+- [ ] Owner: Authentication > Settings > Authorised domains: check `spill-pilot.web.app` is listed.
+- [ ] Owner: Authentication > Settings > Password policy, if the console offers it: require at least 8 characters, to match NFR 6. The sign-up form already asks for 8, but only the console setting enforces it.
+- [ ] Owner: make sure the Google account that owns the project uses two-step verification. Anyone with it can read every chat.
+- [ ] Owner: **do not** set up AI Logic in this project. The model check is a demo prototype, and `npm run deploy:pilot` refuses to deploy with it on.
+
+### Deploy (developer)
+
+From a clean, up-to-date `main`:
+
+```bash
+git checkout main
+git pull
+npm run deploy:pilot
+```
+
+It checks that `config/firebase-config.pilot.js` is for `spill-pilot` and has the model check off, runs every test and the linter, deploys the site and then the rules, and finishes with `npm run smoke:pilot`, which reads the live site to check it. See "Deployment" in the README.
+
+### People and content (in the deployed app)
+
+- [ ] **Admin and moderators.** Each signs up on `spill-pilot.web.app` with their own email and a strong password that is not used anywhere else. The owner then sets `role` to `admin` or `moderator` in Firestore > `accounts`. At least two moderators, so flags are reviewed within 24 hours (NFR 4) even when one is away.
+- [ ] **Listeners (target 5).** Each applies on `listener-apply.html`. The admin does the four in-person checks (identity, two references, police clearance, interview), ticks them on `admin-listeners.html` and approves. Each listener then finishes `listener-training.html`. Every listener is 21 or older; only clear a listener for 16 and 17 year olds if they will be in a later pilot.
+- [ ] **Helplines and clinics.** Admin: call each one to check it still works, then add it on `admin-resources.html` with today's date as "last verified". Recheck the three helplines built into the crisis card (`public/js/crisis-card.js`) the same way.
+- [ ] **Screening terms.** Admin: on `admin-terms.html`, press "Import starter terms".
+- [ ] **Walk through it once.** With two test accounts, a user signs up, checks in and asks for a chat; a listener accepts; the user sends a crisis test message ("I want to kill myself"); the crisis card appears; the flag reaches the moderator queue; the moderator opens the case and resolves it with a reason. Then delete both test accounts.
+- [ ] **Breach procedure.** Read [breach-procedure.md](breach-procedure.md), and try the lock-down on the emulators once.
+
+## 2. During the pilot
+
+| How often | Who | What |
+|---|---|---|
+| Every day | Moderators | Clear the queue. Crisis flags first; every flag reviewed within 24 hours (NFR 4). |
+| Every day | Admin | Check for new listener applications and suggested terms (the staff home shows both). |
+| Twice a week | Owner | Firebase console > Usage: check reads and writes are well inside the free Spark plan's daily limits. About 30 people should use a small part of them. |
+| Twice a week | Owner | Check that at least one trained listener is usually available. A request with nobody free gives up after 10 minutes. |
+| When needed | Owner | A suspected data breach: follow [breach-procedure.md](breach-procedure.md) at once. |
+
+A safety fix can be deployed during the pilot with `npm run deploy:pilot` from `main`. Scripts are served with no-cache, so it reaches everyone at once.
+
+## 3. Measuring the pilot
+
+The SRS sets four pilot goals (section 1, "The hypothesis of the solution"). Where each number comes from:
+
+| Goal | Target | Where the data is | How to get it |
+|---|---|---|---|
+| People who had not looked for support before | At least half of pilot users | `accounts.firstTimeSeekingHelp`, asked once at sign-up (FR 1.6) | Count yes and no over all user accounts. |
+| Feeling a little better after a chat | At least 60% of chats | `chats.moodBefore` and `chats.moodAfter` (FR 3.2) | Over ended chats that have both, count those where the mood after is higher than before. Also test whether the difference is real (the null hypothesis is that it is not). |
+| Screening catches crisis and contact-sharing | At least 90% of each, in a test set | `docs/screening-report.md` | Already measured: met for crisis only with the model check, which the pilot does not use; not met for contact-sharing. Report this as it is. |
+| Would use Spill again | At least 70% | `chats.useAgain`: "Would you use Spill again?" after each chat, answered `yes`, `no` or `not-sure` (optional) | Count each person once, using their last answer. Report yes over everyone who answered, and say how many answered "not sure" or skipped it. |
+
+Getting these numbers needs the data, and the Security Rules let **no one** read every chat in the app, which is on purpose (BR 4). Until the anonymised stats page (#23) exists, the owner exports only these fields from the Firebase console, never message text, and counts them as totals. Never report a number about one person.
+
+## 4. After the pilot
+
+- [ ] Owner: write up the four numbers above, and what the moderators and listeners saw.
+- [ ] Owner: tell volunteers what happens to their data. Either delete the pilot data, or keep it only as long as the consent form says.
+- [ ] Owner: to delete everything, delete each Auth account and the Firestore data in the console, or delete the `spill-pilot` project.
+- [ ] Owner: switch off staff roles that are no longer needed (set `role` back to `user`).
