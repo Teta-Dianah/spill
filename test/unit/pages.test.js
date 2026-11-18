@@ -127,6 +127,17 @@ describe('the home pages', () => {
   });
 });
 
+describe('after a chat', () => {
+  test('chat.html asks "Would you use Spill again?" with yes, no and not sure, all optional', () => {
+    const html = read('chat.html');
+    expect(html).toContain('Would you use Spill again?');
+    ['yes', 'no', 'not-sure'].forEach((value) => {
+      expect(html).toContain(`<input type="radio" name="useAgain" value="${value}">`);
+    });
+    expect(html).not.toMatch(/name="useAgain"[^>]*required/);
+  });
+});
+
 describe('privacy notice and consent (FR 1.3, NFR 14)', () => {
   const privacy = read('privacy.html');
 
