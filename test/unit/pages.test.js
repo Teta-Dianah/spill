@@ -159,6 +159,42 @@ describe('writing style', () => {
   });
 });
 
+describe('accessibility (NFR 16) and quick to use (NFR 17)', () => {
+  test.each(PAGES)('%s: every status line a script fills in is read out by screen readers', (page) => {
+    const lines = read(page).match(/<p [^>]*class="message"[^>]*>/g) || [];
+    lines.forEach((line) => expect(line).toContain('role="status"'));
+  });
+
+  const crisisCard = read('js/crisis-card.js');
+
+  test('"Need help now" is the first thing Tab reaches on every page', () => {
+    expect(crisisCard).toContain('document.body.insertBefore(button, document.body.firstChild);');
+  });
+
+  test('the crisis card takes focus when it opens, closes with Escape, and keeps Tab inside', () => {
+    expect(crisisCard).toMatch(/function showCrisisCard\(\) \{[\s\S]*title\.focus\(\);/);
+    expect(crisisCard).toContain("event.key === 'Escape'");
+    expect(crisisCard).toContain("event.key !== 'Tab'");
+  });
+
+  test('new chat messages from the other person are read out', () => {
+    expect(read('chat.html')).toMatch(/<p id="message-announcer" class="visually-hidden" aria-live="polite"><\/p>/);
+    expect(read('chat.html')).toContain('<p id="chat-status" role="status"></p>');
+  });
+
+  test('a link-style button is never smaller than 44px', () => {
+    const rule = (read('css/styles.css').match(/\.button-link,\s*\.button-danger-link \{([^}]*)\}/) || [])[1] || '';
+    expect(rule).toMatch(/min-height: 44px;/);
+    expect(rule).toMatch(/min-width: 44px;/);
+  });
+
+  test('a signed-in user reaches a chat request in three steps or fewer: dashboard, "Talk to a listener", one form', () => {
+    expect(read('dashboard.html')).toContain('<a class="button button-accent" href="request-chat.html">Talk to a listener</a>');
+    const forms = read('request-chat.html').match(/<form /g) || [];
+    expect(forms).toHaveLength(1);
+  });
+});
+
 describe('after a chat', () => {
   test('chat.html asks "Would you use Spill again?" with yes, no and not sure, all optional', () => {
     const html = read('chat.html');

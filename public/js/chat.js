@@ -35,6 +35,25 @@ function escapeForDisplay(text) {
   return div.innerHTML;
 }
 
+// How many messages were on screen last time, so only new ones from the
+// other person are read out. null until the chat first loads, so the
+// history is never read out all at once (NFR 16).
+var announcedCount = null;
+
+function announceNewMessages(messages, myUid) {
+  var box = document.getElementById('message-announcer');
+  if (!box) return;
+  if (announcedCount === null) {
+    announcedCount = messages.length;
+    return;
+  }
+  var fresh = messages.slice(announcedCount).filter(function (message) {
+    return message.senderId !== myUid;
+  });
+  announcedCount = messages.length;
+  if (fresh.length > 0) box.textContent = 'New message: ' + fresh[fresh.length - 1].text;
+}
+
 function renderMessages(docs, myUid) {
   var list = document.getElementById('message-list');
   if (!list) return;
@@ -53,6 +72,7 @@ function renderMessages(docs, myUid) {
     var bTime = b.createdAt ? b.createdAt.toMillis() : Date.now();
     return aTime - bTime;
   });
+  announceNewMessages(messages, myUid);
 
   list.innerHTML = '';
   if (messages.length === 0) {

@@ -9,11 +9,11 @@ function validateMood(entry) {
 
   var score = entry.score;
   if (!Number.isInteger(score) || score < 1 || score > 5) {
-    errors.push('Mood score must be a whole number from 1 to 5.');
+    errors.push('Please choose how today is going, from 1 to 5.');
   }
 
   if (entry.note && entry.note.length > MAX_NOTE_LENGTH) {
-    errors.push('Note is too long (280 characters max).');
+    errors.push('Your note is a bit long. Please keep it under 280 characters.');
   }
 
   return errors; // an empty array means the entry is valid
