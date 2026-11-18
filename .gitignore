@@ -36,3 +36,6 @@ build/
 
 # Test results saved by npm run test:report
 test-results.json
+
+# Each real project's web config, used by npm run deploy:<target>
+config/

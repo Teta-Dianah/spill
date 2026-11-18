@@ -23,6 +23,7 @@ const FILE_NOTES = {
   'test/unit/screening.test.js': 'Message screening, admin terms and the model check answer handling',
   'test/unit/screening-report.test.js': 'The screening report stays in step with the code',
   'test/unit/test-report.test.js': 'This report: finding requirement IDs and listing failures',
+  'test/unit/deploy-checks.test.js': 'A deploy goes to the right project, from the right branch, with the model check off for the pilot',
   'test/unit/pages.test.js': 'Every page: "Need help now", viewport, no inline styles, home page privacy',
   'test/unit/home-summary.test.js': 'The numbers and wording on each home page',
   'test/unit/staff-links.test.js': 'Staff links, and which home page each role lands on',
