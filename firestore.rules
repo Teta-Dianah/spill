@@ -27,6 +27,13 @@ service cloud.firestore {
         get(/databases/$(database)/documents/accounts/$(request.auth.uid)).data.role == role;
     }
 
+    // Helper: is this the user (not the listener) of a chat that has
+    // ended? Only they write that chat's statistics (chatStats below).
+    function chatStatsMatch(chatId) {
+      let chat = get(/databases/$(database)/documents/chats/$(chatId)).data;
+      return chat.userId == request.auth.uid && chat.status == 'ended';
+    }
+
     // Helper: is this listener allowed to be matched with this user right
     // now? Checked here, not just in the UI, so a tampered client can't
     // force a match with an unapproved listener, skip the minors rule
@@ -617,6 +624,52 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/chatFlagged/$(chatId));
 
       allow read: if hasRole('moderator');
+    }
+
+    // safetyTally/{id}: one count for each flag or report, for the
+    // admin's anonymised statistics (FR 7.3). It holds only the kind and
+    // the time, never any text, chat or person. The ID is the flag's or
+    // report's own ID, so a count must match a real flag or report made
+    // by this same person, and can't be made twice (there is no update
+    // rule). It is written after the flag, never in the same write, so it
+    // can never stop a safety flag being saved. Only an admin reads it.
+    match /safetyTally/{id} {
+      allow create: if request.auth != null &&
+        request.resource.data.keys().hasOnly(['kind', 'createdAt']) &&
+        request.resource.data.createdAt == request.time &&
+        (request.resource.data.kind == 'report'
+          ? get(/databases/$(database)/documents/reports/$(id)).data.reporterId == request.auth.uid
+          : (request.resource.data.kind in ['crisis', 'contact-sharing', 'abusive-language'] &&
+            get(/databases/$(database)/documents/flags/$(id)).data.senderId == request.auth.uid &&
+            get(/databases/$(database)/documents/flags/$(id)).data.type == request.resource.data.kind));
+
+      allow read: if hasRole('admin');
+    }
+
+    // chatStats/{chatId}: what the pilot measures about one ended chat,
+    // for the admin's anonymised statistics (FR 7.3): the topic, the mood
+    // before and after (FR 3.2), and the two optional answers after it
+    // (FR 4.6). No user, listener, message or comment. Only the user in
+    // the chat can write it, only once the chat has ended, and every value
+    // must match the chat itself, so the numbers can't be made up. Only
+    // an admin reads it. The admin can't read chats (BR 4), so this copy
+    // can't be joined back to a person through the app.
+    match /chatStats/{chatId} {
+      allow create: if request.auth != null &&
+        chatStatsMatch(chatId) &&
+        request.resource.data.keys().hasOnly(['topic', 'moodBefore', 'moodAfter', 'recordedAt']) &&
+        request.resource.data.topic == get(/databases/$(database)/documents/chats/$(chatId)).data.topic &&
+        request.resource.data.moodBefore == get(/databases/$(database)/documents/chats/$(chatId)).data.moodBefore &&
+        request.resource.data.moodAfter == get(/databases/$(database)/documents/chats/$(chatId)).data.moodAfter &&
+        request.resource.data.recordedAt == request.time;
+
+      allow update: if request.auth != null &&
+        chatStatsMatch(chatId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'useAgain']) &&
+        request.resource.data.get('rating', null) == get(/databases/$(database)/documents/chats/$(chatId)).data.get('rating', null) &&
+        request.resource.data.get('useAgain', null) == get(/databases/$(database)/documents/chats/$(chatId)).data.get('useAgain', null);
+
+      allow read: if hasRole('admin');
     }
 
     // auditLog/{entryId}: every moderator/admin action and every case

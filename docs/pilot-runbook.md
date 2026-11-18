@@ -68,9 +68,11 @@ The SRS sets four pilot goals (section 1, "The hypothesis of the solution"). Whe
 | People who had not looked for support before | At least half of pilot users | `accounts.firstTimeSeekingHelp`, asked once at sign-up (FR 1.6) | Count yes and no over all user accounts. |
 | Feeling a little better after a chat | At least 60% of chats | `chats.moodBefore` and `chats.moodAfter` (FR 3.2) | Over ended chats that have both, count those where the mood after is higher than before. Also test whether the difference is real (the null hypothesis is that it is not). |
 | Screening catches crisis and contact-sharing | At least 90% of each, in a test set | `docs/screening-report.md` | Already measured: met for crisis only with the model check, which the pilot does not use; not met for contact-sharing. Report this as it is. |
-| Would use Spill again | At least 70% | `chats.useAgain`: "Would you use Spill again?" after each chat, answered `yes`, `no` or `not-sure` (optional) | Count each person once, using their last answer. Report yes over everyone who answered, and say how many answered "not sure" or skipped it. |
+| Would use Spill again | At least 70% | `chats.useAgain`: "Would you use Spill again?" after each chat, answered `yes`, `no` or `not-sure` (optional) | Counted per chat, not per person, because the statistics hold no names. Report yes over every answer, and say how many answered "not sure". |
 
-Getting these numbers needs the data, and the Security Rules let **no one** read every chat in the app, which is on purpose (BR 4). Until the anonymised stats page (#23) exists, the owner exports only these fields from the Firebase console, never message text, and counts them as totals. Never report a number about one person.
+The admin's **Pilot statistics** page (`stats.html`, linked from the staff home) shows the first three goals and where each stands, plus the chats, people and safety counts behind them. It never reads chats: when a user ends a chat, a copy of only its topic, moods and answers is kept in `chatStats`, and each flag or report gets a count with only its kind in `safetyTally`. A share only shows once at least 5 people or chats are in it. Never report a number about one person.
+
+Only chats where the user gave a mood at the end are counted. A chat ended by the listener first has no mood after it, so it is left out of the mood numbers.
 
 ## 4. After the pilot
 

@@ -21,6 +21,7 @@ var ADMIN_LINKS = [
   { href: 'admin-listeners.html', label: 'Listener applications' },
   { href: 'admin-terms.html', label: 'Screening terms' },
   { href: 'admin-resources.html', label: 'Helplines and clinics' },
+  { href: 'stats.html', label: 'Pilot statistics' },
 ];
 
 // role is the account's role ('user', 'moderator' or 'admin').

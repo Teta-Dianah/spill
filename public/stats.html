@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pilot statistics | Spill</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="wide">
+  <header>
+    <div class="topbar">
+      <a class="brand" href="staff.html">Spill</a>
+      <a href="staff.html">Staff home</a>
+    </div>
+    <p class="eyebrow">Admin</p>
+    <h1>Pilot statistics</h1>
+    <p>Totals only, with no names and no messages. A share or average only shows once at least 5 people or chats are in it, so nobody can be picked out.</p>
+  </header>
+
+  <main>
+    <p id="stats-message" class="message" role="status"></p>
+
+    <!-- Shown to an admin only (stats.js). -->
+    <div id="stats-home" hidden>
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-number" id="stat-users">…</span>
+          <span class="stat-label">People with an account</span>
+        </div>
+        <div class="stat">
+          <span class="stat-number" id="stat-chats">…</span>
+          <span class="stat-label">Chats with a mood before and after</span>
+        </div>
+        <div class="stat">
+          <span class="stat-number" id="stat-raised">…</span>
+          <span class="stat-label">Flags and reports raised</span>
+        </div>
+        <div class="stat">
+          <span class="stat-number" id="stat-reviewed">…</span>
+          <span class="stat-label">Reviewed by moderators</span>
+        </div>
+      </div>
+
+      <section class="card">
+        <h2>Pilot goals</h2>
+        <p class="hint">The four goals from the SRS, and where each one stands.</p>
+        <ul id="goal-list" class="plain-list item-list">
+          <li>Loading...</li>
+        </ul>
+      </section>
+
+      <div class="columns">
+        <section class="card">
+          <h2>Chats</h2>
+          <p class="hint">Counted when the user gives a mood at the end of the chat.</p>
+          <ul id="chat-list" class="plain-list item-list">
+            <li>Loading...</li>
+          </ul>
+        </section>
+
+        <div>
+          <section class="card">
+            <h2>People</h2>
+            <ul id="people-list" class="plain-list item-list">
+              <li>Loading...</li>
+            </ul>
+          </section>
+
+          <section class="card">
+            <h2>Safety</h2>
+            <ul id="safety-list" class="plain-list item-list">
+              <li>Loading...</li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore-compat.js"></script>
+  <script src="js/firebase-config.js"></script>
+  <script src="js/firebase-init.js"></script>
+  <script src="js/home-summary.js"></script>
+  <script src="js/stats-summary.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/crisis-card.js"></script>
+</body>
+</html>

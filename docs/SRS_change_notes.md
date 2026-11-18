@@ -89,6 +89,19 @@ Only the user in the chat can set `useAgain`, and only to one of those three val
 
 **Fields.** `chats` gains `useAgain`.
 
+## FR 7.3: anonymised statistics
+
+The SRS asks the administrator to see "counts of chats, average mood change and flags, without personal data". The admin can't read chats (BR 4) or flags (they can hold the text of a blocked message), so the statistics are built from two small copies that hold no people or text:
+
+- **`chatStats/{chatId}`**: when the user ends a chat and gives a mood, the topic, the mood before and the mood after, and later the two optional answers ("helpful", "would use again"). No user, listener, message or comment. The Security Rules let only that chat's user write it, only once the chat has ended, and every value must match the chat.
+- **`safetyTally/{id}`**: one per flag or report, holding only its kind and time. The Rules check it matches a real flag or report by the same person, and it can't be written twice.
+
+Both are written **after** the flag, report or ended chat is saved, never in the same write, so a statistic can never stop a safety action. If one fails, only a count is missed. Only an admin can read them.
+
+The admin's page, `stats.html`, shows the pilot goals and the counts behind them. A share or average only appears once at least 5 people or chats are in it, so a small pilot can't point to one person. "Would use Spill again" is counted per chat, not per person, because the copies hold no names.
+
+**Collections.** Two are added: `chatStats` and `safetyTally` (see the table below).
+
 ## App Check
 
 Firebase App Check is **not set up** in Spill, and the SRS does not mention it. It matters only for the model check: Google requires App Check for the service the model check uses. In the development project, enforcement for that one service has been switched off by hand in the Firebase console so the prototype can run. Google has delayed the requirement until 21 January 2027 at the latest.
@@ -108,9 +121,11 @@ The SRS lists accounts, moods, chats, messages, flags, reports, resources and th
 | `chatFlagged/{chatId}` | A marker that a flag or report has been raised against this chat. | Security Rules can only check a named document, not run a search, so this is how the Rules know a chat has something against it. |
 | `chatCases/{chatId}` | A marker that a moderator has opened a case on this chat (BR 3). | It is the only way in to a chat's content for a moderator, it can only be created once `chatFlagged` exists, and opening it is what is written to the audit log (FR 6.9). |
 | `pendingChats/{uid}` | A marker naming the one chat request a user has outstanding (FR 4.1). | Created in the same write as the chat, so a user can never have two pending requests at once. |
+| `chatStats/{chatId}` | An ended chat's topic, moods before and after, and the two optional answers. No people, messages or comments. | The admin's anonymised statistics (FR 7.3), without reading chats (BR 4). |
+| `safetyTally/{id}` | One count per flag or report: its kind and time only. | The admin's flag counts (FR 7.3), without reading flags. |
 
 The three markers hold no chat content, only these facts. Two fields were also added for the same reason as the markers: `flags` and `reports` carry an `auditLogId` once a moderator resolves them, and `accounts` carries a `lastAuditLogId` once a moderator suspends or reinstates one. The Rules follow these to confirm every moderator action has its audit entry.
 
 ## Requirements this touches
 
-FR 1.1, FR 1.3, FR 4.6, FR 5.1, FR 5.2, FR 6.2, FR 6.4, FR 6.9, FR 7.1, BR 1, BR 2, NFR 4, NFR 11, NFR 14, NFR 21.
+FR 1.1, FR 1.3, FR 4.6, FR 5.1, FR 5.2, FR 6.2, FR 6.4, FR 6.9, FR 7.1, FR 7.3, BR 1, BR 2, NFR 4, NFR 11, NFR 14, NFR 21.
