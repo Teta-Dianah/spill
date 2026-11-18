@@ -53,23 +53,62 @@ function buildCrisisCard() {
     '<button type="button" id="close-crisis-modal" class="button-secondary">Close</button>' +
     '</div>';
 
-  document.body.appendChild(button);
+  // The button goes first on the page, so a keyboard user reaches it with
+  // the very first Tab (NFR 5, NFR 16). It still shows fixed at the
+  // bottom of the screen.
+  document.body.insertBefore(button, document.body.firstChild);
   document.body.appendChild(modal);
 
-  button.addEventListener('click', function () {
-    modal.hidden = false;
-  });
+  button.addEventListener('click', showCrisisCard);
+  modal.querySelector('#close-crisis-modal').addEventListener('click', closeCrisisCard);
 
-  modal.querySelector('#close-crisis-modal').addEventListener('click', function () {
-    modal.hidden = true;
+  // While the card is open: Escape closes it, and Tab stays inside it,
+  // going round from the last control to the first (NFR 16).
+  modal.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') {
+      closeCrisisCard();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    var controls = modal.querySelectorAll('a[href], button');
+    var first = controls[0];
+    var last = controls[controls.length - 1];
+    var title = document.getElementById('crisis-modal-title');
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === title)) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
   });
 }
 
-// Lets other scripts (chat.js, on crisis wording) open the card
-// directly, not just the button click; FR 6.2 shows it automatically.
+// Where focus was before the card opened, to put it back on close.
+var focusBeforeCrisisCard = null;
+
+// Opens the card and moves focus to its heading, so a screen reader reads
+// "You are not alone." and the helplines come next with Tab. Other
+// scripts (chat.js, on crisis wording) open it this way too; FR 6.2 shows
+// it automatically.
 function showCrisisCard() {
   var modal = document.getElementById('crisis-modal');
-  if (modal) modal.hidden = false;
+  if (!modal) return;
+  if (modal.hidden) focusBeforeCrisisCard = document.activeElement;
+  modal.hidden = false;
+  var title = document.getElementById('crisis-modal-title');
+  title.setAttribute('tabindex', '-1');
+  title.focus();
+}
+
+function closeCrisisCard() {
+  var modal = document.getElementById('crisis-modal');
+  if (!modal) return;
+  modal.hidden = true;
+  var back = focusBeforeCrisisCard;
+  focusBeforeCrisisCard = null;
+  if (back && back !== document.body && document.contains(back)) back.focus();
+  else document.getElementById('need-help-now-button').focus();
 }
 
 document.addEventListener('DOMContentLoaded', buildCrisisCard);

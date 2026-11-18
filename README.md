@@ -303,6 +303,8 @@ Two reports in `docs/` record what the tests show. Both are written by a script,
 - **[docs/test-report.md](docs/test-report.md):** a full run, with every test file, how many passed, and which requirements (FR, NFR, BR) the tests name. Run `npm run test:report` to bring it up to date. It runs every test the same way as `npm test`, so stop `npm run emulators` first.
 - **[docs/screening-report.md](docs/screening-report.md):** precision and recall of message screening on each labelled set, for the built-in lists, with the starter terms, and with the model check, against the SRS goal of catching 90% of crisis and contact-sharing messages. It also lists by language, and every message the held-out set still gets wrong. Run `npm run report:screening` after changing the screening code, the terms or the sets; a unit test fails until you do. It needs no emulator and no network: the model check's answers to the test messages were saved once in `test/data/model-check-answers.json`.
 
+- **[docs/accessibility.md](docs/accessibility.md):** how every page was checked against WCAG 2.1 AA, 44 px tap targets and keyboard use (NFR 16), what was found and fixed, and what still needs testing with real screen readers and people.
+
 A Security Rules test also checks NFR 4: a moderator watching the open flags live sees a new crisis flag within 1 minute. It prints the time it took.
 
 ## Linting

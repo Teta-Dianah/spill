@@ -9,8 +9,8 @@ This file is written by `npm run test:report` (`scripts/test-report.js`). Run it
 | | Count |
 |---|---|
 | Test files | 15 |
-| Tests | 690 |
-| Passed | 690 |
+| Tests | 713 |
+| Passed | 713 |
 | Failed | 0 |
 | Skipped | 0 |
 
@@ -27,7 +27,7 @@ This file is written by `npm run test:report` (`scripts/test-report.js`). Run it
 | `test/unit/listener-application.test.js` | The listener application and its checks | 33 | 33 |
 | `test/unit/model-check-settings.test.js` | When the model check may switch on | 22 | 22 |
 | `test/unit/mood-validate.test.js` | Mood check-in validation | 6 | 6 |
-| `test/unit/pages.test.js` | Every page: "Need help now", viewport, no inline styles, home page privacy | 240 | 240 |
+| `test/unit/pages.test.js` | Every page: "Need help now", viewport, no inline styles, home page privacy | 263 | 263 |
 | `test/unit/pseudonym.test.js` | Pseudonym generation | 4 | 4 |
 | `test/unit/screening-report.test.js` | The screening report stays in step with the code | 7 | 7 |
 | `test/unit/screening.test.js` | Message screening, admin terms and the model check answer handling | 87 | 87 |
@@ -58,6 +58,8 @@ Each row counts the tests whose name, or the name of the group they sit in, give
 | NFR 5 | 17 | 17 | pages.test.js |
 | NFR 11 | 1 | 1 | firestore.test.js |
 | NFR 14 | 20 | 20 | firestore.test.js, lockdown.test.js, pages.test.js |
+| NFR 16 | 22 | 22 | pages.test.js |
+| NFR 17 | 22 | 22 | pages.test.js |
 | NFR 19 | 2 | 2 | firestore.test.js |
 | NFR 21 | 17 | 17 | screening-report.test.js, screening.test.js |
 | NFR 22 | 8 | 8 | deploy-checks.test.js |

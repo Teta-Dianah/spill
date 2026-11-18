@@ -205,6 +205,14 @@ a:hover {
   color: var(--color-green);
 }
 
+/* A link that stands on its own line, not inside a sentence, is easy to
+   tap: at least 44px high (NFR 16). */
+.tap-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
 /* The small line above a heading, like "You are known here as". */
 .eyebrow {
   margin: 0 0 var(--space-1);
@@ -461,6 +469,7 @@ form > button[type='submit'].button-accent:hover {
 .button-link,
 .button-danger-link {
   min-height: 44px;
+  min-width: 44px;
   padding: 0;
   color: var(--color-ink);
   background: none;
@@ -519,6 +528,14 @@ form > button[type='submit'].button-accent:hover {
 .choices-scale {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+/* On the narrowest phones a smaller gap keeps each of the five boxes at
+   least 44px wide, inside a card too (NFR 16). */
+@media (max-width: 359px) {
+  .choices-scale {
+    gap: var(--space-1);
+  }
 }
 
 .choice {
@@ -1307,6 +1324,12 @@ body::after {
   padding: var(--space-5);
   background: var(--color-background);
   border-radius: 24px;
+}
+
+/* The heading takes focus when the card opens, so a screen reader reads
+   it first. It is not a control, so it needs no focus ring. */
+#crisis-modal-title:focus {
+  outline: none;
 }
 
 .crisis-modal-content h2 {
