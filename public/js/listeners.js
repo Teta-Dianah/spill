@@ -104,7 +104,7 @@ function getListener(uid, onLoaded) {
     });
 }
 
-// FR 5.2: admin-only in practice — firestore.rules is what actually
+// FR 5.2: admin-only in practice; firestore.rules is what actually
 // enforces that, this is just the data call.
 function loadAllListeners(onLoaded) {
   firebase
@@ -170,7 +170,7 @@ function setTrainingComplete(uid) {
 
 // Finds an approved, available listener who can take this user, following
 // BR 1 (16-17 only matched with listeners cleared for minors). Picks the
-// first eligible one found — simple, no ranking or load-balancing.
+// first eligible one found: simple, no ranking or load-balancing.
 // excludeIds skips listeners who already declined this user's request in
 // this session (FR 5.5), so retrying doesn't just ask the same person again.
 function findEligibleListener(ageBand, excludeIds, onFound) {

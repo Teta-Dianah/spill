@@ -101,7 +101,7 @@ function showPendingMessage(text) {
 }
 
 // FR 5.5: the listener reviews each request and accepts or declines it.
-// Accepting is blocked once they're already at the 2-chat limit — checked
+// Accepting is blocked once they're already at the 2-chat limit; checked
 // here, not just by turning availability off reactively, since a new
 // request could already be pending before that kicks in.
 function acceptChatRequest(uid, chatId) {

@@ -14,13 +14,13 @@ function showCaseMessage(text) {
 
 function describeItem(item) {
   if (item.itemType === 'report') {
-    return 'Reported by a participant — severity ' + item.severity + '. Reason: ' + item.reason;
+    return 'Reported by a participant, severity ' + item.severity + '. Reason: ' + item.reason;
   }
   var label = item.type === 'contact-sharing' ? 'Blocked contact-sharing attempt'
     : item.type === 'crisis' ? 'Crisis wording'
     : item.type === 'abusive-language' ? 'Abusive language'
     : item.type || 'Flag';
-  return label + ' — severity ' + item.severity + (item.blockedText ? '. Blocked text: ' + item.blockedText : '');
+  return label + ', severity ' + item.severity + (item.blockedText ? '. Blocked text: ' + item.blockedText : '');
 }
 
 function getPseudonym(uid, onLoaded) {

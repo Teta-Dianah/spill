@@ -1,6 +1,6 @@
 // Wires up the listener training quiz (FR 5.3).
 // Needs listeners.js loaded first. The correct answers are checked here,
-// in the browser — fine for a training check, not an access-control
+// in the browser: fine for a training check, not an access-control
 // decision, so there's no need for this to live in Security Rules.
 
 var CORRECT_ANSWERS = { q1: 'b', q2: 'b', q3: 'b' };
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!user) return;
 
     if (!allAnswersCorrect(form)) {
-      showQuizMessage('Not quite — have another look and try again.');
+      showQuizMessage('Not quite. Have another look and try again.');
       return;
     }
 

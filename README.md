@@ -29,7 +29,7 @@ The full requirements and reasoning live in [`docs/Spill_Proposal_and_SRS.pdf`](
 | GitHub Actions | Runs tests on every push |
 | Firebase AI Logic (Google Gemini) | The outside service behind the model check, a demo prototype that is off by default. The only part of Spill that sends anything outside Firebase's own database and sign-in |
 
-Everything runs on Firebase's free Spark plan — no billing account, no paid services. The model check uses the service's free tier.
+Everything runs on Firebase's free Spark plan, with no billing account and no paid services. The model check uses the service's free tier.
 
 ## Sprint plan
 
@@ -46,7 +46,7 @@ Everything runs on Firebase's free Spark plan — no billing account, no paid se
 
 Every chat message is checked for crisis language and attempts to share contact details before it's delivered. This happens in two layers, on purpose (a third, the model check, is a demo prototype described further down):
 
-- **`firestore.rules`** has its own small, fixed set of crisis and contact-sharing patterns, hardcoded and not editable without a redeploy. This is the real safety backstop — it's enforced at write time no matter what any client does, tampered or not.
+- **`firestore.rules`** has its own small, fixed set of crisis and contact-sharing patterns, hardcoded and not editable without a redeploy. This is the real safety backstop: it's enforced at write time no matter what any client does, tampered or not.
 - **`public/js/screening.js`** has a richer, normalised set of built-in term lists and contact-sharing patterns. This drives the actual chat experience (showing the crisis card promptly, warning messages about blocked contact-sharing attempts). It changes the app's behaviour, not what the database will actually accept.
 
 ### Admin-added terms (FR 7.1)
@@ -194,9 +194,9 @@ Everything visual lives in `public/css/styles.css`. The pages carry no inline st
 
 ## How matching avoids duplicate requests
 
-A user can only ever have one pending chat request outstanding (FR 4.1). `request-chat.js` claims a `pendingChats/{uid}` marker in the same atomic batch as the `chats` document it creates, and `firestore.rules` requires that pairing on every chat create — since `pendingChats` has no update rule, a second chat can never get its own claim while the first one's still stands.
+A user can only ever have one pending chat request outstanding (FR 4.1). `request-chat.js` claims a `pendingChats/{uid}` marker in the same atomic batch as the `chats` document it creates, and `firestore.rules` requires that pairing on every chat create. Since `pendingChats` has no update rule, a second chat can never get its own claim while the first one's still stands.
 
-Whether nobody's free right now or the matched listener declines, the user sees the identical wait status and the search retries automatically, giving up after 10 minutes of nobody being free. The marker is released whenever the search genuinely ends — matched, declined (then re-claimed for the retry), cancelled by the user, given up on, or found stale (older than that same 10 minutes) the next time the page loads — so a user is never locked out of starting a fresh request, even after an abandoned tab or a browser crash.
+Whether nobody's free right now or the matched listener declines, the user sees the identical wait status and the search retries automatically, giving up after 10 minutes of nobody being free. The marker is released whenever the search genuinely ends (matched, declined and then re-claimed for the retry, cancelled by the user, given up on, or found stale, older than that same 10 minutes, the next time the page loads), so a user is never locked out of starting a fresh request, even after an abandoned tab or a browser crash.
 
 ## Setup
 
@@ -364,8 +364,8 @@ Then on your computer:
 
 To check it worked, sign in on the deployed site and open "Talk to a listener": the small "Safety check" notice appears. To turn the model check off again, set `modelCheckEnabled` back to `false` in `config/firebase-config.dev.js` and run `npm run deploy:dev` again. Nothing else changes: screening carries on with the term lists and `firestore.rules`.
 
-`firebase.json` sets `Cache-Control: no-cache` on every `.js` and `.css` file, so a deploy that fixes a safety bug (screening, chat) takes effect immediately for everyone instead of waiting out a browser's cached copy. This only applies on a real deploy — the local Hosting emulator doesn't implement custom headers, so you won't see it in `curl` or dev tools while running `npm run emulators`.
+`firebase.json` sets `Cache-Control: no-cache` on every `.js` and `.css` file, so a deploy that fixes a safety bug (screening, chat) takes effect immediately for everyone instead of waiting out a browser's cached copy. This only applies on a real deploy: the local Hosting emulator doesn't implement custom headers, so you won't see it in `curl` or dev tools while running `npm run emulators`.
 
 ## A note on what Spill is not
 
-Spill offers peer support, not therapy, and it's not an emergency service — the "Need help now" button on every page points to real local helplines and clinics for that. The pilot runs on Firebase's free tier with test data and consenting adult volunteers only; it does not yet collect or store real user data, pending the legal review required under Rwanda's data protection law.
+Spill offers peer support, not therapy, and it's not an emergency service. The "Need help now" button on every page points to real local helplines and clinics for that. The pilot runs on Firebase's free tier with test data and consenting adult volunteers only; it does not yet collect or store real user data, pending the legal review required under Rwanda's data protection law.

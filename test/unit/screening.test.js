@@ -31,21 +31,21 @@ describe('screenMessage against labelled sample messages (NFR 21)', () => {
 
   test('crisis language: precision and recall', () => {
     const score = scoreCategory(LABELLED_MESSAGES, 'crisis', (text) => screenMessage(text).hasCrisisLanguage);
-    console.log('Crisis language —', score);
+    console.log('Crisis language:', score);
     expect(score.recall).toBeGreaterThanOrEqual(0.9);
     expect(score.precision).toBeGreaterThanOrEqual(0.9);
   });
 
   test('contact-sharing: precision and recall', () => {
     const score = scoreCategory(LABELLED_MESSAGES, 'contact', (text) => screenMessage(text).hasContactSharing);
-    console.log('Contact-sharing —', score);
+    console.log('Contact-sharing:', score);
     expect(score.recall).toBeGreaterThanOrEqual(0.9);
     expect(score.precision).toBeGreaterThanOrEqual(0.9);
   });
 
   test('abusive language: precision and recall', () => {
     const score = scoreCategory(LABELLED_MESSAGES, 'abuse', (text) => screenMessage(text).hasAbusiveLanguage);
-    console.log('Abusive language —', score);
+    console.log('Abusive language:', score);
     expect(score.recall).toBeGreaterThanOrEqual(0.9);
     expect(score.precision).toBeGreaterThanOrEqual(0.9);
   });
@@ -53,7 +53,7 @@ describe('screenMessage against labelled sample messages (NFR 21)', () => {
 
 // A message can contain both crisis wording and contact details at
 // once. chat.js's screenAndSendMessage() routes on hasContactSharing
-// first, so the message is always rejected — but it must still notice
+// first, so the message is always rejected; but it must still notice
 // the crisis wording too, so sendBlockedAttempt() knows to raise a
 // crisis flag and show the crisis card alongside the blocked-attempt
 // flag (FR 6.2, FR 6.3; see the matching Rules test in
@@ -74,19 +74,19 @@ describe('screenMessage against a held-out set (not tuned against)', () => {
 
   test('crisis language on held-out messages (expect a real drop, especially on Kinyarwanda)', () => {
     const score = scoreCategory(HELD_OUT_MESSAGES, 'crisis', (text) => screenMessage(text).hasCrisisLanguage);
-    console.log('Held-out crisis language —', score);
+    console.log('Held-out crisis language:', score);
     expect(score.recall).toBeGreaterThanOrEqual(0);
   });
 
   test('contact-sharing on held-out messages (pattern-based, should generalise better)', () => {
     const score = scoreCategory(HELD_OUT_MESSAGES, 'contact', (text) => screenMessage(text).hasContactSharing);
-    console.log('Held-out contact-sharing —', score);
+    console.log('Held-out contact-sharing:', score);
     expect(score.recall).toBeGreaterThanOrEqual(0);
   });
 
   test('abusive language on held-out messages (expect a real drop)', () => {
     const score = scoreCategory(HELD_OUT_MESSAGES, 'abuse', (text) => screenMessage(text).hasAbusiveLanguage);
-    console.log('Held-out abusive language —', score);
+    console.log('Held-out abusive language:', score);
     expect(score.recall).toBeGreaterThanOrEqual(0);
   });
 });

@@ -61,10 +61,10 @@ function percent(fraction) {
   return Math.round(fraction * 100) + '%';
 }
 
-// "13 of 15 (87%)", or a dash when the set has none of that kind.
+// "13 of 15 (87%)", or "none in this set" when the set has none of that kind.
 function caughtText(result) {
   const total = result.truePositive + result.falseNegative;
-  if (total === 0) return '–';
+  if (total === 0) return 'none in this set';
   return `${result.truePositive} of ${total} (${percent(result.recall)})`;
 }
 
@@ -76,7 +76,7 @@ function falseAlarmText(result) {
 
 function goalText(category, result) {
   if (category === 'abuse') return 'no goal set';
-  if (result.truePositive + result.falseNegative === 0) return '–';
+  if (result.truePositive + result.falseNegative === 0) return 'nothing to catch';
   return result.recall >= GOAL ? 'met' : 'not met';
 }
 

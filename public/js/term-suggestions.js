@@ -149,7 +149,7 @@ function renderSuggestionRow(suggestion, adminUid) {
   var phrase = document.createElement('strong');
   phrase.textContent = suggestion.phrase;
   title.appendChild(phrase);
-  title.appendChild(document.createTextNode(' — ' + (suggestion.category === 'crisis' ? 'Crisis' : 'Abusive language')));
+  title.appendChild(document.createTextNode(' (' + (suggestion.category === 'crisis' ? 'Crisis' : 'Abusive language') + ')'));
   row.appendChild(title);
 
   if (suggestion.note) {

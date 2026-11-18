@@ -127,6 +127,38 @@ describe('the home pages', () => {
   });
 });
 
+describe('writing style', () => {
+  // Every text file in the project: the app, scripts, tests and docs.
+  // Fonts and the SRS PDF are not text, so they are left out.
+  const ROOT = path.join(__dirname, '../..');
+  const TEXT_FILE = /\.(html|css|js|json|md|rules|txt|svg)$/;
+  function textFiles(folder) {
+    return fs.readdirSync(path.join(ROOT, folder), { withFileTypes: true }).flatMap((entry) => {
+      const relative = path.join(folder, entry.name);
+      if (entry.isDirectory()) return entry.name === 'fonts' ? [] : textFiles(relative);
+      return TEXT_FILE.test(entry.name) ? [relative] : [];
+    });
+  }
+  const FILES = [
+    ...['public', 'docs', 'scripts', 'test'].flatMap(textFiles),
+    'README.md', 'firestore.rules', 'firestore.lockdown.rules', 'eslint.config.js', 'jest.config.js', 'firebase.json',
+  ].filter((file) => file !== path.join('public', 'js', 'firebase-config.js'));
+
+  // Built from their codes, so this file doesn't contain them itself.
+  const EM_DASH = String.fromCharCode(0x2014);
+  const EN_DASH = String.fromCharCode(0x2013);
+
+  test('there are files to check', () => {
+    expect(FILES.length).toBeGreaterThan(50);
+  });
+
+  test.each(FILES)('%s has no em dash, and no en dash used as one', (file) => {
+    const text = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    expect(text).not.toContain(EM_DASH);
+    expect(text).not.toContain(' ' + EN_DASH + ' ');
+  });
+});
+
 describe('after a chat', () => {
   test('chat.html asks "Would you use Spill again?" with yes, no and not sure, all optional', () => {
     const html = read('chat.html');

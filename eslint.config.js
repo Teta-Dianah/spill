@@ -8,7 +8,7 @@ module.exports = [
   // Browser code: plain <script> tags, no bundler, no import/export.
   // Each HTML page loads several of these files one after another, and
   // like any classic multi-<script> page, they all share one global
-  // scope — a function defined in auth.js is simply available in
+  // scope: a function defined in auth.js is simply available in
   // dashboard.js once both have loaded. ESLint only ever looks at one
   // file at a time, so it can't see that, and "no-undef" would otherwise
   // flag every one of those shared functions as undefined. The real
@@ -69,7 +69,7 @@ module.exports = [
     ignores: [
       'node_modules/**',
       'coverage/**',
-      // Config data, not logic — nothing in here to lint.
+      // Config data, not logic: nothing in here to lint.
       'public/js/firebase-config.js',
       'public/js/firebase-config.example.js',
       'config/**',

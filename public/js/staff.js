@@ -77,7 +77,7 @@ function showModeratorHome(uid) {
     setStat('stat-crisis', String(summary.crisis), summary.crisis > 0);
     setStat('stat-flags', String(summary.otherFlags));
     setStat('stat-reports', String(summary.reports));
-    setStat('stat-oldest', summary.oldest ? waitingFor(summary.oldest, Date.now()) : '–');
+    setStat('stat-oldest', summary.oldest ? waitingFor(summary.oldest, Date.now()) : 'None');
 
     if (items.length === 0) {
       showListNote(list, 'Nothing in the queue right now.');
@@ -158,7 +158,7 @@ function showWaitingSuggestions(db) {
       });
     })
     .catch(function (error) {
-      setStat('stat-suggestions', '–');
+      setStat('stat-suggestions', '?');
       showListNote(list, 'Could not load the suggested terms.');
       console.error(error);
     });
@@ -185,7 +185,7 @@ function showAdminHome(uid) {
     })
     .catch(function (error) {
       ['stat-applications', 'stat-approved', 'stat-available-now'].forEach(function (id) {
-        setStat(id, '–');
+        setStat(id, '?');
       });
       showListNote(document.getElementById('waiting-applications'), 'Could not load the applications.');
       console.error(error);
