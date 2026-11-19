@@ -1,0 +1,31 @@
+name: Uptime
+
+# Checks the live development site every 3 hours (NFR 18: 95% availability).
+# It runs the same read-only check as "npm run smoke:dev": it never signs in,
+# never writes and needs no keys. A failed run emails the repo owner, and the
+# run history under Actions > Uptime is the availability record.
+#
+# GitHub only runs scheduled workflows from the default branch (main), and
+# pauses them after 60 days with no activity in the repo.
+
+on:
+  schedule:
+    - cron: '17 */3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # The check uses only what comes with Node, so no "npm ci" is needed.
+      - run: npm run smoke:dev

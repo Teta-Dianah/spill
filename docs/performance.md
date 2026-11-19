@@ -25,9 +25,18 @@ Pages show well within 3 seconds and finish loading at about 3 seconds on a firs
 
 **Changes:**
 
-- The three built-in helplines are now written into the home page itself, so they show with the page. The admin's list replaces them when it arrives, and stays as it was if it can't load. On the same slow connection they now show in **0.5 to 0.7 seconds** (measured locally; see below for the live check). A page test keeps them the same as the crisis card's list. "Need help now" was already instant: its helplines are built in.
+- The three built-in helplines are now written into the home page itself, so they show with the page. The admin's list replaces them when it arrives, and stays as it was if it can't load. On the same slow connection they now show in **0.5 to 0.7 seconds** when served locally. A page test keeps them the same as the crisis card's list. "Need help now" was already instant: its helplines are built in.
 - Every page that uses Firebase now opens its connections to Google's servers at the very start (`preconnect`), saving several round trips on a slow phone network.
 - The two font files (54 KB together) are now kept by the browser for 30 days, instead of being checked on every visit. Scripts and styles stay on `no-cache`, so a safety fix still reaches everyone at once.
+
+**Live check after the deploy** (same settings, nothing cached, 6 loads):
+
+| | Helplines on screen |
+|---|---|
+| Before the change | 4.5 to 9.3 s |
+| After the change | 2.8 to 4.8 s |
+
+About twice as fast. Most of what is left is the wait for the page's first byte from Firebase Hosting, 2.0 to 2.8 seconds on this slow connection. Spill's code can't shorten that wait. The helplines then show 1.5 to 2.0 seconds later, with the page itself; they no longer wait for the database.
 
 ## NFR 2: message delivery
 
@@ -75,8 +84,15 @@ The statistics page costs more as the pilot goes on, because there are more chat
 
 **Availability (95%).** Spill runs on Google's Firebase Hosting and Firestore, so their uptime is Spill's uptime. `npm run smoke:dev` and `npm run smoke:pilot` check the live site at any time. They only read the site: every page loads with "Need help now", it talks to the right project, and it runs the current code. They now try 3 times before calling a page down, so one dropped connection is not counted as an outage.
 
+**Scheduled uptime check.** GitHub Actions runs `npm run smoke:dev` every 3 hours (`.github/workflows/uptime.yml`), free because the repo is public. A failed run emails the repo owner. The run history is the availability record:
+
+```
+gh run list --workflow uptime.yml --limit 200
+```
+
+Availability is the passed runs divided by all runs. A run that fails only on "the live site matches this folder" means main was merged but not yet deployed, not that the site was down. For the pilot, change `smoke:dev` to `smoke:pilot` in the workflow once the pilot is deployed. GitHub pauses scheduled workflows after 60 days with no activity in the repo; it can be switched back on from the Actions tab.
+
 ## Not yet measured
 
-- The live home page after this change (to be checked after the next deploy).
 - Real phones on real Rwandan mobile networks. Chrome's "Slow 4G" is an estimate of a typical connection, not a measurement of MTN or Airtel.
 - The real service under 30 people at once (see NFR 3).
