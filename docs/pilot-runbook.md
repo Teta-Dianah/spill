@@ -8,22 +8,22 @@ Each step says who does it. "Owner" is the person responsible for Spill's data (
 
 ### Decisions that must come first
 
-These are in [legal-privacy-checklist.md](legal-privacy-checklist.md). The pilot does not start until each one has an answer.
+These are in [legal-privacy-checklist.md](legal-privacy-checklist.md), under "Decided for the pilot". The owner answered each one on 2026-11-19.
 
-- [ ] Owner, with supervisor: does the pilot need NCSA registration (Art. 29)?
-- [ ] Owner, with supervisor: confirm no data protection officer is needed for about 30 people (Art. 40).
-- [ ] Owner, with supervisor: the data is stored outside Rwanda (the pilot database is in South Africa). Confirm the pilot may go ahead with adult volunteers who agree to this, as the SRS plans.
-- [ ] Owner: ethics approval from the university for the pilot, if it is required, and the consent form volunteers sign.
-- [ ] Owner: only adults (18 or over) are invited. 16 and 17 year olds wait until an adviser has confirmed the consent rules (SRS 2.7).
+- [x] NCSA registration (Art. 29): not needed for the pilot.
+- [x] Data protection officer (Art. 40): not needed for about 30 people.
+- [x] Data stored outside Rwanda (South Africa): the pilot may go ahead, with adult volunteers who agree to this in the privacy notice.
+- [x] Ethics approval: not needed. The in-app consent is the volunteers' consent record.
+- [x] Only adults (18 or over) are invited. 16 and 17 year olds wait until an adviser has confirmed the consent rules (SRS 2.7).
 
 ### The pilot project, once (Firebase console, `spill-pilot`)
 
 Already done: the project, its Firestore database (`africa-south1`), its web app and its Hosting site.
 
-- [ ] Owner: Authentication > Sign-in method: turn on **Email/Password**.
-- [ ] Owner: Authentication > Settings > Authorised domains: check `spill-pilot.web.app` is listed.
-- [ ] Owner: Authentication > Settings > Password policy, if the console offers it: require at least 8 characters, to match NFR 6. The sign-up form already asks for 8, but only the console setting enforces it.
-- [ ] Owner: make sure the Google account that owns the project uses two-step verification. Anyone with it can read every chat.
+- [x] Owner: Authentication > Sign-in method: turn on **Email/Password**.
+- [x] Owner: Authentication > Settings > Authorised domains: check `spill-pilot.web.app` is listed.
+- [x] Owner: Authentication > Settings > Password policy, if the console offers it: require at least 8 characters, to match NFR 6. The sign-up form already asks for 8, but only the console setting enforces it.
+- [ ] Owner: two-step verification on the Google account that owns the project. Anyone with that account can read every chat. Not turned on: the owner decided on 2026-11-19 that it is not needed for the pilot. A strong password used nowhere else is then the account's only protection.
 - [ ] Owner: **do not** set up AI Logic in this project. The model check is a demo prototype, and `npm run deploy:pilot` refuses to deploy with it on.
 
 ### Deploy (developer)

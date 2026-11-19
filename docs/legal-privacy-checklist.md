@@ -4,7 +4,7 @@ Where Spill stands on the legal items in the SRS (NFR 14, section 2.5) under Rwa
 
 This is a developer's checklist, not legal advice. Items marked **Decision** need someone with the authority to decide (the project supervisor, the university's ethics process, or a legal adviser), and are written as questions for them.
 
-Last reviewed: 2026-11-17.
+Last reviewed: 2026-11-19. The owner (Dianah Teta) decided the open items for the class pilot on that date; see "Decided for the pilot". Each answer covers only the pilot, not a public launch.
 
 ## Where Spill is now
 
@@ -18,9 +18,9 @@ Spill is a student prototype. Its development project, `spill-dev-01`, stores it
 | 2 | **Show a privacy notice** before the account is made, with the limits of confidentiality and the "not therapy" notice. FR 1.3, SRS 2.6. | Done | `public/privacy.html`: who is responsible and how to reach them, what is kept and why, who can see it, confidentiality and its limits, where data is stored and for how long, the person's rights, and the terms of use. Linked from sign-up, the landing page and the dashboard. Works with no account (BR 8). |
 | 3 | **Record consent.** FR 1.3. | Done, for new accounts | Each new account stores `privacyNoticeVersion` and `consentedAt`, and `firestore.rules` refuses an account without them, or with a backdated time. Accounts made before this change (the demo and test accounts) have no record. |
 | 4 | **Document a 48-hour breach procedure** (Art. 43). | Done | `docs/breach-procedure.md`: contain, assess, report to the NCSA within 48 hours, tell the people affected, fix, review. `firestore.lockdown.rules` shuts every read and write but the helplines in one deploy; `test/rules/lockdown.test.js` tests it. |
-| 5 | **Assess registration with the National Cyber Security Authority** (Art. 29). | **Decision** | Spill handles sensitive data: chats, check-ins and moods are about mental health (Art. 3). A controller processing personal data is expected to register with the NCSA before processing real people's data. **Question:** does the pilot with adult volunteers need registration, or only a public launch? Who registers, given Spill is a student project? |
-| 6 | **Assess the need for a data protection officer** for large-scale sensitive data (Art. 40). | **Decision** | A pilot of about 30 people is unlikely to be "large-scale", so a DPO is probably not needed yet. Dianah Teta is named as the responsible person and contact in the privacy notice and the breach procedure. **Question:** confirm this for the pilot, and decide who would act as DPO for a wider launch. |
-| 7 | **Store personal data in Rwanda, or abroad only with authorisation** (Arts. 48 and 50). | **Not met** | Firebase has no region in Rwanda; the database is in South Africa. This is why the pilot uses test data and consenting adults only. **Question:** before any real launch, either get authorisation for storage abroad (through NCSA registration), or move to hosting in Rwanda, which would mean leaving Firebase (a large change to the stack). |
+| 5 | **Assess registration with the National Cyber Security Authority** (Art. 29). | **Decided for the pilot:** not needed | Spill handles sensitive data: chats, check-ins and moods are about mental health (Art. 3). A controller processing personal data is expected to register with the NCSA before processing real people's data. **Question:** does the pilot with adult volunteers need registration, or only a public launch? Who registers, given Spill is a student project? |
+| 6 | **Assess the need for a data protection officer** for large-scale sensitive data (Art. 40). | **Decided for the pilot:** not needed | A pilot of about 30 people is unlikely to be "large-scale", so a DPO is probably not needed yet. Dianah Teta is named as the responsible person and contact in the privacy notice and the breach procedure. **Question:** confirm this for the pilot, and decide who would act as DPO for a wider launch. |
+| 7 | **Store personal data in Rwanda, or abroad only with authorisation** (Arts. 48 and 50). | **Not met; pilot may go ahead** | Firebase has no region in Rwanda; the database is in South Africa. This is why the pilot uses test data and consenting adults only. **Question:** before any real launch, either get authorisation for storage abroad (through NCSA registration), or move to hosting in Rwanda, which would mean leaving Firebase (a large change to the stack). |
 
 ## Related privacy requirements
 
@@ -31,9 +31,21 @@ Spill is a student prototype. Its development project, `spill-dev-01`, stores it
 | Sensitive data encrypted at rest, read only by participants and logged cases | NFR 12 | Done | Firestore encrypts at rest by default. `firestore.rules` lets only the two people in a chat read it, plus a moderator through a logged case (BR 3); tested in `test/rules/firestore.test.js`. |
 | Delete account and personal data | FR 1.5 | Done | "Delete my account" removes the sign-in, account, check-ins and any listener application. Chats, flags and reports stay for safety cases, linked only to a random ID; the privacy notice says so. |
 | Keep chats for a limited time (proposed 90 days) | NFR 13 (Should) | **Not built** | The free Spark plan has no scheduled jobs (Cloud Functions need billing), so nothing deletes old chats automatically. The privacy notice says there is no limit yet. **Option:** a monthly admin step that deletes ended chats older than 90 days with no open case. |
-| Minors' consent for mental health support | SRS 2.7 | **Decision** | The app accepts 16 to 17 year olds and matches them only with cleared listeners aged 21 or over (BR 1). The SRS says minors' consent rules must be confirmed with a legal or ethics adviser before any under-18 pilot. **Question:** confirm with an adviser; until then, the pilot invites adults only. |
+| Minors' consent for mental health support | SRS 2.7 | **Decided for the pilot:** adults only | The app accepts 16 to 17 year olds and matches them only with cleared listeners aged 21 or over (BR 1). The SRS says minors' consent rules must be confirmed with a legal or ethics adviser before any under-18 pilot. **Question:** confirm with an adviser; until then, the pilot invites adults only. |
 | The model check sends messages to an outside service | NFR 14 | **Prototype only** | Off by default, on only in the development project, and only for people who agree. The free service's terms need users aged 18 or over and allow human review, so it can't be used for real users. See `docs/SRS_change_notes.md`. The privacy notice explains it. |
-| Ethics approval and volunteer consent for the pilot | SRS 2.5 (Ethics) | **Decision** | Outside the app. **Question:** does the university require ethics approval for the class pilot, and what consent form do volunteers sign? |
+| Ethics approval and volunteer consent for the pilot | SRS 2.5 (Ethics) | **Decided for the pilot:** not needed | Outside the app. **Question:** does the university require ethics approval for the class pilot, and what consent form do volunteers sign? |
+
+## Decided for the pilot
+
+The owner decided these on 2026-11-19, for the class pilot only: about 30 adult volunteers and 5 listeners, in `spill-pilot`.
+
+| Item | Decision | Why, and what still holds |
+|---|---|---|
+| NCSA registration (item 5) | Not needed for the pilot. | It is a school project with a small group of volunteers. A public launch would need this looked at again. |
+| Data protection officer (item 6) | Not needed for the pilot. | About 30 people is not large-scale. Dianah Teta stays the named contact. |
+| Data stored outside Rwanda (item 7) | The pilot may go ahead. | It is a school project. The privacy notice tells each volunteer that the data is in South Africa, and they agree to it before an account is made. Storage abroad without authorisation is still not settled for a public launch. |
+| Ethics approval and consent form | Not needed for the pilot. | The in-app consent (privacy notice version and time, recorded on each account) is the volunteers' consent record. |
+| 16 and 17 year olds | Adults only (18 or over) are invited. | The app still offers the 16 to 17 age band and matches it only with cleared listeners (BR 1), as the SRS requires; the pilot simply does not invite anyone under 18. |
 
 ## Before any launch with real users
 
