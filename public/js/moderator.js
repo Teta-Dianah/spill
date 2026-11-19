@@ -4,13 +4,16 @@
 // FR 7.1: flags and reports share one queue, ordered by severity
 // (highest first) and then age (oldest first) within the same
 // severity. Firestore can't query two collections at once, so this
-// loads both and merges client-side.
-function loadQueueItems(onLoaded) {
+// loads both and merges client-side. If they can't load, onFailed is
+// called instead, so a page never waits for ever (NFR 18).
+function loadQueueItems(onLoaded, onFailed) {
   var db = firebase.firestore();
 
   Promise.all([
-    db.collection('flags').where('status', '==', 'open').get(),
-    db.collection('reports').where('status', '==', 'open').get(),
+    // From the server only, so an empty queue really means nothing is
+    // waiting, never just that the connection is down.
+    db.collection('flags').where('status', '==', 'open').get({ source: 'server' }),
+    db.collection('reports').where('status', '==', 'open').get({ source: 'server' }),
   ]).then(function (results) {
     var items = [];
 
@@ -35,6 +38,9 @@ function loadQueueItems(onLoaded) {
     });
 
     onLoaded(items);
+  }).catch(function (error) {
+    console.error('Could not load the queue', error);
+    if (onFailed) onFailed();
   });
 }
 

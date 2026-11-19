@@ -139,6 +139,11 @@ function watchPendingChat(chatId, user, ageBand, topic, moodBefore, declinedList
       }
 
       showRequestMessage(WAITING_MESSAGE);
+    }, function (error) {
+      // Without this, the page would keep saying "waiting" even though it
+      // can no longer hear when a listener accepts (NFR 18).
+      showRequestMessage('We lost touch with your request. Check your connection and refresh the page to try again.');
+      console.error(error);
     });
 
   currentWatch = { unsubscribe: unsubscribe, chatId: chatId };
