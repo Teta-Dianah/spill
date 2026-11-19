@@ -16,9 +16,20 @@ const { readConfig } = require('./deploy-checks.js');
 const ROOT = path.join(__dirname, '..');
 const PUBLIC = path.join(ROOT, 'public');
 
+// Tries up to 3 times, 2 seconds apart, so one dropped connection doesn't
+// count as the site being down. A real outage still fails.
 async function fetchText(url) {
-  const response = await fetch(url, { cache: 'no-store' });
-  return { status: response.status, text: await response.text(), cacheControl: response.headers.get('cache-control') || '' };
+  let lastError;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await fetch(url, { cache: 'no-store' });
+      return { status: response.status, text: await response.text(), cacheControl: response.headers.get('cache-control') || '' };
+    } catch (error) {
+      lastError = error;
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
+  throw new Error(`Could not reach ${url} after 3 tries (${lastError.message}).`);
 }
 
 async function main() {

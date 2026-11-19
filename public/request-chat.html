@@ -6,6 +6,10 @@
   <title>Talk to a listener | Spill</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/styles.css">
+  <!-- Open the connections to Google early, so the Firebase library and
+       the first database answer arrive sooner on a slow phone (NFR 1). -->
+  <link rel="preconnect" href="https://www.gstatic.com">
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
 </head>
 <body>
   <header>

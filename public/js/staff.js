@@ -89,6 +89,11 @@ function showModeratorHome(uid) {
       list.appendChild(renderQueueRow(item));
     });
     document.getElementById('whole-queue-link').textContent = 'See the whole queue (' + items.length + ')';
+  }, function () {
+    ['stat-crisis', 'stat-flags', 'stat-reports', 'stat-oldest'].forEach(function (id) {
+      setStat(id, '?');
+    });
+    showListNote(list, 'The queue could not load. Check your connection and refresh the page.');
   });
 
   renderRecentActions('moderator-actions', uid);

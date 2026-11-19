@@ -100,9 +100,17 @@ function listenForMessages(chatId, myUid) {
     .firestore()
     .collection('messages')
     .where('chatId', '==', chatId)
-    .onSnapshot(function (snapshot) {
-      renderMessages(snapshot.docs, myUid);
-    });
+    .onSnapshot(
+      function (snapshot) {
+        renderMessages(snapshot.docs, myUid);
+      },
+      function (error) {
+        // The live updates stopped (no connection, for example). Say so,
+        // so nobody waits for a reply that can't arrive (NFR 18).
+        showChatMessage('Messages stopped updating. Check your connection and refresh the page.');
+        console.error(error);
+      }
+    );
 }
 
 var currentChat = null;
@@ -179,6 +187,9 @@ function listenForChatStatus(chatId) {
       if (safetyActions) {
         safetyActions.hidden = disabled;
       }
+    }, function (error) {
+      showChatStatus('This chat stopped updating. Check your connection and refresh the page.');
+      console.error(error);
     });
 }
 

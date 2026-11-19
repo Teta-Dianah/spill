@@ -2562,3 +2562,101 @@ describe('anonymised statistics (FR 7.3)', () => {
     });
   });
 });
+
+// NFR 2 and NFR 3 on the emulator. They show the app adds no wait of its
+// own (no polling, no server step) and copes with a pilot's worth of
+// people at once. The real network adds its own time on top.
+describe('speed and load (NFR 2, NFR 3)', () => {
+  async function seedActiveChat(chatId, userId, listenerId) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), `chats/${chatId}`), { userId, listenerId, status: 'active', topic: 'exams' });
+    });
+  }
+
+  // Resolves with the time each wanted message id first appeared to this
+  // watcher, once they all have.
+  function watchFor(db, chatId, wantedIds) {
+    const seenAt = {};
+    let stop = () => {};
+    let ready;
+    const started = new Promise((resolve) => {
+      ready = resolve;
+    });
+    const done = new Promise((resolve, reject) => {
+      stop = onSnapshot(
+        query(collection(db, 'messages'), where('chatId', '==', chatId)),
+        (snapshot) => {
+          ready();
+          snapshot.docs.forEach((messageDoc) => {
+            if (wantedIds.includes(messageDoc.id) && !seenAt[messageDoc.id]) seenAt[messageDoc.id] = Date.now();
+          });
+          if (wantedIds.every((id) => seenAt[id])) resolve(seenAt);
+        },
+        reject
+      );
+    });
+    return { started, done, stop: () => stop() };
+  }
+
+  test('a message reaches the other person within 2 seconds (NFR 2)', async () => {
+    await seedActiveChat('chat-1', 'alice', 'grace');
+    const listenerDb = testEnv.authenticatedContext('grace').firestore();
+    const userDb = testEnv.authenticatedContext('alice').firestore();
+
+    const watcher = watchFor(listenerDb, 'chat-1', ['msg-speed']);
+    await watcher.started;
+    const sentAt = Date.now();
+    await assertSucceeds(setDoc(doc(userDb, 'messages/msg-speed'), { chatId: 'chat-1', senderId: 'alice', text: 'Hi, are you there?' }));
+    const seenAt = await watcher.done;
+    watcher.stop();
+
+    const took = seenAt['msg-speed'] - sentAt;
+    console.log(`NFR 2: the message reached the listener in ${took} ms`);
+    expect(took).toBeLessThan(2000);
+  });
+
+  test('30 people in 15 chats at once: every message arrives (NFR 3)', async () => {
+    const CHATS = 15;
+    const EACH = 3;
+    const chats = Array.from({ length: CHATS }, (_, i) => ({ id: `load-${i}`, user: `user-${i}`, listener: `listener-${i}` }));
+    for (const chat of chats) await seedActiveChat(chat.id, chat.user, chat.listener);
+
+    const watchers = chats.map((chat) => {
+      const ids = Array.from({ length: EACH }, (_, n) => `${chat.id}-m${n}`);
+      return { chat, ids, ...watchFor(testEnv.authenticatedContext(chat.listener).firestore(), chat.id, ids) };
+    });
+    await Promise.all(watchers.map((w) => w.started));
+
+    // Each user's connection is opened and used once before the clock
+    // starts, the way a person already in a chat is already connected.
+    const userDbs = {};
+    for (const w of watchers) {
+      userDbs[w.chat.user] = testEnv.authenticatedContext(w.chat.user).firestore();
+      await getDoc(doc(userDbs[w.chat.user], `chats/${w.chat.id}`));
+    }
+
+    // Everyone sends at the same moment.
+    const sentAt = Date.now();
+    await Promise.all(
+      watchers.flatMap((w) =>
+        w.ids.map((id) =>
+          setDoc(doc(userDbs[w.chat.user], `messages/${id}`), {
+            chatId: w.chat.id, senderId: w.chat.user, text: 'Checking in',
+          })
+        )
+      )
+    );
+    const results = await Promise.all(watchers.map((w) => w.done));
+    watchers.forEach((w) => w.stop());
+
+    // Every message must arrive. The time is only reported: with 15 chats
+    // open in one process, the emulator itself is the slow part (it pushes
+    // each change to every open chat in turn; with nobody watching, the
+    // same 45 writes take under a second). Google says the emulator is not
+    // for speed or load testing, so this proves nothing is lost or
+    // refused under load, not how fast the real service is.
+    const times = results.flatMap((seenAt) => Object.values(seenAt).map((at) => at - sentAt));
+    expect(times).toHaveLength(CHATS * EACH);
+    console.log(`NFR 3: ${times.length} messages from 30 people, all arrived; the slowest took ${Math.max(...times)} ms on the emulator`);
+  }, 120000);
+});

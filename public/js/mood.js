@@ -20,13 +20,16 @@ function recordMood(uid, score, note) {
 // Fetches a user's mood entries and hands back the 20 most recent,
 // newest first. Sorting happens here in JavaScript instead of in the
 // Firestore query, which keeps this simple and avoids needing a
-// composite index for a small pilot's worth of data.
-function loadMoodHistory(uid, onLoaded) {
+// composite index for a small pilot's worth of data. If it can't load
+// (no connection, for example), onFailed is called instead (NFR 18).
+function loadMoodHistory(uid, onLoaded, onFailed) {
   firebase
     .firestore()
     .collection('moods')
     .where('uid', '==', uid)
-    .get()
+    // From the server only: offline, Firebase would otherwise answer from
+    // an empty local copy, and the page would wrongly say 'No check-ins'.
+    .get({ source: 'server' })
     .then(function (snapshot) {
       var entries = [];
       snapshot.forEach(function (docSnap) {
@@ -40,6 +43,10 @@ function loadMoodHistory(uid, onLoaded) {
       });
 
       onLoaded(entries.slice(0, 20));
+    })
+    .catch(function (error) {
+      console.error('Could not load check-ins', error);
+      if (onFailed) onFailed();
     });
 }
 

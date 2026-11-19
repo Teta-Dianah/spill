@@ -22,6 +22,11 @@ function renderQueue() {
     items.forEach(function (item) {
       list.appendChild(renderQueueRow(item));
     });
+  }, function () {
+    list.innerHTML = '';
+    var note = document.createElement('li');
+    note.textContent = 'The queue could not load. Check your connection and refresh the page.';
+    list.appendChild(note);
   });
 }
 
@@ -45,6 +50,10 @@ function checkModeratorAndStart() {
         }
 
         renderQueue();
+      })
+      .catch(function (error) {
+        showQueueMessage('The queue could not load. Check your connection and refresh the page.');
+        console.error(error);
       });
   });
 }

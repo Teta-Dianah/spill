@@ -67,7 +67,15 @@ function main() {
     else fs.writeFileSync(LIVE_CONFIG, ownConfig);
   }
 
-  run(`node scripts/smoke-check.js ${target}`);
+  // The site and rules are live by now, so a failed check here doesn't
+  // undo anything: it means "look at the live site".
+  const check = spawnSync(`node scripts/smoke-check.js ${target}`, { cwd: ROOT, shell: true, stdio: 'inherit' });
+  if (check.status !== 0) {
+    throw new Error(
+      `The deploy finished, but the live check did not pass. Run "npm run smoke:${target}" again in a minute; ` +
+        'if it still fails, look at the live site.'
+    );
+  }
   console.log(`\nDone: https://${projectId}.web.app`);
 }
 
