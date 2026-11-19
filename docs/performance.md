@@ -90,7 +90,7 @@ The statistics page costs more as the pilot goes on, because there are more chat
 gh run list --workflow uptime.yml --limit 200
 ```
 
-Availability is the passed runs divided by all runs. A run that fails only on "the live site matches this folder" means main was merged but not yet deployed, not that the site was down. For the pilot, change `smoke:dev` to `smoke:pilot` in the workflow once the pilot is deployed. GitHub pauses scheduled workflows after 60 days with no activity in the repo; it can be switched back on from the Actions tab.
+Availability is the passed runs divided by all runs. A run that fails only on "the live site matches this folder" means main was merged but not yet deployed, not that the site was down. The check stays on the development site, because that is where testing happens; the pilot site is deployed but unused. GitHub pauses scheduled workflows after 60 days with no activity in the repo; it can be switched back on from the Actions tab.
 
 ## Not yet measured
 

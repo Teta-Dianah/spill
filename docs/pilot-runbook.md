@@ -38,7 +38,8 @@ npm run deploy:pilot
 
 It checks that `config/firebase-config.pilot.js` is for `spill-pilot` and has the model check off, runs every test and the linter, deploys the site and then the rules, and finishes with `npm run smoke:pilot`, which reads the live site to check it. See "Deployment" in the README.
 
-- [ ] **Uptime check.** In `.github/workflows/uptime.yml`, change `npm run smoke:dev` to `npm run smoke:pilot`, through a normal pull request into develop and then main. From then on, GitHub checks the pilot site every 3 hours, and the run history is the 95% availability record (NFR 18). See `docs/performance.md`.
+- [x] **Deployed** on 2026-11-19 to https://spill-pilot.web.app. The live check passed.
+- [x] **Uptime check: not needed for the pilot.** For this school project, testing (including the teacher's) happens on the development site, https://spill-dev-01.web.app, and the pilot stays deployed but unused. So `.github/workflows/uptime.yml` keeps checking the development site every 3 hours, and that run history is the 95% availability record (NFR 18). See `docs/performance.md`.
 
 ### People and content (in the deployed app)
 
