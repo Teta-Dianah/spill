@@ -84,13 +84,13 @@ The statistics page costs more as the pilot goes on, because there are more chat
 
 **Availability (95%).** Spill runs on Google's Firebase Hosting and Firestore, so their uptime is Spill's uptime. `npm run smoke:dev` and `npm run smoke:pilot` check the live site at any time. They only read the site: every page loads with "Need help now", it talks to the right project, and it runs the current code. They now try 3 times before calling a page down, so one dropped connection is not counted as an outage.
 
-**Scheduled uptime check.** GitHub Actions runs `npm run smoke:dev` every 3 hours (`.github/workflows/uptime.yml`), free because the repo is public. A failed run emails the repo owner. The run history is the availability record:
+**Scheduled uptime check.** GitHub Actions runs `npm run smoke:pilot` and then `npm run smoke:dev` every 3 hours (`.github/workflows/uptime.yml`), free because the repo is public. A failed run emails the repo owner. The run history is the availability record:
 
 ```
 gh run list --workflow uptime.yml --limit 200
 ```
 
-Availability is the passed runs divided by all runs. A run that fails only on "the live site matches this folder" means main was merged but not yet deployed, not that the site was down. For the pilot, change `smoke:dev` to `smoke:pilot` in the workflow once the pilot is deployed. GitHub pauses scheduled workflows after 60 days with no activity in the repo; it can be switched back on from the Actions tab.
+Availability is the passed runs divided by all runs. Each run shows the pilot site and the development site as separate steps, so an outage on one is easy to tell apart. A step that fails only on "the live site matches this folder" means main was merged but not yet deployed to that site, not that it was down. GitHub pauses scheduled workflows after 60 days with no activity in the repo; it can be switched back on from the Actions tab.
 
 ## Not yet measured
 
