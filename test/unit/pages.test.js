@@ -239,6 +239,14 @@ describe('privacy notice and consent (FR 1.3, NFR 14)', () => {
   });
 });
 
+// Reads BUILT_IN_HELPLINES out of crisis-card.js without a browser: the
+// list is a plain array literal, so it can be evaluated on its own.
+function loadCrisisCardList() {
+  const source = read('js/crisis-card.js');
+  const literal = (source.match(/var BUILT_IN_HELPLINES = (\[[\s\S]*?\]);/) || [])[1];
+  return { BUILT_IN_HELPLINES: new Function(`return ${literal};`)() };
+}
+
 describe('the landing page helplines', () => {
   const script = read('js/resources.js');
 
@@ -253,6 +261,25 @@ describe('the landing page helplines', () => {
 
   test('the landing page loads the crisis card script, where the built-in list lives', () => {
     expect(read('index.html')).toMatch(/<script src="js\/crisis-card\.js"><\/script>/);
+  });
+
+  // NFR 1: the built-in helplines are written into index.html so they
+  // show at once on a slow connection. They must stay the same as the
+  // crisis card's list.
+  test('the helplines written into the landing page match the crisis card exactly (NFR 1)', () => {
+    const { BUILT_IN_HELPLINES } = loadCrisisCardList();
+    const list = (read('index.html').match(/<ul id="resources-list"[^>]*>([\s\S]*?)<\/ul>/) || [])[1] || '';
+    const items = list.match(/<li class="resource-item">[\s\S]*?<\/li>/g) || [];
+    expect(items).toHaveLength(BUILT_IN_HELPLINES.length);
+    BUILT_IN_HELPLINES.forEach((line, index) => {
+      expect(items[index]).toContain(`<span class="resource-name">${line.name}</span>`);
+      expect(items[index]).toContain(`href="tel:${line.number.replace(/ /g, '')}">${line.number}</a>`);
+    });
+  });
+
+  test('the landing page never shows "Loading..." in place of the helplines (NFR 1)', () => {
+    const list = (read('index.html').match(/<ul id="resources-list"[^>]*>([\s\S]*?)<\/ul>/) || [])[1] || '';
+    expect(list).not.toContain('Loading');
   });
 });
 

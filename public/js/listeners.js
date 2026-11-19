@@ -101,6 +101,11 @@ function getListener(uid, onLoaded) {
     .get()
     .then(function (docSnap) {
       onLoaded(docSnap.exists ? docSnap.data() : null);
+    })
+    .catch(function (error) {
+      // undefined, not null: null means they have never applied.
+      console.error(error);
+      onLoaded(undefined);
     });
 }
 

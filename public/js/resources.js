@@ -1,5 +1,6 @@
 // Shows the public resources list on index.html (FR 2.1, FR 2.2, FR 2.3).
-// Anyone can see this, signed in or not.
+// Anyone can see this, signed in or not. The page already shows the
+// built-in helplines while this loads, so nobody waits on a blank list.
 
 function escapeHtml(text) {
   var div = document.createElement('div');

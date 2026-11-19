@@ -158,6 +158,11 @@ function renderMoodHistory(uid) {
       var title = moodWord(entry.score) + ' (' + entry.score + ' out of 5)';
       list.appendChild(makeItemRow(title, timeAgo(entry.time, now) + (entry.note ? ' · ' + entry.note : '')));
     });
+  }, function () {
+    showListNote(list, 'Your check-ins could not load. Check your connection and refresh the page.');
+    ['stat-month-count', 'stat-month-average', 'stat-last-check-in'].forEach(function (id) {
+      setStat(id, '?');
+    });
   });
 }
 

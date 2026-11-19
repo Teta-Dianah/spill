@@ -6,6 +6,10 @@
   <title>Spill</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/styles.css">
+  <!-- Open the connections to Google early, so the Firebase library and
+       the first database answer arrive sooner on a slow phone (NFR 1). -->
+  <link rel="preconnect" href="https://www.gstatic.com">
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
 </head>
 <body class="wide">
   <header>
@@ -27,8 +31,15 @@
       <section class="card">
         <h2>Need someone right now?</h2>
         <p class="hint">Helplines and clinics in Rwanda. No account needed.</p>
+        <!-- The built-in helplines are written into the page, so they show
+             at once, even on a slow phone connection, before the database
+             library has loaded (NFR 1, BR 8). resources.js swaps in the
+             admin's list when it arrives. A page test checks these match
+             BUILT_IN_HELPLINES in crisis-card.js. -->
         <ul id="resources-list" class="plain-list">
-          <li>Loading...</li>
+          <li class="resource-item"><span class="resource-name">Rwanda Biomedical Centre helpline</span><a class="resource-contact" href="tel:114">114</a></li>
+          <li class="resource-item"><span class="resource-name">Child helpline / RIB</span><a class="resource-contact" href="tel:116">116</a></li>
+          <li class="resource-item"><span class="resource-name">Kigali Mental Health Referral Centre</span><a class="resource-contact" href="tel:0793902059">0793 902 059</a></li>
         </ul>
       </section>
     </div>

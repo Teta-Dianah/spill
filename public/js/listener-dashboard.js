@@ -80,6 +80,10 @@ function renderActiveChats(uid) {
           showAvailabilityNote('You reached the ' + MAX_CONCURRENT_CHATS + '-chat limit, so availability was turned off.');
         });
       }
+    }, function (error) {
+      setStat('stat-active', '?');
+      showListNote(list, 'Your chats stopped updating. Check your connection and refresh the page.');
+      console.error(error);
     });
 }
 
@@ -188,6 +192,11 @@ function renderPendingRequests(uid) {
       snapshot.forEach(function (docSnap) {
         list.appendChild(renderRequestRow(uid, docSnap.id, docSnap.data(), now));
       });
+    }, function (error) {
+      // Without this, a listener could miss requests without knowing.
+      setStat('stat-requests', '?');
+      showListNote(list, 'Requests stopped updating. Check your connection and refresh the page.');
+      console.error(error);
     });
 }
 
@@ -217,6 +226,10 @@ function setUpAvailabilityToggle(uid, listener) {
 
 function startDashboard(uid) {
   getListener(uid, function (listener) {
+    if (listener === undefined) {
+      showListenerMessage('Your listener details could not load. Check your connection and refresh the page.');
+      return;
+    }
     if (!listener) {
       showListenerMessage('You have not applied as a listener yet. You can apply from your personal dashboard.');
       return;

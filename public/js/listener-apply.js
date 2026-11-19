@@ -67,6 +67,12 @@ function showApplicationStatus(listener, application) {
 // young, or the form.
 function startApplyPage(user) {
   getListener(user.uid, function (listener) {
+    // undefined means it could not load: say so, rather than showing the
+    // form to someone who may already have applied.
+    if (listener === undefined) {
+      showApplyMessage('Your application could not load. Check your connection and refresh the page.');
+      return;
+    }
     if (listener) {
       getListenerApplication(user.uid, function (application) {
         showApplicationStatus(listener, application);
