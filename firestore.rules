@@ -83,6 +83,19 @@ service cloud.firestore {
       return getAfter(/databases/$(database)/documents/sendTimes/$(uid)).data.lastSentAt == request.time;
     }
 
+    // Helper: may this person remove this chat and its messages yet
+    // (NFR 13)? Only one of its two people, only once it is over, only
+    // once it was started more than 90 days ago, and never if a flag or
+    // report was raised in it (chatFlagged), since a moderator may still
+    // need it. old-chats.js does the removing, from the dashboards.
+    function isOldChatToRemove(chatId) {
+      let chat = get(/databases/$(database)/documents/chats/$(chatId)).data;
+      return (chat.userId == request.auth.uid || chat.listenerId == request.auth.uid) &&
+        chat.status in ['ended', 'declined', 'cancelled'] &&
+        chat.createdAt < request.time - duration.value(90, 'd') &&
+        !exists(/databases/$(database)/documents/chatFlagged/$(chatId));
+    }
+
     // Helper: has a moderator opened a case on this chat? chatCases is
     // only ever written by a moderator (see that collection below); this
     // is the one and only path in to chat content for them (BR 3).
@@ -546,6 +559,9 @@ service cloud.firestore {
         (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['useAgain']) ||
           (resource.data.userId == request.auth.uid &&
             request.resource.data.useAgain in ['yes', 'no', 'not-sure']));
+
+      // Chats are kept for 90 days (NFR 13); see isOldChatToRemove.
+      allow delete: if request.auth != null && isOldChatToRemove(chatId);
     }
 
     // pendingChats/{uid}: a marker naming the one chat this user
@@ -587,6 +603,10 @@ service cloud.firestore {
       allow read: if request.auth != null &&
         (isChatParticipant(resource.data.chatId, request.auth.uid) ||
           (hasRole('moderator') && chatHasCase(resource.data.chatId)));
+
+      // Removed with their chat after 90 days (NFR 13), before the chat
+      // itself, since this checks the chat.
+      allow delete: if request.auth != null && isOldChatToRemove(resource.data.chatId);
     }
 
     // sendTimes/{uid}: when this person last sent a message, and nothing

@@ -63,7 +63,7 @@ describe('accounts', () => {
       status: 'active',
       blockedUids: [],
       createdAt: serverTimestamp(),
-      privacyNoticeVersion: '2026-11-18',
+      privacyNoticeVersion: '2026-11-20',
       consentedAt: serverTimestamp(),
       ...overrides,
     };
@@ -1457,6 +1457,69 @@ describe('safety actions work before any message has been sent', () => {
     await assertSucceeds(
       updateDoc(doc(db, 'chats/chat-1'), { status: 'ended' })
     );
+  });
+});
+
+describe('removing chats after 90 days (NFR 13)', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+
+  async function seedOldChat(status, daysAgo, flagged = false) {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'chats/chat-old'), {
+        userId: 'alice', listenerId: 'grace', status, createdAt: new Date(Date.now() - daysAgo * DAY),
+      });
+      await setDoc(doc(db, 'messages/msg-old'), { chatId: 'chat-old', senderId: 'alice', text: 'Hi' });
+      if (flagged) await setDoc(doc(db, 'chatFlagged/chat-old'), { chatId: 'chat-old' });
+    });
+  }
+
+  test('either person can remove an ended chat over 90 days old, messages first', async () => {
+    await seedOldChat('ended', 91);
+    const db = testEnv.authenticatedContext('grace').firestore();
+    await assertSucceeds(deleteDoc(doc(db, 'messages/msg-old')));
+    await assertSucceeds(deleteDoc(doc(db, 'chats/chat-old')));
+  });
+
+  test('declined and cancelled requests over 90 days old can go too', async () => {
+    await seedOldChat('declined', 100);
+    await assertSucceeds(deleteDoc(doc(testEnv.authenticatedContext('alice').firestore(), 'chats/chat-old')));
+    await seedOldChat('cancelled', 100);
+    await assertSucceeds(deleteDoc(doc(testEnv.authenticatedContext('alice').firestore(), 'chats/chat-old')));
+  });
+
+  test('a chat under 90 days old stays', async () => {
+    await seedOldChat('ended', 89);
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(deleteDoc(doc(db, 'messages/msg-old')));
+    await assertFails(deleteDoc(doc(db, 'chats/chat-old')));
+  });
+
+  test('a chat still going stays, however old', async () => {
+    await seedOldChat('active', 200);
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(deleteDoc(doc(db, 'messages/msg-old')));
+    await assertFails(deleteDoc(doc(db, 'chats/chat-old')));
+  });
+
+  test('a chat where a flag or report was raised stays, for the moderators', async () => {
+    await seedOldChat('ended', 200, true);
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(deleteDoc(doc(db, 'messages/msg-old')));
+    await assertFails(deleteDoc(doc(db, 'chats/chat-old')));
+  });
+
+  test('nobody outside the chat can remove it, not even an admin or moderator', async () => {
+    await seedOldChat('ended', 200);
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/ada'), { pseudonym: 'ada', role: 'admin' });
+      await setDoc(doc(context.firestore(), 'accounts/mona'), { pseudonym: 'mona', role: 'moderator' });
+    });
+    for (const uid of ['mallory', 'ada', 'mona']) {
+      const db = testEnv.authenticatedContext(uid).firestore();
+      await assertFails(deleteDoc(doc(db, 'messages/msg-old')));
+      await assertFails(deleteDoc(doc(db, 'chats/chat-old')));
+    }
   });
 });
 

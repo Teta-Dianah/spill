@@ -187,6 +187,7 @@ document.addEventListener('DOMContentLoaded', function () {
     renderOpenChat(user.uid);
     renderStaffLinks(user.uid);
     renderMoodHistory(user.uid);
+    removeOldChats(user.uid, 'userId'); // NFR 13, old-chats.js
   });
 
   var moodForm = document.getElementById('mood-form');
