@@ -135,6 +135,40 @@ function renderMoodBars(entries) {
   box.setAttribute('aria-label', 'Your last ' + recent.length + ' check-ins, oldest first: ' + words.join(', '));
 }
 
+// The private monthly recap card (FR 3.4), worked out from the
+// check-ins already loaded, so it costs no extra reads.
+function renderMonthRecap(entries) {
+  var card = document.getElementById('month-recap');
+  var list = document.getElementById('month-recap-list');
+  if (!card || !list) return;
+
+  var recap = monthRecap(entries, Date.now());
+  card.hidden = !recap;
+  if (!recap) return;
+
+  document.getElementById('month-recap-title').textContent = recap.monthName + ' so far';
+
+  var lines = [];
+  lines.push(recap.count === 1 ? '1 check-in' : recap.count + ' check-ins');
+
+  var average = 'Average mood: ' + recap.average + ' out of 5';
+  if (recap.lastMonthAverage !== null) average += ' (last month ' + recap.lastMonthAverage + ')';
+  lines.push(average);
+
+  var bestDay = new Date(recap.bestTime).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+  lines.push('Best day: ' + bestDay + ', ' + moodWord(recap.bestScore).toLowerCase());
+
+  if (recap.roughDays > 0) {
+    lines.push(recap.roughDays === 1 ? '1 rough day (1 or 2)' : recap.roughDays + ' rough days (1 or 2)');
+  }
+  if (recap.topTag) lines.push('Picked most: ' + tagWords([recap.topTag]));
+
+  list.innerHTML = '';
+  lines.forEach(function (line) {
+    list.appendChild(makeItemRow(line));
+  });
+}
+
 function renderMoodHistory(uid) {
   var list = document.getElementById('mood-history');
   if (!list) return;
@@ -152,6 +186,7 @@ function renderMoodHistory(uid) {
 
     renderMoodStats(timed);
     renderMoodBars(timed);
+    renderMonthRecap(timed);
 
     list.innerHTML = '';
     if (timed.length === 0) {

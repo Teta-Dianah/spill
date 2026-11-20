@@ -4,6 +4,7 @@ const {
   topicWord,
   moodWord,
   moodSummary,
+  monthRecap,
   lastCheckInText,
   queueSummary,
   listenerSummary,
@@ -163,5 +164,53 @@ describe('listName', () => {
     expect(listName('crisis')).toBe('Crisis list');
     expect(listName('abuse')).toBe('Abusive language list');
     expect(listName('contact')).toBe('Contact-sharing list');
+  });
+});
+
+describe('monthRecap (FR 3.4)', () => {
+  // Local times, so the months are right in any time zone.
+  const at = (day, month = 10) => new Date(2026, month, day, 10, 0).getTime();
+  const now = at(20);
+
+  test('nothing this month: no recap', () => {
+    expect(monthRecap([], now)).toBeNull();
+    expect(monthRecap([{ score: 3, time: at(5, 9), tags: [] }], now)).toBeNull();
+  });
+
+  test('counts, averages and compares with last month', () => {
+    const recap = monthRecap([
+      { score: 2, time: at(3), tags: ['money-stress'] },
+      { score: 4, time: at(12), tags: ['good-news', 'money-stress'] },
+      { score: 1, time: at(18), tags: ['tired'] },
+      { score: 2, time: at(10, 9), tags: [] },
+      { score: 4, time: at(25, 9), tags: [] },
+    ], now);
+    expect(recap.monthName).toBe('November');
+    expect(recap.count).toBe(3);
+    expect(recap.average).toBe(2.3);
+    expect(recap.lastMonthAverage).toBe(3);
+    expect(recap.bestScore).toBe(4);
+    expect(recap.bestTime).toBe(at(12));
+    expect(recap.roughDays).toBe(2);
+    expect(recap.topTag).toBe('money-stress');
+  });
+
+  test('no check-ins last month, and no tags: those parts are empty', () => {
+    const recap = monthRecap([{ score: 5, time: at(1), tags: [] }, { score: 3, time: at(2) }], now);
+    expect(recap.lastMonthAverage).toBeNull();
+    expect(recap.topTag).toBeNull();
+    expect(recap.roughDays).toBe(0);
+  });
+
+  test('a tie for best day goes to the latest', () => {
+    const recap = monthRecap([{ score: 4, time: at(2) }, { score: 4, time: at(9) }, { score: 3, time: at(15) }], now);
+    expect(recap.bestTime).toBe(at(9));
+  });
+
+  test('January compares with December of the year before', () => {
+    const recap = monthRecap([{ score: 4, time: new Date(2027, 0, 3, 10).getTime() }, { score: 2, time: at(20, 11) }],
+      new Date(2027, 0, 10, 10).getTime());
+    expect(recap.count).toBe(1);
+    expect(recap.lastMonthAverage).toBe(2);
   });
 });
