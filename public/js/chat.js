@@ -191,6 +191,10 @@ function updateChatControls() {
   if (mySuspended && currentChat.status === 'active') {
     showChatMessage(SUSPENDED_NOTE);
   }
+
+  // A chat in progress counts as activity, so nobody is signed out
+  // mid-conversation (FR 1.4, idle-signout.js).
+  if (window.setKeepSignedIn) window.setKeepSignedIn(currentChat.status === 'active');
 }
 
 // Watches the signed-in person's own account, so a suspension during
