@@ -269,6 +269,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     renderListenerName(user.uid);
     startDashboard(user.uid);
+    removeOldChats(user.uid, 'listenerId'); // NFR 13, old-chats.js
   });
 
   var signOutButton = document.getElementById('sign-out-button');
