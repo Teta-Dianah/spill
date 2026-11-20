@@ -160,6 +160,56 @@ function chatStatusText(chat) {
   return chat.topic ? status + ' Topic: ' + topicWord(chat.topic) + '.' : status;
 }
 
+// True once a moderator has suspended the signed-in account (BR 7).
+// firestore.rules refuses their messages; this only explains why.
+var mySuspended = false;
+
+var SUSPENDED_NOTE = "Your account is paused, so you can't send messages for now. " +
+  'You can still end this chat, and "Need help now" is always there.';
+
+// Shows or hides the message box, Report and Block, from the chat's
+// status and whether this account is suspended.
+function updateChatControls() {
+  if (!currentChat) return;
+
+  // Before the listener accepts, the message box shows but can't be
+  // used. Once the chat has ended it goes away, along with Report
+  // and Block, so only the after-chat questions are left. A suspended
+  // account keeps Report and Block but can't type.
+  var messageForm = document.getElementById('message-form');
+  var safetyActions = document.getElementById('safety-actions');
+  var notActive = currentChat.status !== 'active';
+  var cannotType = notActive || mySuspended;
+  if (messageForm) {
+    messageForm.hidden = currentChat.status === 'ended';
+    messageForm.messageText.disabled = cannotType;
+    messageForm.querySelector('button').disabled = cannotType;
+  }
+  if (safetyActions) {
+    safetyActions.hidden = notActive;
+  }
+  if (mySuspended && currentChat.status === 'active') {
+    showChatMessage(SUSPENDED_NOTE);
+  }
+}
+
+// Watches the signed-in person's own account, so a suspension during
+// an open chat stops the message box straight away (BR 7).
+function listenForMyAccount(myUid) {
+  firebase
+    .firestore()
+    .collection('accounts')
+    .doc(myUid)
+    .onSnapshot(function (docSnap) {
+      var wasSuspended = mySuspended;
+      mySuspended = docSnap.exists && docSnap.data().status === 'suspended';
+      if (wasSuspended && !mySuspended) showChatMessage('');
+      updateChatControls();
+    }, function (error) {
+      console.error(error);
+    });
+}
+
 function listenForChatStatus(chatId) {
   firebase
     .firestore()
@@ -172,21 +222,7 @@ function listenForChatStatus(chatId) {
       currentChat = chat;
       showChatStatus(chatStatusText(chat));
       showNoMessagesNote();
-
-      // Before the listener accepts, the message box shows but can't be
-      // used. Once the chat has ended it goes away, along with Report
-      // and Block, so only the after-chat questions are left.
-      var messageForm = document.getElementById('message-form');
-      var safetyActions = document.getElementById('safety-actions');
-      var disabled = chat.status !== 'active';
-      if (messageForm) {
-        messageForm.hidden = chat.status === 'ended';
-        messageForm.messageText.disabled = disabled;
-        messageForm.querySelector('button').disabled = disabled;
-      }
-      if (safetyActions) {
-        safetyActions.hidden = disabled;
-      }
+      updateChatControls();
     }, function (error) {
       showChatStatus('This chat stopped updating. Check your connection and refresh the page.');
       console.error(error);
@@ -624,6 +660,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     listenForChatStatus(chatId);
+    listenForMyAccount(user.uid);
     listenForMessages(chatId, user.uid);
     loadExtraScreeningTerms();
   });

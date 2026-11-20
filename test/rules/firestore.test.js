@@ -1088,6 +1088,85 @@ describe('messages', () => {
     );
   });
 
+  test('a suspended account cannot send a message, even in a chat that is already open (BR 7)', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/alice'), {
+        pseudonym: 'Alice', role: 'user', ageBand: '18-25', status: 'suspended', blockedUids: [],
+      });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertFails(
+      setDoc(doc(db, 'messages/msg-1'), { chatId: 'chat-1', senderId: 'alice', text: 'Hi' })
+    );
+  });
+
+  test('a suspended account cannot send a crisis message either, even with its flag (BR 7)', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/alice'), {
+        pseudonym: 'Alice', role: 'user', ageBand: '18-25', status: 'suspended', blockedUids: [],
+      });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    const batch = writeBatch(db);
+    batch.set(doc(db, 'messages/msg-1'), {
+      chatId: 'chat-1', senderId: 'alice', text: 'I want to kill myself', flagId: 'flag-1',
+    });
+    batch.set(doc(db, 'flags/flag-1'), {
+      type: 'crisis', chatId: 'chat-1', senderId: 'alice', messageId: 'msg-1', severity: 3, status: 'open',
+    });
+    await assertFails(batch.commit());
+  });
+
+  test('the other person in the chat can still send while their partner is suspended', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const db = context.firestore();
+      await setDoc(doc(db, 'accounts/alice'), {
+        pseudonym: 'Alice', role: 'user', ageBand: '18-25', status: 'suspended', blockedUids: [],
+      });
+      await setDoc(doc(db, 'accounts/grace'), {
+        pseudonym: 'Grace', role: 'user', ageBand: '18-25', status: 'active', blockedUids: [],
+      });
+    });
+
+    const db = testEnv.authenticatedContext('grace').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'messages/msg-1'), { chatId: 'chat-1', senderId: 'grace', text: 'Take care' })
+    );
+  });
+
+  test('a reinstated account can send messages again (BR 7)', async () => {
+    await seedChat('chat-1', 'alice', 'grace');
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'accounts/alice'), {
+        pseudonym: 'Alice', role: 'user', ageBand: '18-25', status: 'active', blockedUids: [],
+      });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(
+      setDoc(doc(db, 'messages/msg-1'), { chatId: 'chat-1', senderId: 'alice', text: 'Hi' })
+    );
+  });
+
+  test('a suspended account can still end the chat (BR 5, BR 7)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'chats/chat-1'), {
+        userId: 'alice', listenerId: 'grace', status: 'active', createdAt: new Date('2026-11-01'),
+      });
+      await setDoc(doc(context.firestore(), 'accounts/alice'), {
+        pseudonym: 'Alice', role: 'user', ageBand: '18-25', status: 'suspended', blockedUids: [],
+      });
+    });
+
+    const db = testEnv.authenticatedContext('alice').firestore();
+    await assertSucceeds(updateDoc(doc(db, 'chats/chat-1'), { status: 'ended' }));
+  });
+
   test('a participant cannot send a message while the chat is still pending (FR 5.5)', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), 'chats/chat-1'), {
