@@ -1,11 +1,13 @@
 // Saving and loading mood check-ins (FR 3.1, FR 3.3).
 // Needs mood-validate.js and firebase-init.js loaded first.
 
-function recordMood(uid, score, note) {
+// tags is a list of keys from MOOD_TAGS (mood-validate.js), maybe empty.
+function recordMood(uid, score, note, tags) {
   var entry = {
     uid: uid,
     score: score,
     note: note || '',
+    tags: tags || [],
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   };
 

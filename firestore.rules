@@ -383,8 +383,16 @@ service cloud.firestore {
     // removes the person's mood history with it (FR 1.5). Nobody else
     // can read or delete it, not even a moderator or an admin.
     match /moods/{moodId} {
+      // Tags are optional (FR 3.1), but only ones from the list in
+      // mood-validate.js (MOOD_TAGS), so nothing else can be stored in
+      // them. Keep the two lists the same.
       allow create: if request.auth != null &&
-        request.auth.uid == request.resource.data.uid;
+        request.auth.uid == request.resource.data.uid &&
+        (!('tags' in request.resource.data) ||
+          (request.resource.data.tags is list &&
+            request.resource.data.tags.size() <= 8 &&
+            request.resource.data.tags.hasOnly(['rough-day', 'money-stress', 'study-overload',
+              'family', 'friends', 'lonely', 'tired', 'good-news'])));
 
       allow read, delete: if request.auth != null &&
         request.auth.uid == resource.data.uid;
