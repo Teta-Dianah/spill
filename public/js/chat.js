@@ -369,22 +369,41 @@ function markChatFlagged(batch, chatId) {
   batch.set(ref, { chatId: chatId }, { merge: true });
 }
 
-// FR 6.1: a plain, unflagged message. This is also the fallback target
-// for the retry below: the happy path for almost every message sent.
-// Resolves to the new message's id.
+// NFR 10: at most one message every 2 seconds. firestore.rules is what
+// enforces it; this only lets the page say so without trying.
+var MIN_GAP_MS = 2000;
+var lastSentAtMs = 0;
+
+function sentTooSoon(nowMs) {
+  return nowMs - lastSentAtMs < MIN_GAP_MS;
+}
+
+// Every message goes in the same batch as the sender's sendTimes record,
+// set to the moment it's saved. The rules refuse a message without it,
+// and refuse the record if the last message was under 2 seconds ago.
+function addSendTime(batch, uid) {
+  var ref = firebase.firestore().collection('sendTimes').doc(uid);
+  batch.set(ref, { lastSentAt: firebase.firestore.FieldValue.serverTimestamp() });
+}
+
+// FR 6.1: a plain, unflagged message: the happy path for almost every
+// message sent. Resolves to the new message's id.
 function sendPlainMessage(chatId, user, text) {
-  return firebase
-    .firestore()
-    .collection('messages')
-    .add({
-      chatId: chatId,
-      senderId: user.uid,
-      text: text,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    })
-    .then(function (messageRef) {
-      return messageRef.id;
-    });
+  var db = firebase.firestore();
+  var messageRef = db.collection('messages').doc();
+  var batch = db.batch();
+
+  batch.set(messageRef, {
+    chatId: chatId,
+    senderId: user.uid,
+    text: text,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+  addSendTime(batch, user.uid);
+
+  return batch.commit().then(function () {
+    return messageRef.id;
+  });
 }
 
 // FR 6.2: the message is still delivered. The message and its
@@ -414,6 +433,7 @@ function sendCrisisMessage(chatId, user, text) {
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
   markChatFlagged(batch, chatId);
+  addSendTime(batch, user.uid);
 
   return batch.commit().then(function () {
     recordSafetyTally(flagRef.id, 'crisis');
@@ -488,6 +508,7 @@ function sendAbuseFlaggedMessage(chatId, user, text) {
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
   markChatFlagged(batch, chatId);
+  addSendTime(batch, user.uid);
 
   return batch.commit().then(function () {
     recordSafetyTally(flagRef.id, 'abusive-language');
@@ -603,12 +624,15 @@ function screenAndSendMessage(chatId, user, text, isListener, form) {
   if (screened.hasCrisisLanguage) {
     sendCrisisMessage(chatId, user, text)
       .then(function () {
+        lastSentAtMs = Date.now();
         form.reset();
         showChatMessage('');
         showCrisisCard();
       })
       .catch(function (error) {
+        // Even if saving failed, the sender still sees where to get help.
         showChatMessage('Could not send that message. Please try again.');
+        showCrisisCard();
         console.error(error);
       });
     return;
@@ -617,6 +641,7 @@ function screenAndSendMessage(chatId, user, text, isListener, form) {
   if (screened.hasAbusiveLanguage) {
     sendAbuseFlaggedMessage(chatId, user, text)
       .then(function (messageId) {
+        lastSentAtMs = Date.now();
         form.reset();
         showChatMessage('');
         checkSentMessageWithModel(chatId, user, text, messageId, screened);
@@ -636,6 +661,7 @@ function screenAndSendMessage(chatId, user, text, isListener, form) {
   // would be a guess, not a fact. Just show the error.
   sendPlainMessage(chatId, user, text)
     .then(function (messageId) {
+      lastSentAtMs = Date.now();
       form.reset();
       showChatMessage('');
       checkSentMessageWithModel(chatId, user, text, messageId, screened);
@@ -677,6 +703,22 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!text) return;
 
       var isListener = !!(currentChat && user.uid === currentChat.listenerId);
+
+      // Under 2 seconds since the last message (NFR 10): wait out the
+      // rest, then send. Nothing is lost, crisis wording included; the
+      // button is off while waiting so it can't pile up.
+      var now = Date.now();
+      if (sentTooSoon(now)) {
+        var button = form.querySelector('button');
+        button.disabled = true;
+        showChatMessage('Sending...');
+        setTimeout(function () {
+          showChatMessage('');
+          updateChatControls();
+          screenAndSendMessage(chatId, user, text, isListener, form);
+        }, MIN_GAP_MS - (now - lastSentAtMs));
+        return;
+      }
       screenAndSendMessage(chatId, user, text, isListener, form);
     });
   }

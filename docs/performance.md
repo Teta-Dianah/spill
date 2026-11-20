@@ -46,9 +46,9 @@ Messages use Firestore's live updates: no polling, no server of Spill's own in b
 
 ## NFR 3: 30 people at once
 
-**Correctness under load:** a test runs 15 chats, 30 people, sending 45 messages at the same moment. Every message must arrive, and they all do.
+**Correctness under load:** a test runs 15 chats, where all 30 people (each user and each listener) send a message at the same moment. One each, because Spill allows one message every 2 seconds per person (NFR 10). Every message must arrive, and they all do.
 
-**Speed under load can't be measured here.** On the emulator, those 45 messages take 12 to 18 seconds to arrive. That is the emulator, not Spill: with nobody watching, the same 45 writes take under 1 second, and the time goes into the emulator pushing each change to every open chat in turn from one process. Google says the emulator is not for speed or load testing. Measuring the real service would need 30 test accounts on a real project, which this project does not create (they would need known passwords). The pilot's first days are the real test; the runbook says to watch them.
+**Speed under load can't be measured here.** On the emulator, those 30 messages take about 14 seconds to arrive. That is the emulator, not Spill: with nobody watching, the same writes take under 1 second, and the time goes into the emulator pushing each change to every open chat in turn from one process. Google says the emulator is not for speed or load testing. Measuring the real service would need 30 test accounts on a real project, which this project does not create (they would need known passwords). The pilot's first days are the real test; the runbook says to watch them.
 
 **The free Spark plan.** An estimate for a busy pilot day: 30 people, each checking in, opening pages about 5 times and having one chat of about 30 messages; 5 listeners; the admin opening the statistics a few times.
 

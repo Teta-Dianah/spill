@@ -75,6 +75,14 @@ service cloud.firestore {
       return exists(path) && get(path).data.status == 'suspended';
     }
 
+    // Helper: does this message bring its sender's sendTimes record,
+    // set to this very moment, in the same batch (NFR 10)? The sendTimes
+    // rules below refuse that record if the last message was under 2
+    // seconds ago, so the whole batch, message included, is refused too.
+    function sentWithSendTime(uid) {
+      return getAfter(/databases/$(database)/documents/sendTimes/$(uid)).data.lastSentAt == request.time;
+    }
+
     // Helper: has a moderator opened a case on this chat? chatCases is
     // only ever written by a moderator (see that collection below); this
     // is the one and only path in to chat content for them (BR 3).
@@ -563,6 +571,7 @@ service cloud.firestore {
         request.resource.data.senderId == request.auth.uid &&
         isActiveChatParticipant(request.resource.data.chatId, request.auth.uid) &&
         !isSuspended(request.auth.uid) &&
+        sentWithSendTime(request.auth.uid) &&
         !hasContactSharing(request.resource.data.text) &&
         (!hasCrisisLanguage(request.resource.data.text) ||
           hasMatchingCrisisFlag(messageId, request.resource.data.chatId, request.resource.data.senderId));
@@ -570,6 +579,27 @@ service cloud.firestore {
       allow read: if request.auth != null &&
         (isChatParticipant(resource.data.chatId, request.auth.uid) ||
           (hasRole('moderator') && chatHasCase(resource.data.chatId)));
+    }
+
+    // sendTimes/{uid}: when this person last sent a message, and nothing
+    // else (NFR 10). Every message is written in the same batch as this
+    // record (see sentWithSendTime), and the record can only move forward
+    // to "now" once at least 2 seconds have passed. That limits anyone,
+    // even a tampered app, to one message every 2 seconds. Only the person
+    // themselves can read, write or delete it.
+    match /sendTimes/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+
+      allow create: if request.auth != null &&
+        request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['lastSentAt']) &&
+        request.resource.data.lastSentAt == request.time;
+
+      allow update: if request.auth != null &&
+        request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['lastSentAt']) &&
+        request.resource.data.lastSentAt == request.time &&
+        request.time >= resource.data.lastSentAt + duration.value(2, 's');
     }
 
     // flags/{flagId}: system-raised safety flags for crisis wording,
