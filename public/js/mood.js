@@ -19,8 +19,9 @@ function recordMood(uid, score, note, tags) {
   return firebase.firestore().collection('moods').add(entry);
 }
 
-// Fetches a user's mood entries and hands back the 20 most recent,
-// newest first. Sorting happens here in JavaScript instead of in the
+// Fetches all of a user's mood entries and hands them back newest
+// first. All of them, not just the latest few, so the month's numbers
+// and recap (FR 3.4) count every check-in. Sorting happens here in JavaScript instead of in the
 // Firestore query, which keeps this simple and avoids needing a
 // composite index for a small pilot's worth of data. If it can't load
 // (no connection, for example), onFailed is called instead (NFR 18).
@@ -44,7 +45,7 @@ function loadMoodHistory(uid, onLoaded, onFailed) {
         return bTime - aTime;
       });
 
-      onLoaded(entries.slice(0, 20));
+      onLoaded(entries);
     })
     .catch(function (error) {
       console.error('Could not load check-ins', error);
