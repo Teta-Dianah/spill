@@ -210,6 +210,71 @@ function showListNote(list, text) {
   list.appendChild(item);
 }
 
+// entries: [{ score, time, tags }] where time is in milliseconds.
+// The private monthly recap on a user's dashboard (FR 3.4): this month's
+// check-ins, their average, last month's average to compare, the best
+// day, how many were rough (1 or 2), and the most picked tag. null when
+// there are no check-ins this month.
+function monthRecap(entries, nowMillis) {
+  var now = new Date(nowMillis);
+  var lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+  function inMonth(entry, monthDate) {
+    if (!entry.time) return false;
+    var date = new Date(entry.time);
+    return date.getMonth() === monthDate.getMonth() && date.getFullYear() === monthDate.getFullYear();
+  }
+
+  function averageOf(list) {
+    if (list.length === 0) return null;
+    var total = list.reduce(function (sum, entry) {
+      return sum + entry.score;
+    }, 0);
+    return Math.round((total / list.length) * 10) / 10;
+  }
+
+  var thisMonth = entries.filter(function (entry) {
+    return inMonth(entry, now);
+  });
+  if (thisMonth.length === 0) return null;
+
+  // The best day is the highest score; if two are equal, the latest.
+  var best = thisMonth[0];
+  thisMonth.forEach(function (entry) {
+    if (entry.score > best.score || (entry.score === best.score && entry.time > best.time)) best = entry;
+  });
+
+  // The most picked tag; if two are equal, the one picked last.
+  var tagCounts = {};
+  var topTag = null;
+  thisMonth
+    .slice()
+    .sort(function (a, b) {
+      return a.time - b.time;
+    })
+    .forEach(function (entry) {
+      (entry.tags || []).forEach(function (tag) {
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+        if (!topTag || tagCounts[tag] >= tagCounts[topTag]) topTag = tag;
+      });
+    });
+
+  return {
+    monthName: now.toLocaleDateString('en-GB', { month: 'long' }),
+    count: thisMonth.length,
+    average: averageOf(thisMonth),
+    lastMonthAverage: averageOf(entries.filter(function (entry) {
+      return inMonth(entry, lastMonth);
+    })),
+    bestScore: best.score,
+    bestTime: best.time,
+    roughDays: thisMonth.filter(function (entry) {
+      return entry.score <= 2;
+    }).length,
+    topTag: topTag,
+  };
+}
+
 if (typeof window !== 'undefined') {
   window.setStat = setStat;
   window.makeItemRow = makeItemRow;
@@ -224,6 +289,7 @@ if (typeof module !== 'undefined') {
     topicWord,
     moodWord,
     moodSummary,
+    monthRecap,
     lastCheckInText,
     queueSummary,
     listenerSummary,

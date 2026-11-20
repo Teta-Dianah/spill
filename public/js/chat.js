@@ -160,6 +160,60 @@ function chatStatusText(chat) {
   return chat.topic ? status + ' Topic: ' + topicWord(chat.topic) + '.' : status;
 }
 
+// True once a moderator has suspended the signed-in account (BR 7).
+// firestore.rules refuses their messages; this only explains why.
+var mySuspended = false;
+
+var SUSPENDED_NOTE = "Your account is paused, so you can't send messages for now. " +
+  'You can still end this chat, and "Need help now" is always there.';
+
+// Shows or hides the message box, Report and Block, from the chat's
+// status and whether this account is suspended.
+function updateChatControls() {
+  if (!currentChat) return;
+
+  // Before the listener accepts, the message box shows but can't be
+  // used. Once the chat has ended it goes away, along with Report
+  // and Block, so only the after-chat questions are left. A suspended
+  // account keeps Report and Block but can't type.
+  var messageForm = document.getElementById('message-form');
+  var safetyActions = document.getElementById('safety-actions');
+  var notActive = currentChat.status !== 'active';
+  var cannotType = notActive || mySuspended;
+  if (messageForm) {
+    messageForm.hidden = currentChat.status === 'ended';
+    messageForm.messageText.disabled = cannotType;
+    messageForm.querySelector('button').disabled = cannotType || sendInProgress;
+  }
+  if (safetyActions) {
+    safetyActions.hidden = notActive;
+  }
+  if (mySuspended && currentChat.status === 'active') {
+    showChatMessage(SUSPENDED_NOTE);
+  }
+
+  // A chat in progress counts as activity, so nobody is signed out
+  // mid-conversation (FR 1.4, idle-signout.js).
+  if (window.setKeepSignedIn) window.setKeepSignedIn(currentChat.status === 'active');
+}
+
+// Watches the signed-in person's own account, so a suspension during
+// an open chat stops the message box straight away (BR 7).
+function listenForMyAccount(myUid) {
+  firebase
+    .firestore()
+    .collection('accounts')
+    .doc(myUid)
+    .onSnapshot(function (docSnap) {
+      var wasSuspended = mySuspended;
+      mySuspended = docSnap.exists && docSnap.data().status === 'suspended';
+      if (wasSuspended && !mySuspended) showChatMessage('');
+      updateChatControls();
+    }, function (error) {
+      console.error(error);
+    });
+}
+
 function listenForChatStatus(chatId) {
   firebase
     .firestore()
@@ -172,21 +226,7 @@ function listenForChatStatus(chatId) {
       currentChat = chat;
       showChatStatus(chatStatusText(chat));
       showNoMessagesNote();
-
-      // Before the listener accepts, the message box shows but can't be
-      // used. Once the chat has ended it goes away, along with Report
-      // and Block, so only the after-chat questions are left.
-      var messageForm = document.getElementById('message-form');
-      var safetyActions = document.getElementById('safety-actions');
-      var disabled = chat.status !== 'active';
-      if (messageForm) {
-        messageForm.hidden = chat.status === 'ended';
-        messageForm.messageText.disabled = disabled;
-        messageForm.querySelector('button').disabled = disabled;
-      }
-      if (safetyActions) {
-        safetyActions.hidden = disabled;
-      }
+      updateChatControls();
     }, function (error) {
       showChatStatus('This chat stopped updating. Check your connection and refresh the page.');
       console.error(error);
@@ -333,22 +373,51 @@ function markChatFlagged(batch, chatId) {
   batch.set(ref, { chatId: chatId }, { merge: true });
 }
 
-// FR 6.1: a plain, unflagged message. This is also the fallback target
-// for the retry below: the happy path for almost every message sent.
-// Resolves to the new message's id.
+// NFR 10: at most one message every 2 seconds. firestore.rules is what
+// enforces it; this only lets the page say so without trying.
+var MIN_GAP_MS = 2000;
+var lastSentAtMs = 0; // when the last message was saved
+var sendInProgress = false;
+
+// Resolves once 2 seconds have passed since the last message was saved.
+function waitForSendGap() {
+  var wait = MIN_GAP_MS - (Date.now() - lastSentAtMs);
+  if (wait <= 0) return Promise.resolve();
+  showChatMessage('Sending...');
+  return new Promise(function (resolve) {
+    setTimeout(function () {
+      showChatMessage('');
+      resolve();
+    }, wait);
+  });
+}
+
+// Every message goes in the same batch as the sender's sendTimes record,
+// set to the moment it's saved. The rules refuse a message without it,
+// and refuse the record if the last message was under 2 seconds ago.
+function addSendTime(batch, uid) {
+  var ref = firebase.firestore().collection('sendTimes').doc(uid);
+  batch.set(ref, { lastSentAt: firebase.firestore.FieldValue.serverTimestamp() });
+}
+
+// FR 6.1: a plain, unflagged message: the happy path for almost every
+// message sent. Resolves to the new message's id.
 function sendPlainMessage(chatId, user, text) {
-  return firebase
-    .firestore()
-    .collection('messages')
-    .add({
-      chatId: chatId,
-      senderId: user.uid,
-      text: text,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    })
-    .then(function (messageRef) {
-      return messageRef.id;
-    });
+  var db = firebase.firestore();
+  var messageRef = db.collection('messages').doc();
+  var batch = db.batch();
+
+  batch.set(messageRef, {
+    chatId: chatId,
+    senderId: user.uid,
+    text: text,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+  addSendTime(batch, user.uid);
+
+  return batch.commit().then(function () {
+    return messageRef.id;
+  });
 }
 
 // FR 6.2: the message is still delivered. The message and its
@@ -378,6 +447,7 @@ function sendCrisisMessage(chatId, user, text) {
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
   markChatFlagged(batch, chatId);
+  addSendTime(batch, user.uid);
 
   return batch.commit().then(function () {
     recordSafetyTally(flagRef.id, 'crisis');
@@ -452,6 +522,7 @@ function sendAbuseFlaggedMessage(chatId, user, text) {
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
   });
   markChatFlagged(batch, chatId);
+  addSendTime(batch, user.uid);
 
   return batch.commit().then(function () {
     recordSafetyTally(flagRef.id, 'abusive-language');
@@ -541,19 +612,26 @@ function checkSentMessageWithModel(chatId, user, text, messageId, screened) {
     });
 }
 
+// Empties the message box once a message is sent, but only if it still
+// holds that message: anything typed since then is kept.
+function clearSentText(form, text) {
+  if (form.messageText.value.trim() === text) form.messageText.value = '';
+}
+
 // Screens the message, then sends it the right way (FR 6.1-6.4).
 //
 // The term lists decide how the message is sent. Contact details are
 // blocked and crisis wording is flagged at once, and neither is passed
 // on to the model. Any other message is sent straight away and then
-// checked by the model as well.
+// checked by the model as well. Always resolves, once the message is
+// saved or the error is shown.
 function screenAndSendMessage(chatId, user, text, isListener, form) {
   var screened = screenMessage(text, extraScreeningTerms);
 
   if (screened.hasContactSharing) {
-    sendBlockedAttempt(chatId, user, text, isListener, screened.hasCrisisLanguage)
+    return sendBlockedAttempt(chatId, user, text, isListener, screened.hasCrisisLanguage)
       .then(function () {
-        form.reset();
+        clearSentText(form, text);
         showChatMessage("That message wasn't sent. Don't share phone numbers, emails, links or other ways to contact you here. Everything stays on Spill.");
         if (screened.hasCrisisLanguage) showCrisisCard();
       })
@@ -561,27 +639,29 @@ function screenAndSendMessage(chatId, user, text, isListener, form) {
         showChatMessage('Could not send that message. Please try again.');
         console.error(error);
       });
-    return;
   }
 
   if (screened.hasCrisisLanguage) {
-    sendCrisisMessage(chatId, user, text)
+    return sendCrisisMessage(chatId, user, text)
       .then(function () {
-        form.reset();
+        lastSentAtMs = Date.now();
+        clearSentText(form, text);
         showChatMessage('');
         showCrisisCard();
       })
       .catch(function (error) {
+        // Even if saving failed, the sender still sees where to get help.
         showChatMessage('Could not send that message. Please try again.');
+        showCrisisCard();
         console.error(error);
       });
-    return;
   }
 
   if (screened.hasAbusiveLanguage) {
-    sendAbuseFlaggedMessage(chatId, user, text)
+    return sendAbuseFlaggedMessage(chatId, user, text)
       .then(function (messageId) {
-        form.reset();
+        lastSentAtMs = Date.now();
+        clearSentText(form, text);
         showChatMessage('');
         checkSentMessageWithModel(chatId, user, text, messageId, screened);
       })
@@ -589,7 +669,6 @@ function screenAndSendMessage(chatId, user, text, isListener, form) {
         showChatMessage('Could not send that message. Please try again.');
         console.error(error);
       });
-    return;
   }
 
   // Looks clean to this file's screening, so it's sent as a plain
@@ -598,9 +677,10 @@ function screenAndSendMessage(chatId, user, text, isListener, form) {
   // retried as a crisis or blocked-attempt flag; this file's own
   // screening didn't find crisis wording here, so raising a crisis flag
   // would be a guess, not a fact. Just show the error.
-  sendPlainMessage(chatId, user, text)
+  return sendPlainMessage(chatId, user, text)
     .then(function (messageId) {
-      form.reset();
+      lastSentAtMs = Date.now();
+      clearSentText(form, text);
       showChatMessage('');
       checkSentMessageWithModel(chatId, user, text, messageId, screened);
     })
@@ -624,6 +704,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     listenForChatStatus(chatId);
+    listenForMyAccount(user.uid);
     listenForMessages(chatId, user.uid);
     loadExtraScreeningTerms();
   });
@@ -640,7 +721,22 @@ document.addEventListener('DOMContentLoaded', function () {
       if (!text) return;
 
       var isListener = !!(currentChat && user.uid === currentChat.listenerId);
-      screenAndSendMessage(chatId, user, text, isListener, form);
+
+      // One message at a time: the button is off until this one is saved.
+      // Under 2 seconds since the last one was saved (NFR 10), it waits
+      // out the rest first. Nothing is lost, crisis wording included.
+      if (sendInProgress) return;
+      sendInProgress = true;
+      form.querySelector('button').disabled = true;
+
+      waitForSendGap()
+        .then(function () {
+          return screenAndSendMessage(chatId, user, text, isListener, form);
+        })
+        .then(function () {
+          sendInProgress = false;
+          updateChatControls();
+        });
     });
   }
 

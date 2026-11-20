@@ -29,11 +29,26 @@ document.addEventListener('DOMContentLoaded', function () {
   var form = document.getElementById('signin-form');
   if (!form) return;
 
+  // Sent here by idle-signout.js after 30 minutes away (FR 1.4).
+  // Shown once only.
+  try {
+    if (window.sessionStorage.getItem('spill-signed-out-idle') === 'yes') {
+      window.sessionStorage.removeItem('spill-signed-out-idle');
+      showSigninMessage('You were signed out after 30 minutes away. Sign in again to carry on.');
+    }
+  } catch {
+    // Nothing to show.
+  }
+
   form.addEventListener('submit', function (event) {
     event.preventDefault();
 
     var email = form.email.value.trim();
     var password = form.password.value;
+
+    // Signing in is activity, so the 30-minute timer starts afresh
+    // (idle-signout.js).
+    if (window.markActive) window.markActive();
 
     signIn(email, password)
       .then(function (credential) {
