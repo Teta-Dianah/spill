@@ -1514,6 +1514,34 @@ describe('moods', () => {
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(getDoc(doc(db, 'moods/mood-3')));
   });
+
+  describe('tags (FR 3.1)', () => {
+    test('a check-in can carry tags from the list', async () => {
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertSucceeds(setDoc(doc(db, 'moods/m-tags'), { uid: 'alice', score: 2, tags: ['rough-day', 'money-stress'] }));
+    });
+
+    test('a check-in can have no tags', async () => {
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertSucceeds(setDoc(doc(db, 'moods/m-none'), { uid: 'alice', score: 4, tags: [] }));
+    });
+
+    test('a tag that is not on the list is refused, so nothing else can be stored there', async () => {
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertFails(setDoc(doc(db, 'moods/m-bad'), { uid: 'alice', score: 2, tags: ['rough-day', 'call me 0788123456'] }));
+    });
+
+    test('tags must be a list', async () => {
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertFails(setDoc(doc(db, 'moods/m-text'), { uid: 'alice', score: 2, tags: 'rough-day' }));
+    });
+
+    test('no more than the 8 tags there are', async () => {
+      const db = testEnv.authenticatedContext('alice').firestore();
+      const nine = ['rough-day', 'money-stress', 'study-overload', 'family', 'friends', 'lonely', 'tired', 'good-news', 'tired'];
+      await assertFails(setDoc(doc(db, 'moods/m-many'), { uid: 'alice', score: 2, tags: nine }));
+    });
+  });
 });
 
 describe('chatFlagged', () => {
