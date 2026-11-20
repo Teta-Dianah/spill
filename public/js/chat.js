@@ -183,7 +183,7 @@ function updateChatControls() {
   if (messageForm) {
     messageForm.hidden = currentChat.status === 'ended';
     messageForm.messageText.disabled = cannotType;
-    messageForm.querySelector('button').disabled = cannotType;
+    messageForm.querySelector('button').disabled = cannotType || sendInProgress;
   }
   if (safetyActions) {
     safetyActions.hidden = notActive;
@@ -372,10 +372,20 @@ function markChatFlagged(batch, chatId) {
 // NFR 10: at most one message every 2 seconds. firestore.rules is what
 // enforces it; this only lets the page say so without trying.
 var MIN_GAP_MS = 2000;
-var lastSentAtMs = 0;
+var lastSentAtMs = 0; // when the last message was saved
+var sendInProgress = false;
 
-function sentTooSoon(nowMs) {
-  return nowMs - lastSentAtMs < MIN_GAP_MS;
+// Resolves once 2 seconds have passed since the last message was saved.
+function waitForSendGap() {
+  var wait = MIN_GAP_MS - (Date.now() - lastSentAtMs);
+  if (wait <= 0) return Promise.resolve();
+  showChatMessage('Sending...');
+  return new Promise(function (resolve) {
+    setTimeout(function () {
+      showChatMessage('');
+      resolve();
+    }, wait);
+  });
 }
 
 // Every message goes in the same batch as the sender's sendTimes record,
@@ -598,19 +608,26 @@ function checkSentMessageWithModel(chatId, user, text, messageId, screened) {
     });
 }
 
+// Empties the message box once a message is sent, but only if it still
+// holds that message: anything typed since then is kept.
+function clearSentText(form, text) {
+  if (form.messageText.value.trim() === text) form.messageText.value = '';
+}
+
 // Screens the message, then sends it the right way (FR 6.1-6.4).
 //
 // The term lists decide how the message is sent. Contact details are
 // blocked and crisis wording is flagged at once, and neither is passed
 // on to the model. Any other message is sent straight away and then
-// checked by the model as well.
+// checked by the model as well. Always resolves, once the message is
+// saved or the error is shown.
 function screenAndSendMessage(chatId, user, text, isListener, form) {
   var screened = screenMessage(text, extraScreeningTerms);
 
   if (screened.hasContactSharing) {
-    sendBlockedAttempt(chatId, user, text, isListener, screened.hasCrisisLanguage)
+    return sendBlockedAttempt(chatId, user, text, isListener, screened.hasCrisisLanguage)
       .then(function () {
-        form.reset();
+        clearSentText(form, text);
         showChatMessage("That message wasn't sent. Don't share phone numbers, emails, links or other ways to contact you here. Everything stays on Spill.");
         if (screened.hasCrisisLanguage) showCrisisCard();
       })
@@ -618,14 +635,13 @@ function screenAndSendMessage(chatId, user, text, isListener, form) {
         showChatMessage('Could not send that message. Please try again.');
         console.error(error);
       });
-    return;
   }
 
   if (screened.hasCrisisLanguage) {
-    sendCrisisMessage(chatId, user, text)
+    return sendCrisisMessage(chatId, user, text)
       .then(function () {
         lastSentAtMs = Date.now();
-        form.reset();
+        clearSentText(form, text);
         showChatMessage('');
         showCrisisCard();
       })
@@ -635,14 +651,13 @@ function screenAndSendMessage(chatId, user, text, isListener, form) {
         showCrisisCard();
         console.error(error);
       });
-    return;
   }
 
   if (screened.hasAbusiveLanguage) {
-    sendAbuseFlaggedMessage(chatId, user, text)
+    return sendAbuseFlaggedMessage(chatId, user, text)
       .then(function (messageId) {
         lastSentAtMs = Date.now();
-        form.reset();
+        clearSentText(form, text);
         showChatMessage('');
         checkSentMessageWithModel(chatId, user, text, messageId, screened);
       })
@@ -650,7 +665,6 @@ function screenAndSendMessage(chatId, user, text, isListener, form) {
         showChatMessage('Could not send that message. Please try again.');
         console.error(error);
       });
-    return;
   }
 
   // Looks clean to this file's screening, so it's sent as a plain
@@ -659,10 +673,10 @@ function screenAndSendMessage(chatId, user, text, isListener, form) {
   // retried as a crisis or blocked-attempt flag; this file's own
   // screening didn't find crisis wording here, so raising a crisis flag
   // would be a guess, not a fact. Just show the error.
-  sendPlainMessage(chatId, user, text)
+  return sendPlainMessage(chatId, user, text)
     .then(function (messageId) {
       lastSentAtMs = Date.now();
-      form.reset();
+      clearSentText(form, text);
       showChatMessage('');
       checkSentMessageWithModel(chatId, user, text, messageId, screened);
     })
@@ -704,22 +718,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
       var isListener = !!(currentChat && user.uid === currentChat.listenerId);
 
-      // Under 2 seconds since the last message (NFR 10): wait out the
-      // rest, then send. Nothing is lost, crisis wording included; the
-      // button is off while waiting so it can't pile up.
-      var now = Date.now();
-      if (sentTooSoon(now)) {
-        var button = form.querySelector('button');
-        button.disabled = true;
-        showChatMessage('Sending...');
-        setTimeout(function () {
-          showChatMessage('');
+      // One message at a time: the button is off until this one is saved.
+      // Under 2 seconds since the last one was saved (NFR 10), it waits
+      // out the rest first. Nothing is lost, crisis wording included.
+      if (sendInProgress) return;
+      sendInProgress = true;
+      form.querySelector('button').disabled = true;
+
+      waitForSendGap()
+        .then(function () {
+          return screenAndSendMessage(chatId, user, text, isListener, form);
+        })
+        .then(function () {
+          sendInProgress = false;
           updateChatControls();
-          screenAndSendMessage(chatId, user, text, isListener, form);
-        }, MIN_GAP_MS - (now - lastSentAtMs));
-        return;
-      }
-      screenAndSendMessage(chatId, user, text, isListener, form);
+        });
     });
   }
 
