@@ -26,6 +26,15 @@ const {
 
 let testEnv;
 
+// Sends a message the way chat.js does: in one batch with the sender's
+// sendTimes record, set to now (NFR 10). Pass a batch that already holds
+// other writes, such as a crisis flag, to send them all together.
+function sendMessage(db, id, data, batch = writeBatch(db)) {
+  batch.set(doc(db, `messages/${id}`), data);
+  batch.set(doc(db, `sendTimes/${data.senderId}`), { lastSentAt: serverTimestamp() });
+  return batch.commit();
+}
+
 beforeAll(async () => {
   testEnv = await initializeTestEnvironment({
     projectId: 'demo-spill-dev',
@@ -1075,7 +1084,7 @@ describe('messages', () => {
 
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertSucceeds(
-      setDoc(doc(db, 'messages/msg-1'), { chatId: 'chat-1', senderId: 'alice', text: 'Hi' })
+      sendMessage(db, 'msg-1', { chatId: 'chat-1', senderId: 'alice', text: 'Hi' })
     );
   });
 
@@ -1084,7 +1093,7 @@ describe('messages', () => {
 
     const db = testEnv.authenticatedContext('mallory').firestore();
     await assertFails(
-      setDoc(doc(db, 'messages/msg-1'), { chatId: 'chat-1', senderId: 'mallory', text: 'Hi' })
+      sendMessage(db, 'msg-1', { chatId: 'chat-1', senderId: 'mallory', text: 'Hi' })
     );
   });
 
@@ -1098,7 +1107,7 @@ describe('messages', () => {
 
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(
-      setDoc(doc(db, 'messages/msg-1'), { chatId: 'chat-1', senderId: 'alice', text: 'Hi' })
+      sendMessage(db, 'msg-1', { chatId: 'chat-1', senderId: 'alice', text: 'Hi' })
     );
   });
 
@@ -1118,6 +1127,7 @@ describe('messages', () => {
     batch.set(doc(db, 'flags/flag-1'), {
       type: 'crisis', chatId: 'chat-1', senderId: 'alice', messageId: 'msg-1', severity: 3, status: 'open',
     });
+    batch.set(doc(db, 'sendTimes/alice'), { lastSentAt: serverTimestamp() });
     await assertFails(batch.commit());
   });
 
@@ -1135,7 +1145,7 @@ describe('messages', () => {
 
     const db = testEnv.authenticatedContext('grace').firestore();
     await assertSucceeds(
-      setDoc(doc(db, 'messages/msg-1'), { chatId: 'chat-1', senderId: 'grace', text: 'Take care' })
+      sendMessage(db, 'msg-1', { chatId: 'chat-1', senderId: 'grace', text: 'Take care' })
     );
   });
 
@@ -1149,7 +1159,7 @@ describe('messages', () => {
 
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertSucceeds(
-      setDoc(doc(db, 'messages/msg-1'), { chatId: 'chat-1', senderId: 'alice', text: 'Hi' })
+      sendMessage(db, 'msg-1', { chatId: 'chat-1', senderId: 'alice', text: 'Hi' })
     );
   });
 
@@ -1167,6 +1177,70 @@ describe('messages', () => {
     await assertSucceeds(updateDoc(doc(db, 'chats/chat-1'), { status: 'ended' }));
   });
 
+  describe('one message every 2 seconds (NFR 10)', () => {
+    async function seedLastSent(uid, msAgo) {
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        await setDoc(doc(context.firestore(), `sendTimes/${uid}`), { lastSentAt: new Date(Date.now() - msAgo) });
+      });
+    }
+
+    test('a message without its send time is refused', async () => {
+      await seedChat('chat-1', 'alice', 'grace');
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertFails(setDoc(doc(db, 'messages/msg-1'), { chatId: 'chat-1', senderId: 'alice', text: 'Hi' }));
+    });
+
+    test('a second message straight after the first is refused', async () => {
+      await seedChat('chat-1', 'alice', 'grace');
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertSucceeds(sendMessage(db, 'msg-1', { chatId: 'chat-1', senderId: 'alice', text: 'Hi' }));
+      await assertFails(sendMessage(db, 'msg-2', { chatId: 'chat-1', senderId: 'alice', text: 'Hi again' }));
+    });
+
+    test('a message 1 second after the last one is refused', async () => {
+      await seedChat('chat-1', 'alice', 'grace');
+      await seedLastSent('alice', 1000);
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertFails(sendMessage(db, 'msg-1', { chatId: 'chat-1', senderId: 'alice', text: 'Hi' }));
+    });
+
+    test('a message 3 seconds after the last one is sent', async () => {
+      await seedChat('chat-1', 'alice', 'grace');
+      await seedLastSent('alice', 3000);
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertSucceeds(sendMessage(db, 'msg-1', { chatId: 'chat-1', senderId: 'alice', text: 'Hi' }));
+    });
+
+    test('the two people in a chat each have their own 2 seconds', async () => {
+      await seedChat('chat-1', 'alice', 'grace');
+      const aliceDb = testEnv.authenticatedContext('alice').firestore();
+      const graceDb = testEnv.authenticatedContext('grace').firestore();
+      await assertSucceeds(sendMessage(aliceDb, 'msg-1', { chatId: 'chat-1', senderId: 'alice', text: 'Hi' }));
+      await assertSucceeds(sendMessage(graceDb, 'msg-2', { chatId: 'chat-1', senderId: 'grace', text: 'Hello' }));
+    });
+
+    test('nobody can set their send time to anything but now, to get round the wait', async () => {
+      await seedLastSent('alice', 1000);
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertFails(setDoc(doc(db, 'sendTimes/alice'), { lastSentAt: new Date(Date.now() - 60000) }));
+      await assertFails(updateDoc(doc(db, 'sendTimes/alice'), { lastSentAt: serverTimestamp(), extra: 1 }));
+    });
+
+    test("nobody can read, write or delete someone else's send time", async () => {
+      await seedLastSent('alice', 3000);
+      const db = testEnv.authenticatedContext('mallory').firestore();
+      await assertFails(getDoc(doc(db, 'sendTimes/alice')));
+      await assertFails(setDoc(doc(db, 'sendTimes/alice'), { lastSentAt: serverTimestamp() }));
+      await assertFails(deleteDoc(doc(db, 'sendTimes/alice')));
+    });
+
+    test('a person can delete their own send time, as when deleting their account (FR 1.5)', async () => {
+      await seedLastSent('alice', 3000);
+      const db = testEnv.authenticatedContext('alice').firestore();
+      await assertSucceeds(deleteDoc(doc(db, 'sendTimes/alice')));
+    });
+  });
+
   test('a participant cannot send a message while the chat is still pending (FR 5.5)', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       await setDoc(doc(context.firestore(), 'chats/chat-1'), {
@@ -1178,7 +1252,7 @@ describe('messages', () => {
 
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(
-      setDoc(doc(db, 'messages/msg-1'), { chatId: 'chat-1', senderId: 'alice', text: 'Hi' })
+      sendMessage(db, 'msg-1', { chatId: 'chat-1', senderId: 'alice', text: 'Hi' })
     );
   });
 
@@ -1215,7 +1289,7 @@ describe('messages', () => {
 
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertSucceeds(
-      setDoc(doc(db, 'messages/msg-2'), { chatId: 'chat-1', senderId: 'alice', text: 'Hi, how are you?' })
+      sendMessage(db, 'msg-2', { chatId: 'chat-1', senderId: 'alice', text: 'Hi, how are you?' })
     );
   });
 
@@ -1224,7 +1298,7 @@ describe('messages', () => {
 
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(
-      setDoc(doc(db, 'messages/msg-3'), {
+      sendMessage(db, 'msg-3', {
         chatId: 'chat-1',
         senderId: 'alice',
         text: 'I want to kill myself',
@@ -1252,6 +1326,7 @@ describe('messages', () => {
       severity: 3,
       status: 'open',
     });
+    batch.set(doc(db, 'sendTimes/alice'), { lastSentAt: serverTimestamp() });
     await assertSucceeds(batch.commit());
   });
 
@@ -1267,6 +1342,7 @@ describe('messages', () => {
     wrongChat.set(doc(db, 'flags/flag-wrong-chat'), {
       type: 'crisis', chatId: 'some-other-chat', senderId: 'alice', messageId: 'msg-wrong-chat', severity: 3,
     });
+    wrongChat.set(doc(db, 'sendTimes/alice'), { lastSentAt: serverTimestamp() });
     await assertFails(wrongChat.commit());
 
     const wrongMessage = writeBatch(db);
@@ -1276,6 +1352,7 @@ describe('messages', () => {
     wrongMessage.set(doc(db, 'flags/flag-wrong-message'), {
       type: 'crisis', chatId: 'chat-1', senderId: 'alice', messageId: 'some-other-message', severity: 3,
     });
+    wrongMessage.set(doc(db, 'sendTimes/alice'), { lastSentAt: serverTimestamp() });
     await assertFails(wrongMessage.commit());
 
     const wrongSender = writeBatch(db);
@@ -1285,6 +1362,7 @@ describe('messages', () => {
     wrongSender.set(doc(db, 'flags/flag-wrong-sender'), {
       type: 'crisis', chatId: 'chat-1', senderId: 'someone-else', messageId: 'msg-wrong-sender', severity: 3,
     });
+    wrongSender.set(doc(db, 'sendTimes/alice'), { lastSentAt: serverTimestamp() });
     await assertFails(wrongSender.commit());
 
     const wrongType = writeBatch(db);
@@ -1294,6 +1372,7 @@ describe('messages', () => {
     wrongType.set(doc(db, 'flags/flag-wrong-type'), {
       type: 'abusive-language', chatId: 'chat-1', senderId: 'alice', messageId: 'msg-wrong-type', severity: 1,
     });
+    wrongType.set(doc(db, 'sendTimes/alice'), { lastSentAt: serverTimestamp() });
     await assertFails(wrongType.commit());
   });
 
@@ -1302,7 +1381,7 @@ describe('messages', () => {
 
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(
-      setDoc(doc(db, 'messages/msg-5'), { chatId: 'chat-1', senderId: 'alice', text: 'call me at 0788123456' })
+      sendMessage(db, 'msg-5', { chatId: 'chat-1', senderId: 'alice', text: 'call me at 0788123456' })
     );
   });
 
@@ -1317,7 +1396,7 @@ describe('messages', () => {
     const combinedText = 'I want to kill myself, call me at 0788123456';
 
     await assertFails(
-      setDoc(doc(db, 'messages/msg-combined'), { chatId: 'chat-1', senderId: 'alice', text: combinedText })
+      sendMessage(db, 'msg-combined', { chatId: 'chat-1', senderId: 'alice', text: combinedText })
     );
 
     const batch = writeBatch(db);
@@ -1567,6 +1646,7 @@ describe('flags and reports', () => {
     batch.set(doc(userDb, 'flags/flag-nfr4'), {
       type: 'crisis', chatId: 'chat-1', senderId: 'alice', messageId: 'msg-nfr4', severity: 3, status: 'open',
     });
+    batch.set(doc(userDb, 'sendTimes/alice'), { lastSentAt: serverTimestamp() });
     sentAt = Date.now();
     await assertSucceeds(batch.commit());
 
@@ -2154,24 +2234,24 @@ describe('the fixed Rules checks still apply whatever the term lists say', () =>
   test('a crisis message with no matching flag is still refused', async () => {
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(
-      setDoc(doc(db, 'messages/msg-1'), { chatId: 'chat-1', senderId: 'alice', text: 'I want to kill myself' })
+      sendMessage(db, 'msg-1', { chatId: 'chat-1', senderId: 'alice', text: 'I want to kill myself' })
     );
   });
 
   test('contact sharing is still refused, even with an empty contact list', async () => {
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertFails(
-      setDoc(doc(db, 'messages/msg-2'), { chatId: 'chat-1', senderId: 'alice', text: 'whatsapp me later' })
+      sendMessage(db, 'msg-2', { chatId: 'chat-1', senderId: 'alice', text: 'whatsapp me later' })
     );
     await assertFails(
-      setDoc(doc(db, 'messages/msg-3'), { chatId: 'chat-1', senderId: 'alice', text: 'call me at 0788123456' })
+      sendMessage(db, 'msg-3', { chatId: 'chat-1', senderId: 'alice', text: 'call me at 0788123456' })
     );
   });
 
   test('an admin-added term does not change what the Rules accept', async () => {
     const db = testEnv.authenticatedContext('alice').firestore();
     await assertSucceeds(
-      setDoc(doc(db, 'messages/msg-4'), { chatId: 'chat-1', senderId: 'alice', text: 'I want to fade away forever' })
+      sendMessage(db, 'msg-4', { chatId: 'chat-1', senderId: 'alice', text: 'I want to fade away forever' })
     );
   });
 });
@@ -2685,7 +2765,7 @@ describe('speed and load (NFR 2, NFR 3)', () => {
     const watcher = watchFor(listenerDb, 'chat-1', ['msg-speed']);
     await watcher.started;
     const sentAt = Date.now();
-    await assertSucceeds(setDoc(doc(userDb, 'messages/msg-speed'), { chatId: 'chat-1', senderId: 'alice', text: 'Hi, are you there?' }));
+    await assertSucceeds(sendMessage(userDb, 'msg-speed', { chatId: 'chat-1', senderId: 'alice', text: 'Hi, are you there?' }));
     const seenAt = await watcher.done;
     watcher.stop();
 
@@ -2696,34 +2776,35 @@ describe('speed and load (NFR 2, NFR 3)', () => {
 
   test('30 people in 15 chats at once: every message arrives (NFR 3)', async () => {
     const CHATS = 15;
-    const EACH = 3;
     const chats = Array.from({ length: CHATS }, (_, i) => ({ id: `load-${i}`, user: `user-${i}`, listener: `listener-${i}` }));
     for (const chat of chats) await seedActiveChat(chat.id, chat.user, chat.listener);
 
+    // In each chat, the user and the listener each send one message, so
+    // 30 people send 30 messages. One each, because the rules allow one
+    // message every 2 seconds per person (NFR 10).
     const watchers = chats.map((chat) => {
-      const ids = Array.from({ length: EACH }, (_, n) => `${chat.id}-m${n}`);
+      const ids = [`${chat.id}-user`, `${chat.id}-listener`];
       return { chat, ids, ...watchFor(testEnv.authenticatedContext(chat.listener).firestore(), chat.id, ids) };
     });
     await Promise.all(watchers.map((w) => w.started));
 
-    // Each user's connection is opened and used once before the clock
+    // Each person's connection is opened and used once before the clock
     // starts, the way a person already in a chat is already connected.
-    const userDbs = {};
+    const dbs = {};
     for (const w of watchers) {
-      userDbs[w.chat.user] = testEnv.authenticatedContext(w.chat.user).firestore();
-      await getDoc(doc(userDbs[w.chat.user], `chats/${w.chat.id}`));
+      for (const person of [w.chat.user, w.chat.listener]) {
+        dbs[person] = testEnv.authenticatedContext(person).firestore();
+        await getDoc(doc(dbs[person], `chats/${w.chat.id}`));
+      }
     }
 
     // Everyone sends at the same moment.
     const sentAt = Date.now();
     await Promise.all(
-      watchers.flatMap((w) =>
-        w.ids.map((id) =>
-          setDoc(doc(userDbs[w.chat.user], `messages/${id}`), {
-            chatId: w.chat.id, senderId: w.chat.user, text: 'Checking in',
-          })
-        )
-      )
+      watchers.flatMap((w) => [
+        sendMessage(dbs[w.chat.user], `${w.chat.id}-user`, { chatId: w.chat.id, senderId: w.chat.user, text: 'Checking in' }),
+        sendMessage(dbs[w.chat.listener], `${w.chat.id}-listener`, { chatId: w.chat.id, senderId: w.chat.listener, text: 'I am here' }),
+      ])
     );
     const results = await Promise.all(watchers.map((w) => w.done));
     watchers.forEach((w) => w.stop());
@@ -2731,11 +2812,11 @@ describe('speed and load (NFR 2, NFR 3)', () => {
     // Every message must arrive. The time is only reported: with 15 chats
     // open in one process, the emulator itself is the slow part (it pushes
     // each change to every open chat in turn; with nobody watching, the
-    // same 45 writes take under a second). Google says the emulator is not
+    // same 30 writes take under a second). Google says the emulator is not
     // for speed or load testing, so this proves nothing is lost or
     // refused under load, not how fast the real service is.
     const times = results.flatMap((seenAt) => Object.values(seenAt).map((at) => at - sentAt));
-    expect(times).toHaveLength(CHATS * EACH);
+    expect(times).toHaveLength(CHATS * 2);
     console.log(`NFR 3: ${times.length} messages from 30 people, all arrived; the slowest took ${Math.max(...times)} ms on the emulator`);
   }, 120000);
 });
