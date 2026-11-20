@@ -67,6 +67,14 @@ service cloud.firestore {
       return (chat.userId == uid || chat.listenerId == uid) && chat.status == 'active';
     }
 
+    // Helper: is this account suspended (BR 7)? Every real sender has an
+    // account; someone with none can't have been suspended. Reading the
+    // same document twice in one request only counts as one read.
+    function isSuspended(uid) {
+      let path = /databases/$(database)/documents/accounts/$(uid);
+      return exists(path) && get(path).data.status == 'suspended';
+    }
+
     // Helper: has a moderator opened a case on this chat? chatCases is
     // only ever written by a moderator (see that collection below); this
     // is the one and only path in to chat content for them (BR 3).
@@ -546,11 +554,15 @@ service cloud.firestore {
     // message and sender; see hasMatchingCrisisFlag). A tampered client
     // could try to skip or mismatch the flag, but then the whole write
     // (crisis message included) is refused, not silently delivered
-    // unflagged or flagged against the wrong message.
+    // unflagged or flagged against the wrong message. A suspended account
+    // can't send anything, even in a chat that was already open when the
+    // suspension happened (BR 7). They can still end the chat, report or
+    // block, and open "Need help now".
     match /messages/{messageId} {
       allow create: if request.auth != null &&
         request.resource.data.senderId == request.auth.uid &&
         isActiveChatParticipant(request.resource.data.chatId, request.auth.uid) &&
+        !isSuspended(request.auth.uid) &&
         !hasContactSharing(request.resource.data.text) &&
         (!hasCrisisLanguage(request.resource.data.text) ||
           hasMatchingCrisisFlag(messageId, request.resource.data.chatId, request.resource.data.senderId));
