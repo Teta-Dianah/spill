@@ -11,7 +11,7 @@ This version describes Spill as it was built. Each requirement has a status: **B
 | Dianah Teta | 29 September 2026 | Initial version of the project proposal and SRS for Spill | 1.0 |
 | Dianah Teta | 26 October 2026 | Added Appendix B with UML diagrams | 2.0 |
 | Dianah Teta | 20 November 2026 | Updated to match the built app: status on every requirement, the real data model, new diagrams | 3.0 |
-| Dianah Teta | 23 November 2026 | Last seven items built (FR 1.4, FR 3.1, FR 3.4, NFR 10, NFR 13, BR 7, Help page); class and sequence diagrams added | 3.1 |
+| Dianah Teta | 23 November 2026 | Last seven items built (FR 1.4, FR 3.1, FR 3.4, NFR 10, NFR 13, BR 7, Help page); all UML diagrams redrawn | 3.1 |
 
 ---
 
@@ -403,7 +403,7 @@ The editable files are in [`docs/diagrams/`](diagrams/). Each diagram has its ow
 
 | Relationship | Type | Meaning |
 |---|---|---|
-| Apply to be a listener to Pass the training quiz | «include» | No one listens before passing the quiz (BR 2). |
+| Apply to be a listener to Agree to the code of conduct | «include» | Every application must agree to it (FR 5.1). |
 | Request a chat to Match with an eligible listener | «include» | Every request goes through matching (BR 1). |
 | Exchange messages to Screen every message | «include» | Every message is screened (FR 6.1). |
 | Trigger crisis support to Screen every message | «extend» | Condition {message matches crisis terms}: shows the crisis card and saves a crisis flag. |
