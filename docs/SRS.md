@@ -363,54 +363,63 @@ Version 2.0 listed eight collections; the built app has eighteen.
 
 ## Appendix B: UML diagrams
 
-The editable files are in [`docs/diagrams/`](diagrams/).
+The editable files are in [`docs/diagrams/`](diagrams/). Each diagram has its own legend.
 
 ### 1. Use case diagrams
 
-![Figure B.1: Use case diagram for the Visitor and the User](diagrams/B1-use-cases-visitor-user.png)
+![Figure B.1: Use case diagram, resources, account and mood](diagrams/B1-use-cases-visitor-user.png)
 
-**Figure B.1: Use case diagram for the Visitor and the User**
+**Figure B.1: Use case diagram, resources, account and mood**
 
 **Description & Flow:** what a person can do before and after registering.
 
-- **Actors:** the Visitor has no account. The User is a registered young person and generalises the Visitor.
-- **Base use cases:** the Visitor views helplines, clinics, self-help, the Help page and the crisis card. The User also registers, signs in and out, records moods, views history and the recap, and deletes the account.
+- **Actors:** the Visitor has no account. The User is a registered young person aged 16 to 25, and generalises the Visitor, so a User can do everything a Visitor can.
+- **Base use cases:** the Visitor reads self-help tips, views helplines and clinics, opens the crisis card ("Need help now"), reads the privacy notice and terms, reads the Help page and registers an account. The User also signs in and out, records a mood check-in, views mood history and the monthly recap, and deletes the account.
+- **Note:** deleting the account also removes the user's check-ins and listener records (FR 1.5).
 
 | Relationship | Type | Meaning |
 |---|---|---|
-| Open the crisis card to View helplines | «include» | The card always shows the helplines. |
-| Register to Agree to the privacy notice | «include» | Consent is recorded every time. |
-| Register to Answer the first-time question | «include» | Asked once at sign-up. |
-| Stop an under-16 sign-up to Register | «extend» | Only if "Under 16" is chosen. |
-| Add topic tags to Record mood | «extend» | Tags are optional. |
+| Open the crisis card to View helplines and clinics | «include» | The card always shows the helplines. |
+| Register an account to Agree to the privacy notice | «include» | The notice version and time are recorded. |
+| Register an account to Get a random pseudonym | «include» | No real name is ever asked for. |
+| Register an account to Answer the first-time help-seeking question | «include» | Asked once at sign-up (FR 1.6). |
+| Register an account to Get a verification email | «include» | Sent after the account is made (FR 1.7). |
+| Reject under-16 sign-up to Register an account | «extend» | Condition {age < 16}: no account is created. |
+| Add topic tags to Record a mood check-in | «extend» | Condition {user chooses to tag}, for example Rough day. |
 
-![Figure B.2: Use case diagram for chat and staff roles](diagrams/B2-use-cases-chat-staff.png)
+![Figure B.2: Use case diagram, chat, safety and staff work](diagrams/B2-use-cases-chat-staff.png)
 
-**Figure B.2: Use case diagram for chat and staff roles**
+**Figure B.2: Use case diagram, chat, safety and staff work**
 
-**Description & Flow:** how users and listeners chat safely, and what staff do. Line colours only help follow each actor.
+**Description & Flow:** how users and listeners chat safely, and what staff do.
 
 - **Actors:** User, Listener, Moderator, Administrator.
-- **Base use cases:** the User requests a chat, sends messages, ends, reports and blocks. The Listener sets availability and accepts or declines. The Moderator reviews the queue and acts. The Administrator approves listeners and manages terms and resources.
+- **Base use cases:**
+  - User: apply to be a listener, request a chat, exchange messages, report or block the other person, end the chat.
+  - Listener: set availability, accept or decline a chat request, exchange messages, report, block, end the chat.
+  - Moderator: review the flag and report queue, open a case on a chat, take a moderation action, suggest a screening term.
+  - Administrator: review listener applications, manage the term lists, approve or reject suggested terms, manage helplines and clinics, view anonymised statistics.
+- **Notes:** before the chat the user picks a topic and rates their mood. Every moderation action needs a reason, and opening a case and every action are logged. Reviewing an application means running the checks, then approving or rejecting.
 
 | Relationship | Type | Meaning |
 |---|---|---|
-| Request a chat to Match with a listener | «include» | Every request goes through matching. |
-| Exchange messages to Screen every message | «include» | Every message is screened. |
-| Show crisis card to Screen every message | «extend» | Only if crisis wording is found. |
-| Block contact-sharing to Screen every message | «extend» | Only if contact details are found. |
-| Rate chat to End chat | «extend» | Only if the user chooses to rate. |
+| Apply to be a listener to Pass the training quiz | «include» | No one listens before passing the quiz (BR 2). |
+| Request a chat to Match with an eligible listener | «include» | Every request goes through matching (BR 1). |
+| Exchange messages to Screen every message | «include» | Every message is screened (FR 6.1). |
+| Trigger crisis support to Screen every message | «extend» | Condition {message matches crisis terms}: shows the crisis card and saves a crisis flag. |
+| Block a contact-sharing message to Screen every message | «extend» | Condition {message has contact details}. |
+| Answer the after-chat questions to End the chat | «extend» | Condition {user chooses to answer}. |
 
 ### 2. Class diagrams
 
-**Description & Flow:** the main data and behaviour of Spill as classes. Each class lists its attributes (-, private) and operations (+, public). Abstract classes are in italics and static operations are underlined.
+**Description & Flow:** the main data and behaviour of Spill as classes. Each class lists its attributes (-, private) and operations (+, public), and names the Firestore collection it is saved in. Abstract classes are in italics and static operations are underlined. A class drawn on another diagram is shown by name only, with "see Figure B.x".
 
 ![Figure B.3: Class diagram, people and roles](diagrams/B3-class-people-roles.png)
 
 **Figure B.3: Class diagram, people and roles**
 
-- **Classes:** Account (abstract) is extended by User, Moderator and Administrator; Listener extends User. MoodCheckIn, SendTime, ListenerApplication and Checks hold each person's data.
-- **Inputs and Outputs:** inputs are sign-up details, mood scores, tags and application answers. Outputs are the stored account, check-ins and application.
+- **Classes:** Account (abstract) is extended by Moderator, User and Administrator; Listener extends User. MoodCheckIn, SendTime and ListenerApplication hold each person's data. Checks is a data type inside ListenerApplication. The enumerations are AgeBand, AccountStatus, ApplicationStatus, HoursBand and MoodTag.
+- **Inputs and Outputs:** inputs are sign-up details, mood scores, notes, tags and application answers. Outputs are the stored account, check-ins, the listener record and the application.
 - **Relationships:**
 
 | Relationship | Type | Meaning |
@@ -418,36 +427,37 @@ The editable files are in [`docs/diagrams/`](diagrams/).
 | Moderator, User, Administrator to Account | Inheritance | Every role is an account and inherits the pseudonym, status and sign-in. |
 | Listener to User | Inheritance | A listener is a user who was approved. |
 | User records MoodCheckIn (1 to 0..*) | Composition | Check-ins are deleted with the account (FR 1.5). |
-| User has SendTime (1 to 0..1) | Composition | The last-message time, deleted with the account (NFR 10). |
-| Listener applied with ListenerApplication (1 to 1) | Association | The private answers are kept apart from the listener record. |
+| User has SendTime (1 to 0..1) | Composition | The last-message time, so sends are at least 2 seconds apart (NFR 10). |
+| User submits ListenerApplication (1 to 0..1) | Association | One application per person (FR 5.1). |
+| Listener approved from ListenerApplication (0..1 to 1) | Association | The listener record is made when the application is approved; the private answers stay apart from it. |
 | Administrator reviews ListenerApplication (0..* to 0..*) | Association | Any admin can review any application (FR 5.2). |
-| ListenerApplication to Checks (1 to 0..1) | Composition | The four in-person checks are part of the application. |
-| Account blocks Account (0..* to 0..*) | Association | A user or listener can block another account (FR 6.6). |
+| User blocks User (0..* blocker to 0..* blocked) | Association | Either person can block the other (FR 6.6, BR 5). |
 
 ![Figure B.4: Class diagram, chats and messages](diagrams/B4-class-chats-messages.png)
 
 **Figure B.4: Class diagram, chats and messages**
 
-- **Classes:** Chat, Message, PendingChat and ChatStats, with Screening (a utility) and ScreenResult. User and Listener are shown by name only; their details are in Figure B.3.
+- **Classes:** Chat, Message, PendingChat and ChatStats, with Screening (a utility class) and ScreenResult (a data type). The enumerations are ChatStatus, Topic and UseAgain. User and Listener are shown by name only (Figure B.3).
 - **Inputs and Outputs:** inputs are the topic, moods, messages and after-chat answers. Outputs are the chat, its messages, the screening result and the anonymised copy.
 - **Relationships:**
 
 | Relationship | Type | Meaning |
 |---|---|---|
-| User starts Chat (1 to 0..*) | Association | Only users start chats (FR 4.1, 4.4). |
-| Listener listens in Chat (1 to 0..*) | Association | At most 2 active chats per listener (FR 5.5). |
+| User starts Chat (1 to 0..*) | Association | Only users start chats (FR 4.1). |
+| Listener listens in Chat (1 to 0..*, at most 2 active) | Association | A listener has at most 2 active chats (FR 5.5). |
 | User holds PendingChat (1 to 0..1) | Association | One request at a time (FR 4.1). |
-| PendingChat names Chat (0..1 to 1) | Association | The claim points at the one waiting chat. |
-| Chat to Message (1 to 0..*) | Composition | Messages exist only inside their chat and are deleted with it (NFR 13). |
-| Chat copied to ChatStats (1 to 0..1) | Association | The anonymised copy, kept after the chat is deleted (FR 7.3). |
+| PendingChat names Chat (0..1 to 1) | Association | The marker points at the one waiting chat. |
+| User sends Message (1 to 0..*) | Association | Each message has one sender. |
+| Chat contains Message (1 to 0..*) | Composition | Messages exist only inside their chat and are deleted with it (NFR 13). |
+| Chat copied to ChatStats (0..1 to 0..1) | Association | The anonymised copy, with no personal data, kept after the chat is deleted (FR 7.3). |
 | Chat «use» Screening | Dependency | Every message is screened before it is sent (FR 6.1). |
-| Screening «create» ScreenResult | Dependency | The yes or no answers that decide what happens next. |
+| Screening «create» ScreenResult | Dependency | The yes or no answers (crisis, contact, abuse) that decide what happens next. |
 
 ![Figure B.5: Class diagram, safety and administration](diagrams/B5-class-safety-admin.png)
 
 **Figure B.5: Class diagram, safety and administration**
 
-- **Classes:** QueueItem (abstract) with Flag and Report; ChatCase, ChatFlagged, AuditLogEntry, SafetyTally, TermSuggestion, TermList and Resource. Moderator, Administrator and Chat are shown by name only.
+- **Classes:** QueueItem (abstract) with Flag and Report; ChatCase, ChatFlagged, AuditLogEntry, SafetyTally, TermSuggestion, TermList and Resource. The enumerations are FlagType, TallyKind, ItemStatus, ModeratorAction, TermCategory, SuggestionStatus and ResourceCategory. Moderator, Administrator and Chat are shown by name only.
 - **Inputs and Outputs:** inputs are flags, reports, moderator actions with reasons, suggested terms and resources. Outputs are resolved queue items, cases, audit entries, term lists and statistics counts.
 - **Relationships:**
 
@@ -457,18 +467,18 @@ The editable files are in [`docs/diagrams/`](diagrams/).
 | Moderator resolves QueueItem (0..1 to 0..*) | Association | With an action and a reason (FR 6.8). |
 | QueueItem about Chat (0..* to 1) | Association | Each flag or report concerns one chat. |
 | QueueItem resolved with AuditLogEntry (0..1 to 0..1) | Association | The action and its log entry are saved together (FR 6.9). |
-| QueueItem counted as SafetyTally (1 to 0..1) | Association | A count with no content, for statistics (FR 7.3). |
-| ChatFlagged marks Chat (0..1 to 1) | Association | Something was raised about this chat. |
+| QueueItem counted as SafetyTally (1 to 0..1) | Navigable association | A count with no content, for statistics (FR 7.3). The tally cannot lead back to the item. |
 | Moderator opens ChatCase (1 to 0..*) | Association | The only way into a chat's content (BR 3). |
-| ChatCase «requires» ChatFlagged | Dependency | A case can only be opened on a flagged chat. |
+| ChatCase «use» ChatFlagged | Dependency | A case can only be opened on a chat marked as flagged. |
+| ChatFlagged marks Chat (0..1 to 1) | Association | Something was raised about this chat. |
 | ChatCase opened on Chat (0..1 to 1) | Association | One case per chat. |
-| ChatCase logged in AuditLogEntry (1 to 1) | Association | Opening a case is always logged. |
-| Moderator suggests TermSuggestion (1 to 0..*) | Association | A phrase for a term list. |
+| ChatCase logged in AuditLogEntry (0..1 to 1) | Association | Opening a case is always logged. |
+| Moderator suggests TermSuggestion (1 to 0..*) | Association | A crisis or abuse phrase for a term list. |
 | Administrator reviews TermSuggestion (0..1 to 0..*) | Association | Approve or reject, logged. |
-| TermSuggestion approved into TermList (0..* to 1) | Association | Nothing reaches a list without an admin. |
+| TermSuggestion approved into TermList (0..* to 0..1) | Association | Nothing reaches a list without an admin. |
 | Administrator edits TermList (1 to 0..3) | Association | The crisis, abuse and contact lists (FR 7.1). |
 | TermList logged in AuditLogEntry (0..1 to 1..*) | Association | Every change has its own log entry. |
-| Administrator manages Resource (1 to 0..*) | Association | Helplines and clinics (FR 7.2). |
+| Administrator manages Resource (1 to 0..*) | Association | Helplines and clinics, readable by anyone (FR 7.2, BR 8). |
 
 ### 3. Sequence diagrams
 
@@ -478,17 +488,27 @@ The editable files are in [`docs/diagrams/`](diagrams/).
 
 **Figure B.6: Sequence diagram, request a chat and get matched**
 
-- The user sends the request. The page searches for a listener every 15 seconds for up to 10 minutes (loop).
-- When one is found, the chat is written to Firestore and the listener's dashboard is told.
-- The listener accepts or declines (alt). On accept the chat opens; on decline the search continues.
+- **Lifelines:** User, :RequestChatPage, :CloudFirestore (with the Security Rules), :ListenerDashboard and Listener.
+- The user requests a chat with a topic and a mood. The page first clears any pending marker older than 10 minutes.
+- **loop** while no eligible listener is found and less than 10 minutes have passed: the page looks for a listener every 15 seconds and shows the wait status with self-help tips. The user can cancel at any time.
+- **alt** listener found: the page creates the pending chat and the one-request marker in one write. The Rules check the listener is approved, available and not blocked, both accounts are active, the minors rule (BR 1) and one claim per user. The listener's dashboard shows the request.
+  - **alt** the listener accepts and has fewer than 2 active chats: the chat becomes active, the page releases the marker and opens the chat.
+  - **else** the listener declines: the chat is marked declined, the marker is released and the request starts again without this listener (**ref**).
+- **else** 10 minutes passed: the user sees that no listener is available.
 
 ![Figure B.7: Sequence diagram, send a message with screening](diagrams/B7-sequence-send-message.png)
 
 **Figure B.7: Sequence diagram, send a message with screening**
 
-- The page waits for the 2-second gap and screens the message.
-- One branch runs (alt): contact details are blocked and flagged; crisis wording is saved with a flag and the crisis card shows; abuse is saved with a flag; anything else is saved.
-- The other person's page receives the message live.
+- **Lifelines:** Sender (any user or listener in the chat), sender:ChatPage, :Screening, :CloudFirestore and receiver:ChatPage.
+- The page waits for the 2-second gap, then screens the text and gets a ScreenResult.
+- **alt**, one branch runs:
+  - contact sharing: a warning is shown, and only a blocked-attempt flag and the chatFlagged marker are saved (no message);
+  - crisis wording: the message, a crisis flag, the chatFlagged marker and the send time are saved together, then the crisis card is shown;
+  - abusive words: the message, an abuse flag and the send time are saved;
+  - else: the message and the send time are saved.
+- **opt** a message was saved: the other person's page receives it live and shows it.
+- The Rules refuse contact details, a crisis message without its flag, a second message within 2 seconds and anything from a suspended account, whatever the page does.
 
 ### 4. Activity diagrams
 
@@ -496,19 +516,33 @@ The editable files are in [`docs/diagrams/`](diagrams/).
 
 **Figure B.8: Activity diagram, register and get matched**
 
-**Description & Flow:** from first visit to an open chat, in three swimlanes: User, System and Listener.
+**Description & Flow:** from first visit to an open chat, in three swimlanes: User, System (the browser and the Security Rules) and Listener.
 
-- **Inputs and Outputs:** age band, consent, first-time answer, mood and topic; a new account and an active chat.
-- **Flow:** under-16s are stopped. Everyone else agrees, gets a pseudonym, checks in and requests a chat. The system looks for an eligible listener (BR 1) and retries if none is free. When a listener accepts, both chat screens open in parallel.
+- **Inputs and Outputs:** age band, email and password, first-time answer, consent, mood and topic; a new account and an active chat.
+- **Flow:**
+  - Under 16: a kind note and the helplines are shown, and no account is made.
+  - 16 or over: the user signs up, the system creates the account with a random pseudonym and sends a verification email. The Rules check the age band, consent time and fields.
+  - On the dashboard the user can record a mood check-in, then chooses a topic and a mood before (1 to 5).
+  - In an interruptible region, the system looks for an eligible listener (BR 1). If none is found the user sees the wait status, and after 15 seconds the search runs again. "User cancels" ends the flow at any time. After 10 minutes the user sees "nobody is free right now, try again later".
+  - When a listener is found, the pending chat and the marker are made in one write (FR 4.1) and the listener sees the request. On decline, the marker is released and the search continues without that listener (connector A). On accept, the chat becomes active, and both chat pages open in parallel (fork and join).
 
 ![Figure B.9: Activity diagram, chat, screening and moderation](diagrams/B9-activity-chat-safety.png)
 
 **Figure B.9: Activity diagram, chat, screening and moderation**
 
-**Description & Flow:** how a chat works and how safety is handled, in three swimlanes: Sender, System and Moderator.
+**Description & Flow:** how a chat works and how safety is handled, in three swimlanes: Chat participant (user or listener), System and Moderator.
 
-- **Inputs and Outputs:** messages, mood after, reports and moderator actions; delivered messages, flags and audit entries.
-- **Flow:** each message is screened and one of four things happens (blocked, crisis, abuse, delivered). This repeats until someone ends the chat. A report goes to the queue; the moderator opens a logged case and acts with a reason.
+- **Inputs and Outputs:** messages, mood after, after-chat answers, reports and moderator actions; delivered messages, flags, the anonymised copy and audit entries.
+- **Flow:**
+  - In an interruptible region, the participant sends a message. The system waits for the 2-second gap (NFR 10) and screens it against the term lists and patterns.
+  - Contact details: the message is blocked, the sender is warned and a blocked-attempt flag is saved (severity 2, or 3 for a listener). If it also has crisis wording, a crisis flag is saved and the crisis card shows.
+  - Crisis wording: the message and a crisis flag (severity 3) are saved in one write, and the crisis card shows.
+  - Abusive words: the message is delivered and an abuse flag (severity 1) is saved. Otherwise the message is delivered.
+  - This repeats until either person ends the chat or blocks the other. A suspended account cannot send (BR 7).
+  - When the chat closes, a user gives a mood after and may answer the after-chat questions; the anonymised copy is saved.
+  - A participant may report the other person. The report (severity 2) and the flagged marker go to the moderation queue with the flags.
+  - The moderator opens the queue (most serious first), opens a logged case, reads the chat and chooses an action with a reason. The system updates the flag or report and writes the audit entry in one write.
+- **Note:** on the development site only, an optional AI check (a prototype) can add a crisis or abuse flag after a message is sent. It never blocks a message.
 
 ### 5. Deployment diagram
 
@@ -518,17 +552,25 @@ The editable files are in [`docs/diagrams/`](diagrams/).
 
 **Description & Flow:** where each part of Spill runs and how the parts connect.
 
-- **Nodes:** the user's browser; the development and pilot Firebase projects (Hosting, Authentication, Firestore); the developer's computer with the Emulator Suite; GitHub with Actions.
-- **Artifacts:** the 18 pages on Hosting and the Security Rules on Firestore.
+- **Nodes:**
+  - the user's device (a phone or computer) with a web browser, which runs the pages for every role;
+  - the development Firebase project (spill-dev-01, Spark plan): Hosting, Authentication, Cloud Firestore (africa-south1, 18 collections) and Firebase AI Logic (the optional prototype, off unless switched on);
+  - the pilot Firebase project (spill-pilot): the same pages and rules with separate data, deployed on 19 November 2026 and not used yet;
+  - the developer's computer with the source code and the Firebase Local Emulator Suite;
+  - GitHub with the repository and GitHub Actions.
+- **Artifacts:** the 18 pages, CSS, JavaScript and fonts on Hosting; the Security Rules on Firestore; the source code, rules, tests and config files (kept out of Git) on the developer's computer.
 - **Connections:**
 
 | Connection | Type | Meaning |
 |---|---|---|
-| Browser to Hosting | «HTTPS» | Loads the pages. |
-| Browser to Authentication | «HTTPS» | Sign-up and sign-in. |
-| Browser to Firestore | «HTTPS» | All data, live, checked by the Rules. No application server. |
-| Developer's computer to each project | «deploy» | Tests, lint, deploy, then a live check. |
-| Developer's computer to GitHub | «HTTPS» | Pushes code; Actions runs the tests. |
+| Web browser to Firebase Hosting | «HTTPS» | Loads the pages. |
+| Web browser to Firebase Authentication | «HTTPS» | Sign-up and sign-in, ID tokens. |
+| Web browser to Cloud Firestore | «HTTPS» | All data, live through real-time listeners, checked by the Rules. No application server. |
+| Web browser to Firebase AI Logic | «HTTPS», optional | The model check prototype, development only. |
+| Developer's computer to GitHub | «HTTPS» | git push; Actions runs lint, unit and rules tests on every push. |
+| GitHub Actions to the development project | «HTTPS» | Uptime check of the live site every 3 hours. |
+| Source code to the development project | «deploy» | npm run deploy:dev: tests, lint, deploy, then a live check. |
+| Source code to the pilot project | «deploy» | Same pages and rules, separate data. |
 
 ---
 
