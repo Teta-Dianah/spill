@@ -31,8 +31,11 @@ function renderListenerName(uid) {
     });
 }
 
+// Also keeps an available listener signed in while they wait on this
+// page, so they never miss a request (FR 1.4, idle-signout.js).
 function showAvailableStat(available) {
   setStat('stat-available', available ? 'Available' : 'Away');
+  if (window.setKeepSignedIn) window.setKeepSignedIn(!!available);
 }
 
 function chatTime(chat) {
@@ -266,6 +269,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     renderListenerName(user.uid);
     startDashboard(user.uid);
+    removeOldChats(user.uid, 'listenerId'); // NFR 13, old-chats.js
   });
 
   var signOutButton = document.getElementById('sign-out-button');

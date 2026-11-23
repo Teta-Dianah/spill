@@ -5,7 +5,7 @@
 // account agrees to (FR 1.3, NFR 14). Change it whenever privacy.html
 // changes in a way people should agree to again. A page test checks that
 // privacy.html shows this same version.
-var PRIVACY_NOTICE_VERSION = '2026-11-18';
+var PRIVACY_NOTICE_VERSION = '2026-11-20';
 
 function createAccountDocument(uid, ageBand, firstTimeSeekingHelp) {
   var pseudonym = generatePseudonym();
@@ -95,7 +95,8 @@ function isAllowedAgeBand(ageBand) {
 }
 
 // Deletes the account and the person's own data (FR 1.5): their mood
-// history first, then the account itself. If they ever applied to be a
+// history first, then the account itself and the time of their last
+// message (sendTimes, NFR 10). If they ever applied to be a
 // listener, their listener record and their private application answers
 // go in the same batch as the account, so nothing they wrote is left
 // behind. Chats, flags and reports are not removed here: moderators may
@@ -114,6 +115,7 @@ function deleteAccount(uid) {
     .then(function (docs) {
       var batch = db.batch();
       batch.delete(db.collection('accounts').doc(uid));
+      batch.delete(db.collection('sendTimes').doc(uid));
       if (docs[0].exists) batch.delete(listenerRef);
       if (docs[1].exists) batch.delete(applicationRef);
       return batch.commit();

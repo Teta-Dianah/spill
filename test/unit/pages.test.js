@@ -312,3 +312,24 @@ describe('the crisis card', () => {
     expect(script).toMatch(/aria-label="Call ' \+ number \+ '"/);
   });
 });
+
+describe('the Help and questions page', () => {
+  test.each(['index.html', 'dashboard.html', 'listener-dashboard.html', 'privacy.html'])('%s links to it', (page) => {
+    expect(read(page)).toContain('href="help.html"');
+  });
+
+  test('every part listed at the top is on the page', () => {
+    const html = read('help.html');
+    const anchors = [...html.matchAll(/href="#([a-z-]+)"/g)].map((m) => m[1]);
+    expect(anchors.length).toBeGreaterThanOrEqual(5);
+    anchors.forEach((id) => expect(html).toContain(`id="${id}"`));
+  });
+
+  test('it gives the same numbers the app uses', () => {
+    const html = read('help.html');
+    expect(html).toContain('up to 10 minutes');
+    expect(html).toContain('one message every 2 seconds');
+    expect(html).toContain('After 30 minutes');
+    expect(html).toContain('About 90 days');
+  });
+});
