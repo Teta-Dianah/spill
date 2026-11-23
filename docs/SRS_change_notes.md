@@ -62,7 +62,7 @@ Read FR 5.2 as: the administrator records each offline check in the app and can 
 
 The SRS says a user can delete "their account and personal data", and that mood entries are deleted with the account. The app now does this: deleting an account removes the person's mood entries, their listener record and their listener application, as well as the account itself.
 
-Chats, messages, flags and reports are not removed. The SRS keeps data tied to an open safety case until the case closes; the app does not yet tell open cases from closed ones, so it keeps all of these. They are tied to a pseudonymous ID, not to a name.
+Chats, messages, flags and reports are not removed when the account is. The SRS keeps data tied to an open safety case until the case closes; the app does not yet tell open cases from closed ones, so it keeps all of these. They are tied to a pseudonymous ID, not to a name. A chat with no flag or report is still removed about 90 days after it started, the next time the other person opens their dashboard (NFR 13).
 
 ## FR 1.1, FR 1.3 and NFR 14: sign-up, consent and the privacy notice
 

@@ -120,7 +120,7 @@ The details are under [How message screening works](#how-message-screening-works
 | Moderator queue, case view | `/moderator-queue.html`, `/moderator-case.html` | Moderator |
 | Admin pages | `/admin-listeners.html`, `/admin-terms.html`, `/admin-resources.html` | Admin |
 
-After signing in, each person lands on their own home page: a user on the dashboard, an approved listener on the listener dashboard, and a moderator or admin on `staff.html`. Each home page opens with a row of numbers showing what is waiting, then the items themselves, each one a tap away:
+What each home page shows (see "How to use Spill" for who lands where):
 
 | Who | Numbers at the top | Then |
 |---|---|---|
