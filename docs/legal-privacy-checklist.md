@@ -4,7 +4,7 @@ Where Spill stands on the legal items in the SRS (NFR 14, section 2.5) under Rwa
 
 This is a developer's checklist, not legal advice. Items marked **Decision** need someone with the authority to decide (the project supervisor, the university's ethics process, or a legal adviser), and are written as questions for them.
 
-Last reviewed: 2026-11-19. The owner (Dianah Teta) decided the open items for the class pilot on that date; see "Decided for the pilot". Each answer covers only the pilot, not a public launch.
+Last reviewed: 2026-11-23. The owner (Dianah Teta) decided the open items for the class pilot on that date; see "Decided for the pilot". Each answer covers only the pilot, not a public launch.
 
 ## Where Spill is now
 
@@ -30,7 +30,7 @@ Spill is a student prototype. Its development project, `spill-dev-01`, stores it
 | Email only for sign-in, never shown | NFR 11 | Done | The email lives only in Firebase Authentication, not in Firestore, so no page or rule can show it to anyone. |
 | Sensitive data encrypted at rest, read only by participants and logged cases | NFR 12 | Done | Firestore encrypts at rest by default. `firestore.rules` lets only the two people in a chat read it, plus a moderator through a logged case (BR 3); tested in `test/rules/firestore.test.js`. |
 | Delete account and personal data | FR 1.5 | Done | "Delete my account" removes the sign-in, account, check-ins and any listener application. Chats, flags and reports stay for safety cases, linked only to a random ID; the privacy notice says so. |
-| Keep chats for a limited time (proposed 90 days) | NFR 13 (Should) | **Not built** | The free Spark plan has no scheduled jobs (Cloud Functions need billing), so nothing deletes old chats automatically. The privacy notice says there is no limit yet. **Option:** a monthly admin step that deletes ended chats older than 90 days with no open case. |
+| Keep chats for a limited time (proposed 90 days) | NFR 13 (Should) | Done, with one limit | The free Spark plan has no scheduled jobs, so the app does it: when either person opens their dashboard, their finished chats started over 90 days ago are deleted with their messages. `firestore.rules` allows this only for that person's own finished chat, only after 90 days, and never for a chat with a flag or report; tested in `test/rules/firestore.test.js` and `test/unit/old-chats.test.js`. **Limit:** a chat stays if neither person comes back. The privacy notice and the Help page say this. |
 | Minors' consent for mental health support | SRS 2.7 | **Decided for the pilot:** adults only | The app accepts 16 to 17 year olds and matches them only with cleared listeners aged 21 or over (BR 1). The SRS says minors' consent rules must be confirmed with a legal or ethics adviser before any under-18 pilot. **Question:** confirm with an adviser; until then, the pilot invites adults only. |
 | The model check sends messages to an outside service | NFR 14 | **Prototype only** | Off by default, on only in the development project, and only for people who agree. The free service's terms need users aged 18 or over and allow human review, so it can't be used for real users. See `docs/SRS_change_notes.md`. The privacy notice explains it. |
 | Ethics approval and volunteer consent for the pilot | SRS 2.5 (Ethics) | **Decided for the pilot:** not needed | Outside the app. **Question:** does the university require ethics approval for the class pilot, and what consent form do volunteers sign? |
@@ -52,7 +52,7 @@ The owner decided these on 2026-11-19, for the class pilot only: about 30 adult 
 1. Decide items 5, 6 and 7 with the supervisor or a legal adviser, and register with the NCSA if required.
 2. Confirm the rules for 16 and 17 year olds with an adviser, or keep the pilot to adults.
 3. Make sure no personal data is stored abroad without authorisation (item 7).
-4. Build the 90-day chat limit, or change the privacy notice to say exactly how long chats are kept.
+4. Remove chats after 90 days even when neither person comes back. This needs a scheduled job, so a paid plan or a regular admin step.
 5. Keep the model check off, or replace it with a provider whose terms fit, with proper consent.
 6. Practise the breach procedure once, and make sure the NCSA contact in it is current.
 7. Re-check the privacy notice against the app, and change its version (and `PRIVACY_NOTICE_VERSION` in `public/js/auth.js`) if anything has changed.

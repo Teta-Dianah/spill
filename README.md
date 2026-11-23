@@ -2,22 +2,160 @@
 
 Spill is a free, anonymous peer-listener web app for young people aged 16 to 25 in Rwanda. You sign up with a pseudonym, do a quick mood check-in, and talk one-to-one with a vetted, trained volunteer listener. You never talk to other users, only to listeners, and every message is screened before it's delivered.
 
+**Live site: https://spill-dev-01.web.app** (test data only; please don't type anything real or personal).
+
+Spill is peer support, not therapy, and not an emergency service. The "Need help now" button on every page lists real Rwandan helplines and clinics.
+
+## Contents
+
+- [Who it's for](#who-its-for)
+- [How to use Spill](#how-to-use-spill): visitors, users, listeners, moderators, administrators
+- [How Spill keeps people safe](#how-spill-keeps-people-safe)
+- [Pages](#pages)
+- [Documents](#documents): the SRS, the diagrams and the reports
+- [For developers](#for-developers): tools, setup, testing, deployment and how each part works
+
 ## Who it's for
 
-Young Rwandans aged 16-25 who want a private, judgement-free place to talk about what's going on, whether that's exams, money, family, or just a rough day. Spill also works for anyone who isn't ready to sign up at all: the resources page (helplines, clinics, self-help tips) is open to visitors with no account.
+Young Rwandans aged 16 to 25 who want a private, judgement-free place to talk about what's going on, whether that's exams, money, family, or just a rough day. Spill also works for anyone who isn't ready to sign up: the helplines, clinics and self-help tips are open to everyone, with no account.
 
-## The problem
+Rwanda has roughly one psychiatrist for every million people, and most young people who are struggling never reach any kind of support, largely because of stigma and cost. Spill doesn't replace therapy. It's a low-friction first step, with a clear route to real local helplines and clinics when someone needs more than a listening ear.
 
-Rwanda has roughly one psychiatrist for every million people, and most young people who are struggling never reach any kind of support, largely because of stigma and cost. Spill isn't therapy and doesn't replace it. It's a low-friction first step, with a clear route to real local helplines and clinics when someone needs more than a listening ear.
+## How to use Spill
 
-The full requirements and reasoning live in [`docs/Spill_Proposal_and_SRS.pdf`](docs/Spill_Proposal_and_SRS.pdf).
+Everyone starts on the home page. After signing in, each person lands on their own home page: a user on the dashboard, a listener on the listener dashboard, and a moderator or administrator on the staff page. Each home page starts with a row of numbers showing what's waiting, then the items themselves.
+
+### As a visitor (no account)
+
+1. Open the home page. The helplines and clinics are at the top, with self-help tips below.
+2. Tap **"Need help now"** (bottom of every page) at any time to see the crisis card with helplines and clinics.
+3. Read the privacy notice and terms from the link at the bottom of the page.
+4. Open **Help** (also at the bottom of the page) for short answers about chatting, safety, your account and becoming a listener.
+
+### As a user
+
+**Sign up**
+
+1. Tap **Sign up** and choose your age band. If you choose "Under 16", Spill shows the helplines instead and makes no account.
+2. Enter an email and a password (at least 8 characters), and say whether this is your first time looking for support.
+3. Agree to the privacy notice. Spill gives you a random name, such as "CalmRiver42", and sends you a verification email. Nobody ever sees your email.
+
+**Check in**
+
+On your dashboard, pick how you feel from 1 (rough) to 5 (great). If you like, tick what it's about (such as "Rough day", "Money stress" or "Study overload") and add a note. Your recent check-ins and their tags are shown under the form, with a **monthly recap**: how many times you checked in, your average against last month, your best day and your most used tag. Only you can see them.
+
+**Talk to a listener**
+
+1. On your dashboard, tap **"Talk to a listener"**.
+2. Choose a topic (exams, family, money stress, loneliness or something else) and how you feel right now.
+3. Spill looks for a free listener. While you wait you see self-help tips, and you can cancel at any time. If nobody is free after 10 minutes, Spill tells you so you can try again later.
+4. When a listener accepts, the chat opens. Messages appear straight away. You can send one message every 2 seconds; if you type faster, Spill shows "Sending..." and sends it a moment later.
+5. Either of you can end the chat at any time, with no reason needed. When you end it, you give your mood again, and can answer "Was this chat helpful?" and "Would you use Spill again?".
+
+**If something feels wrong**
+
+- **Report** the listener with a reason. A moderator reviews it.
+- **Block** them. This ends the chat, and you'll never be matched with them again.
+
+**Your account**
+
+- If you leave Spill open for 30 minutes without using it, you're signed out and asked to sign in again. This doesn't happen during an open chat.
+- Finished chats are removed 90 days after they started, the next time you or the listener open your dashboard. Chats with a report or flag are kept for the moderators.
+- **Delete your account** from the dashboard at any time. Your check-ins and any listener application go with it.
+
+### As a listener
+
+1. **Apply.** Signed in as a user aged 18 to 25, open "Apply to be a listener". Confirm you're 21 or older, answer the questions, and agree to the code of conduct and the in-person checks. You get a reference code such as `SPL-7K2QXD`.
+2. **In-person checks.** Quote the code to the coordinator, who checks your identity, police clearance and two references, and holds a short interview. Spill never stores your documents, only that each check was done.
+3. **Approval.** The administrator approves you once all four checks are done.
+4. **Training.** Open the listener dashboard and pass the training quiz.
+5. **Go available** with the switch on the listener dashboard. Requests appear there: **Accept** or **Decline** each one. You can have at most 2 chats at once.
+6. **Chat** from "Your active chats". You can end, report or block just like a user. Listeners can never start a chat.
+
+### As a moderator
+
+1. Open the **moderator queue** from the staff page. Flags and reports are listed most serious first, then oldest. Crisis flags appear within a minute.
+2. Open an item, then **open a case** to read the chat. Opening a case is recorded in the audit log. There is no other way to read a chat.
+3. Choose an action: **dismiss, warn, suspend, reinstate or escalate**, and give a reason. Every action is logged. A suspended person can't send messages, even in a chat that was already open, until they are reinstated.
+4. If a flag shows a phrase the term lists missed, use **"Suggest a term"**. The administrator decides whether to add it.
+
+### As an administrator
+
+From the staff page:
+
+- **Listener applications:** read each application, tick the four in-person checks as they're done, then approve (and clear for 16 to 17 year olds if right) or reject with a reason.
+- **Screening terms:** add, edit or remove terms on the crisis, abuse and contact lists; press "Import starter terms" once on a new site; approve or reject terms suggested by moderators.
+- **Helplines and clinics:** add, edit or remove them, with the date each was last checked.
+- **Statistics:** chats, mood before and after, flags and the pilot goals, with no names or messages. A share only shows once at least 5 chats or people are in it.
+
+An administrator can never read chats or flags. Moderator and administrator roles are given by hand in the Firebase console (see [Deployment](#deployment)).
+
+## How Spill keeps people safe
+
+- **"Need help now" on every page**, even with no account and no connection to the database.
+- **Every message is screened** in the browser and again by the database's Security Rules:
+  - crisis wording is delivered, but a high-priority flag is saved with it and the sender sees the crisis card;
+  - phone numbers, emails, links and social handles are blocked;
+  - abusive words are flagged for a moderator.
+- **Users only ever talk to listeners** who passed four in-person checks, were approved and passed training. 16 and 17 year olds are only matched with listeners cleared for minors.
+- **Moderators read a chat only through a logged case**, and every staff action is recorded and can't be edited.
+- **No real names, phone numbers, locations or ID documents** are stored. Email is for sign-in only.
+
+The details are under [How message screening works](#how-message-screening-works) and [Privacy and the law](#privacy-and-the-law-nfr-14).
+
+## Pages
+
+| Page | Address | Who can use it |
+|---|---|---|
+| Resources and crisis card | `/` | Anyone, no account |
+| Help, privacy notice | `/help.html`, `/privacy.html` | Anyone, no account |
+| Sign up, sign in | `/signup.html`, `/signin.html` | Anyone |
+| Dashboard | `/dashboard.html` | Any signed-in account |
+| Staff home | `/staff.html` | Moderator, admin |
+| Pilot statistics | `/stats.html` | Admin |
+| Talk to a listener | `/request-chat.html` | User |
+| Chat | `/chat.html` (opened from a request or the listener dashboard) | The two people in the chat |
+| Apply as a listener | `/listener-apply.html` | User |
+| Listener dashboard, training | `/listener-dashboard.html`, `/listener-training.html` | Listener |
+| Moderator queue, case view | `/moderator-queue.html`, `/moderator-case.html` | Moderator |
+| Admin pages | `/admin-listeners.html`, `/admin-terms.html`, `/admin-resources.html` | Admin |
+
+What each home page shows (see "How to use Spill" for who lands where):
+
+| Who | Numbers at the top | Then |
+|---|---|---|
+| User | Check-ins this month, average mood, last check-in | Their open chat (if any), the check-in form, and their mood lately |
+| Listener | Requests waiting, active chats out of 2, available or away, training | Requests to accept or decline, their status, and active chats |
+| Moderator | Crisis flags, other flags, reports, how long the oldest has waited | The five most serious open items, and their own recent actions |
+| Admin | Applications waiting, suggested terms waiting, approved listeners, listeners available now | The waiting applications and suggested terms, and their own recent actions |
+
+A number that needs attention now (a crisis flag, a request waiting) is shown in orange, and its label always says what it is. No home page shows any chat message text. The counting and wording live in `public/js/home-summary.js`, which has its own unit tests. Every home page links back to the personal dashboard.
+
+To reach the staff pages later, sign in and look at the dashboard. An approved listener, a moderator or an admin sees a "Your Spill pages" section there with links to their own pages. An ordinary user doesn't see it, and no public page links to a staff page. The links are only a shortcut: `firestore.rules` decides who can read or change anything, so opening a staff page's address without the role shows nothing.
+
+## Documents
+
+| Document | What it is |
+|---|---|
+| [docs/SRS.md](docs/SRS.md) | **The requirements, version 3.1**, describing the app as built, with the status of every requirement and the UML diagrams |
+| [docs/diagrams/](docs/diagrams/) | The UML diagrams as editable draw.io files (`.drawio`) and pictures (`.png`): use case, class, sequence, activity and deployment |
+| [docs/Spill_Proposal_and_SRS.pdf](docs/Spill_Proposal_and_SRS.pdf) | The original proposal and SRS version 2.0, written before the code |
+| [docs/SRS_change_notes.md](docs/SRS_change_notes.md) | Why each part of the app differs from version 2.0 |
+| [docs/test-report.md](docs/test-report.md), [docs/screening-report.md](docs/screening-report.md) | Test results, and how well message screening works |
+| [docs/performance.md](docs/performance.md), [docs/accessibility.md](docs/accessibility.md) | Speed, load and uptime; accessibility checks |
+| [docs/legal-privacy-checklist.md](docs/legal-privacy-checklist.md), [docs/breach-procedure.md](docs/breach-procedure.md) | The legal items and decisions; what to do if data leaks |
+| [docs/pilot-runbook.md](docs/pilot-runbook.md) | How to set up and run a pilot |
+
+## For developers
+
+The rest of this README is for people working on the code: the tools, how to run and test Spill on your own computer, how to deploy it, and how the main parts work.
 
 ## Tools and technologies
 
 | Tool | What it's for |
 |---|---|
 | Firebase Hosting | Serves the web app; no separate backend server |
-| Cloud Firestore | The database. From the SRS: accounts, moods, chats, messages, flags, reports, resources, audit log. Added since: `listeners` (listener applications and availability), `termLists` and `termSuggestions` (the screening term lists and moderators' suggestions for them), `chatStats` and `safetyTally` (content-free copies for the admin's anonymised statistics), and three marker collections that hold no chat content: `chatFlagged`, `chatCases` and `pendingChats` |
+| Cloud Firestore | The database. From the SRS: accounts, moods, chats, messages, flags, reports, resources, audit log. Added since: `listeners` (listener applications and availability), `termLists` and `termSuggestions` (the screening term lists and moderators' suggestions for them), `chatStats` and `safetyTally` (content-free copies for the admin's anonymised statistics), three marker collections that hold no chat content: `chatFlagged`, `chatCases` and `pendingChats`, and `sendTimes` (when each person last sent a message, for the 2-second limit) |
 | Firebase Authentication | Handles sign-up, sign-in, and password hashing |
 | Firestore Security Rules | Controls who can read/write what, throttles abuse, and screens messages at write time |
 | Firebase Local Emulator Suite | Runs Firestore and Auth locally so tests don't touch the live project |
@@ -41,6 +179,181 @@ Everything runs on Firebase's free Spark plan, with no billing account and no pa
 | 2 | 3-4 | Talk to a listener | Listener matching queue, real-time chat |
 | 3 | 5-6 | Make it safe | Message screening, report/block, moderator queue |
 | 4 | 7-8 | Prove it and ship | Testing, deployment, demo |
+
+## Setup
+
+You don't need to set anything up to use Spill: it's live at https://spill-dev-01.web.app. These steps run your own copy on your computer, with made-up data that never leaves it.
+
+**1. Install the tools.** You need:
+
+- [Git](https://git-scm.com/downloads);
+- [Node.js](https://nodejs.org/) 20 or newer (npm comes with it);
+- a Java JDK 21 or newer, such as [Temurin](https://adoptium.net/), because the Firebase emulators run on Java.
+
+Check they work:
+
+```bash
+git --version
+node --version     # v20 or higher
+java -version      # 21 or higher
+```
+
+You don't need to install the Firebase CLI or create a Firebase account to run Spill locally: `npm install` brings the CLI (`firebase-tools`) with the project, and the emulators need no login.
+
+**2. Get the code and install it.**
+
+```bash
+git clone https://github.com/Teta-Dianah/spill.git
+cd spill
+npm install
+```
+
+The code is on `main`, the default branch, so the clone gets everything.
+
+**3. Add the config file.** Copy the template:
+
+```bash
+cp public/js/firebase-config.example.js public/js/firebase-config.js
+```
+
+(On Windows PowerShell: `Copy-Item public/js/firebase-config.example.js public/js/firebase-config.js`.)
+
+`public/js/firebase-config.js` is gitignored, so it never gets committed. The copy works with the local emulators as it is: its `projectId` is `demo-spill-dev`, an emulator-only project, and the emulators never check the other values. Fill in real values only when you connect to a real Firebase project. Leave `modelCheckEnabled` as `false`; see "Model check (demo prototype)" above.
+
+## Running locally
+
+**4. Start the emulators.**
+
+```bash
+npm run emulators
+```
+
+This starts the Firestore and Auth emulators plus Hosting, serving the app at `http://localhost:5000`. The emulator UI (for inspecting data) is at `http://localhost:4000`. Everything stays on your computer and is wiped when the emulators stop.
+
+**5. Add the sample data.** In a second terminal, in the same `spill` folder, while the emulators are running:
+
+```bash
+npm run seed            # sample helplines and clinics for the resources page
+npm run seed:terms      # starter screening terms (FR 7.1)
+npm run seed:accounts   # one demo account per role
+```
+
+**6. Open the app** at `http://localhost:5000` and sign in with one of the demo accounts below. To stop, press Ctrl+C in the emulators' terminal; all the data is wiped.
+
+### Demo accounts
+
+Sign-up only ever creates an ordinary user, so `npm run seed:accounts` creates one account for each role. They all use the password `spill-demo-123`.
+
+| Role | Email | What to try |
+|---|---|---|
+| User | `user@spill.test` | Mood check-in, "Talk to a listener", "Apply to be a listener" |
+| Listener | `listener@spill.test` | Listener dashboard: accept a chat request. Already approved, trained and available |
+| Moderator | `moderator@spill.test` | Moderator queue: open a case, record an action, suggest a term |
+| Admin | `admin@spill.test` | Listener applications (apply as the user first, then tick the checks and approve), screening terms (one demo suggestion is waiting to approve or reject), helplines and clinics |
+
+These accounts are for the emulators only. The script uses the emulator-only project and refuses to run if it is pointed at anything other than the emulators on your computer. Never create accounts with a published password in a real Firebase project.
+
+### Trying a chat
+
+1. In one browser window, sign in as the listener and open the listener dashboard.
+2. In a private window (or another browser), sign in as the user and choose "Talk to a listener".
+3. Accept the request on the listener dashboard, then open the chat from "Your active chats".
+4. Send an ordinary message, then a crisis one (for example "I want to kill myself") to see the crisis card, then one with a phone number to see it blocked.
+5. Sign in as the moderator to see both flags in the queue.
+
+### About the seed scripts
+
+`npm run seed:terms` adds the terms in `public/data/term-lists-seed.json` (mostly Kinyarwanda, plus a few English crisis phrases) to the admin term lists. Each term goes through the same checks as `admin-terms.html`, and each one added gets its own `auditLog` entry. Terms already on a list are skipped, so it's safe to run again. The script only adds terms: removing a term from the seed file doesn't remove it from a database that was already seeded. Remove it on `admin-terms.html` instead, so the removal is logged too.
+
+All three seed scripts write to the emulators only. The "Import starter terms" button on `admin-terms.html` adds the same starter terms from the page itself, as the signed-in admin, so it also works on a deployed project.
+
+## Testing
+
+```bash
+npm test
+```
+
+This starts the Firestore emulator, runs every test (the unit tests and the Firestore Security Rules tests) and stops the emulator again. Stop `npm run emulators` first if it is running, because both use the same port.
+
+To run only the unit tests, which need no emulator:
+
+```bash
+npm run test:unit
+```
+
+### Reports (NFR 21)
+
+Two reports in `docs/` record what the tests show. Both are written by a script, so no number in them is typed by hand.
+
+- **[docs/test-report.md](docs/test-report.md):** a full run, with every test file, how many passed, and which requirements (FR, NFR, BR) the tests name. Run `npm run test:report` to bring it up to date. It runs every test the same way as `npm test`, so stop `npm run emulators` first.
+- **[docs/screening-report.md](docs/screening-report.md):** precision and recall of message screening on each labelled set, for the built-in lists, with the starter terms, and with the model check, against the SRS goal of catching 90% of crisis and contact-sharing messages. It also lists by language, and every message the held-out set still gets wrong. Run `npm run report:screening` after changing the screening code, the terms or the sets; a unit test fails until you do. It needs no emulator and no network: the model check's answers to the test messages were saved once in `test/data/model-check-answers.json`.
+
+- **[docs/performance.md](docs/performance.md):** page load times on a slow phone connection (NFR 1), message delivery (NFR 2), 30 people at once and the free plan's limits (NFR 3), and how no message is lost (NFR 18).
+- **[docs/accessibility.md](docs/accessibility.md):** how every page was checked against WCAG 2.1 AA, 44 px tap targets and keyboard use (NFR 16), what was found and fixed, and what still needs testing with real screen readers and people.
+
+A Security Rules test also checks NFR 4: a moderator watching the open flags live sees a new crisis flag within 1 minute. It prints the time it took.
+
+## Linting
+
+```bash
+npm run lint
+```
+
+## Deployment
+
+Spill deploys to Firebase Hosting and Cloud Firestore on the free Spark plan. `.firebaserc` names two projects: `dev` (development) and `pilot`. Nothing below needs a key or secret in the repository.
+
+**One-time setup in the Firebase console, per project**
+
+1. Authentication > Sign-in method: turn on Email/Password.
+2. Firestore Database: create the database.
+3. Authentication > Settings > Authorised domains: check the Hosting domain (`<project-id>.web.app`) is listed.
+4. Project settings > General > Your apps: copy the web app's config values into `config/firebase-config.<target>.js` on your computer, where `<target>` is `dev` or `pilot`. Start from `public/js/firebase-config.example.js`. The `config/` folder is gitignored: these files are uploaded with the site but never committed. Keep `modelCheckEnabled = false` in the pilot one.
+
+**Deploy (NFR 22)**
+
+```bash
+npx firebase login
+npm run deploy:dev      # the development project, from any clean branch
+npm run deploy:pilot    # the pilot project, from a clean main only
+```
+
+`scripts/deploy.js` does the whole deploy, and stops at the first problem:
+
+1. It refuses if the config file is for a different project than the target, still has `REPLACE_ME` values, or has the model check on for the pilot. It also refuses if anything is uncommitted, or if the pilot deploy isn't from `main`.
+2. It runs `npm test` and `npm run lint`.
+3. It uploads the site with that target's config, **then** the Security Rules and indexes. The site goes first because new rules can expect what a new page sends: the rules refuse an account without the consent record that the new sign-up page adds.
+4. It puts your own `public/js/firebase-config.js` back as it was. That file stays yours for local work (the emulator template, or a project you are trying out).
+5. It runs `npm run smoke:<target>`, which only reads the live site. It checks that every page loads with "Need help now", that the site talks to the right project, that the model check is off on the pilot, that the live files match this folder, and that scripts are served with no-cache.
+
+`npm run smoke:dev` and `npm run smoke:pilot` can be run on their own at any time.
+
+Before the pilot starts, work through [docs/pilot-runbook.md](docs/pilot-runbook.md).
+
+**After the first deploy**
+
+- **Staff accounts.** Sign up on the deployed site with each person's own email and a private password. Then, in the Firebase console, open Firestore > `accounts` > that person's document and change `role` to `moderator` or `admin`. A listener applies on `listener-apply.html`, is checked in person, and is then approved by an admin on `admin-listeners.html` (see "How someone becomes a listener"). Don't run `npm run seed:accounts` here: it refuses, and its password is public.
+- **Helplines and clinics.** An admin adds the verified ones on `admin-resources.html`. Until the first one is added, or whenever the list can't load, the landing page shows the three helplines built into the crisis card instead of an empty card.
+- **Screening terms.** Sign in as an admin, open `admin-terms.html` and press "Import starter terms". It adds the terms in `public/data/term-lists-seed.json` to the three lists, skips any already there, and records each term added in the audit log under that admin. It needs no key and no script, and it is safe to press again. Until it is done, screening uses the built-in lists and the fixed patterns in `firestore.rules`. (`npm run seed:terms` does the same job for the emulators only.)
+
+**Model check on a deployed development copy (optional, demo only)**
+
+The model check is off on every deploy unless these steps are done. It only works for the development project, `spill-dev-01`: that is the one project named in `MODEL_CHECK_PROJECTS` in `public/js/model-check-settings.js`, and the setting is ignored for any other project, including the pilot one. Read "Model check (demo prototype)" above first: it is for made-up messages only.
+
+By hand in the Firebase console, in the development project:
+
+1. AI Logic: press Get started and choose the Gemini Developer API. This is the free option and needs no billing account.
+2. App Check > APIs > Firebase AI Logic: set it to unenforced. App Check is not set up in Spill, so with enforcement on every request is refused. Google allows this only until 21 January 2027 at the latest.
+3. Authentication > Settings > Authorised domains: check the Hosting domain is listed (the same check as in the one-time setup).
+
+Then on your computer:
+
+4. In `config/firebase-config.dev.js`, set `var modelCheckEnabled = true;`. Leave the template, `firebase-config.example.js`, as `false`. The pilot one must stay `false`: `npm run deploy:pilot` refuses otherwise.
+5. Deploy again: `npm run deploy:dev`.
+
+To check it worked, sign in on the deployed site and open "Talk to a listener": the small "Safety check" notice appears. To turn the model check off again, set `modelCheckEnabled` back to `false` in `config/firebase-config.dev.js` and run `npm run deploy:dev` again. Nothing else changes: screening carries on with the term lists and `firestore.rules`.
+
+`firebase.json` sets `Cache-Control: no-cache` on every `.js` and `.css` file, so a deploy that fixes a safety bug (screening, chat) takes effect immediately for everyone instead of waiting out a browser's cached copy. This only applies on a real deploy: the local Hosting emulator doesn't implement custom headers, so you won't see it in `curl` or dev tools while running `npm run emulators`.
 
 ## How message screening works
 
@@ -176,6 +489,12 @@ What keeps this honest and private:
 
 The coordinator's address is `VETTING_CONTACT_EMAIL` at the top of `public/js/listener-application.js`. For now it is the project owner's address. Change it there if someone else takes over as coordinator.
 
+## How matching avoids duplicate requests
+
+A user can only ever have one pending chat request outstanding (FR 4.1). `request-chat.js` claims a `pendingChats/{uid}` marker in the same atomic batch as the `chats` document it creates, and `firestore.rules` requires that pairing on every chat create. Since `pendingChats` has no update rule, a second chat can never get its own claim while the first one's still stands.
+
+Whether nobody's free right now or the matched listener declines, the user sees the identical wait status and the search retries automatically, giving up after 10 minutes of nobody being free. The marker is released whenever the search genuinely ends (matched, declined and then re-claimed for the retry, cancelled by the user, given up on, or found stale, older than that same 10 minutes, the next time the page loads), so a user is never locked out of starting a fresh request, even after an abandoned tab or a browser crash.
+
 ## Design
 
 The look is meant to feel like a place to talk, not a clinic: confident on the way in (heavy headlines, a warm background, one orange accent) and quiet on the screens where people open up (soft message bubbles in the chat, a calm crisis card). The wording stays plain and non-clinical.
@@ -191,184 +510,6 @@ Everything visual lives in `public/css/styles.css`. The pages carry no inline st
 - **Fonts are served from the app.** Archivo and Archivo Black are in `public/fonts/` under the SIL Open Font License (`public/fonts/OFL.txt`). No page asks another site for a font, so opening Spill tells no outside font service about it.
 
 `test/unit/pages.test.js` checks the parts of this that can be checked from the files: every page loads the "Need help now" button and the stylesheet, has no inline styles, and asks no other site for fonts.
-
-## How matching avoids duplicate requests
-
-A user can only ever have one pending chat request outstanding (FR 4.1). `request-chat.js` claims a `pendingChats/{uid}` marker in the same atomic batch as the `chats` document it creates, and `firestore.rules` requires that pairing on every chat create. Since `pendingChats` has no update rule, a second chat can never get its own claim while the first one's still stands.
-
-Whether nobody's free right now or the matched listener declines, the user sees the identical wait status and the search retries automatically, giving up after 10 minutes of nobody being free. The marker is released whenever the search genuinely ends (matched, declined and then re-claimed for the retry, cancelled by the user, given up on, or found stale, older than that same 10 minutes, the next time the page loads), so a user is never locked out of starting a fresh request, even after an abandoned tab or a browser crash.
-
-## Setup
-
-You'll need Node.js 20 or newer and a JDK 21 or newer (the Firebase emulators run on Java).
-
-The code is on `main`, the default branch, so a plain `git clone` gets everything.
-
-```bash
-npm install
-```
-
-Copy `public/js/firebase-config.example.js` to `public/js/firebase-config.js`. That file is gitignored, so it never gets committed. The copy works with the local emulators as it is: its `projectId` is `demo-spill-dev`, an emulator-only project, and the emulators never check the other values. Fill in real values only when you connect to a real Firebase project. Leave `modelCheckEnabled` as `false`; see "Model check (demo prototype)" above.
-
-## Running locally
-
-```bash
-npm run emulators
-```
-
-This starts the Firestore and Auth emulators plus Hosting, serving the app at `http://localhost:5000`. The emulator UI (for inspecting data) is at `http://localhost:4000`. Everything stays on your computer and is wiped when the emulators stop.
-
-Then, in another terminal while the emulators are running, add the sample data:
-
-```bash
-npm run seed            # sample helplines and clinics for the resources page
-npm run seed:terms      # starter screening terms (FR 7.1)
-npm run seed:accounts   # one demo account per role
-```
-
-### Demo accounts
-
-Sign-up only ever creates an ordinary user, so `npm run seed:accounts` creates one account for each role. They all use the password `spill-demo-123`.
-
-| Role | Email | What to try |
-|---|---|---|
-| User | `user@spill.test` | Mood check-in, "Talk to a listener", "Apply to be a listener" |
-| Listener | `listener@spill.test` | Listener dashboard: accept a chat request. Already approved, trained and available |
-| Moderator | `moderator@spill.test` | Moderator queue: open a case, record an action, suggest a term |
-| Admin | `admin@spill.test` | Listener applications (apply as the user first, then tick the checks and approve), screening terms (one demo suggestion is waiting to approve or reject), helplines and clinics |
-
-These accounts are for the emulators only. The script uses the emulator-only project and refuses to run if it is pointed at anything other than the emulators on your computer. Never create accounts with a published password in a real Firebase project.
-
-### Pages
-
-| Page | Address | Who can use it |
-|---|---|---|
-| Resources and crisis card | `/` | Anyone, no account |
-| Sign up, sign in | `/signup.html`, `/signin.html` | Anyone |
-| Dashboard | `/dashboard.html` | Any signed-in account |
-| Staff home | `/staff.html` | Moderator, admin |
-| Pilot statistics | `/stats.html` | Admin |
-| Talk to a listener | `/request-chat.html` | User |
-| Chat | `/chat.html` (opened from a request or the listener dashboard) | The two people in the chat |
-| Apply as a listener | `/listener-apply.html` | User |
-| Listener dashboard, training | `/listener-dashboard.html`, `/listener-training.html` | Listener |
-| Moderator queue, case view | `/moderator-queue.html`, `/moderator-case.html` | Moderator |
-| Admin pages | `/admin-listeners.html`, `/admin-terms.html`, `/admin-resources.html` | Admin |
-
-After signing in, each person lands on their own home page: a user on the dashboard, an approved listener on the listener dashboard, and a moderator or admin on `staff.html`. Each home page opens with a row of numbers showing what is waiting, then the items themselves, each one a tap away:
-
-| Who | Numbers at the top | Then |
-|---|---|---|
-| User | Check-ins this month, average mood, last check-in | Their open chat (if any), the check-in form, and their mood lately |
-| Listener | Requests waiting, active chats out of 2, available or away, training | Requests to accept or decline, their status, and active chats |
-| Moderator | Crisis flags, other flags, reports, how long the oldest has waited | The five most serious open items, and their own recent actions |
-| Admin | Applications waiting, suggested terms waiting, approved listeners, listeners available now | The waiting applications and suggested terms, and their own recent actions |
-
-A number that needs attention now (a crisis flag, a request waiting) is shown in orange, and its label always says what it is. No home page shows any chat message text. The counting and wording live in `public/js/home-summary.js`, which has its own unit tests. Every home page links back to the personal dashboard.
-
-To reach the staff pages later, sign in and look at the dashboard. An approved listener, a moderator or an admin sees a "Your Spill pages" section there with links to their own pages. An ordinary user doesn't see it, and no public page links to a staff page. The links are only a shortcut: `firestore.rules` decides who can read or change anything, so opening a staff page's address without the role shows nothing.
-
-### Trying a chat
-
-1. In one browser window, sign in as the listener and open the listener dashboard.
-2. In a private window (or another browser), sign in as the user and choose "Talk to a listener".
-3. Accept the request on the listener dashboard, then open the chat from "Your active chats".
-4. Send an ordinary message, then a crisis one (for example "I want to kill myself") to see the crisis card, then one with a phone number to see it blocked.
-5. Sign in as the moderator to see both flags in the queue.
-
-### About the seed scripts
-
-`npm run seed:terms` adds the terms in `public/data/term-lists-seed.json` (mostly Kinyarwanda, plus a few English crisis phrases) to the admin term lists. Each term goes through the same checks as `admin-terms.html`, and each one added gets its own `auditLog` entry. Terms already on a list are skipped, so it's safe to run again. The script only adds terms: removing a term from the seed file doesn't remove it from a database that was already seeded. Remove it on `admin-terms.html` instead, so the removal is logged too.
-
-All three seed scripts write to the emulators only. The "Import starter terms" button on `admin-terms.html` adds the same starter terms from the page itself, as the signed-in admin, so it also works on a deployed project.
-
-## Testing
-
-```bash
-npm test
-```
-
-This starts the Firestore emulator, runs every test (the unit tests and the Firestore Security Rules tests) and stops the emulator again. Stop `npm run emulators` first if it is running, because both use the same port.
-
-To run only the unit tests, which need no emulator:
-
-```bash
-npm run test:unit
-```
-
-### Reports (NFR 21)
-
-Two reports in `docs/` record what the tests show. Both are written by a script, so no number in them is typed by hand.
-
-- **[docs/test-report.md](docs/test-report.md):** a full run, with every test file, how many passed, and which requirements (FR, NFR, BR) the tests name. Run `npm run test:report` to bring it up to date. It runs every test the same way as `npm test`, so stop `npm run emulators` first.
-- **[docs/screening-report.md](docs/screening-report.md):** precision and recall of message screening on each labelled set, for the built-in lists, with the starter terms, and with the model check, against the SRS goal of catching 90% of crisis and contact-sharing messages. It also lists by language, and every message the held-out set still gets wrong. Run `npm run report:screening` after changing the screening code, the terms or the sets; a unit test fails until you do. It needs no emulator and no network: the model check's answers to the test messages were saved once in `test/data/model-check-answers.json`.
-
-- **[docs/performance.md](docs/performance.md):** page load times on a slow phone connection (NFR 1), message delivery (NFR 2), 30 people at once and the free plan's limits (NFR 3), and how no message is lost (NFR 18).
-- **[docs/accessibility.md](docs/accessibility.md):** how every page was checked against WCAG 2.1 AA, 44 px tap targets and keyboard use (NFR 16), what was found and fixed, and what still needs testing with real screen readers and people.
-
-A Security Rules test also checks NFR 4: a moderator watching the open flags live sees a new crisis flag within 1 minute. It prints the time it took.
-
-## Linting
-
-```bash
-npm run lint
-```
-
-## Deployment
-
-Spill deploys to Firebase Hosting and Cloud Firestore on the free Spark plan. `.firebaserc` names two projects: `dev` (development) and `pilot`. Nothing below needs a key or secret in the repository.
-
-**One-time setup in the Firebase console, per project**
-
-1. Authentication > Sign-in method: turn on Email/Password.
-2. Firestore Database: create the database.
-3. Authentication > Settings > Authorised domains: check the Hosting domain (`<project-id>.web.app`) is listed.
-4. Project settings > General > Your apps: copy the web app's config values into `config/firebase-config.<target>.js` on your computer, where `<target>` is `dev` or `pilot`. Start from `public/js/firebase-config.example.js`. The `config/` folder is gitignored: these files are uploaded with the site but never committed. Keep `modelCheckEnabled = false` in the pilot one.
-
-**Deploy (NFR 22)**
-
-```bash
-npx firebase login
-npm run deploy:dev      # the development project, from any clean branch
-npm run deploy:pilot    # the pilot project, from a clean main only
-```
-
-`scripts/deploy.js` does the whole deploy, and stops at the first problem:
-
-1. It refuses if the config file is for a different project than the target, still has `REPLACE_ME` values, or has the model check on for the pilot. It also refuses if anything is uncommitted, or if the pilot deploy isn't from `main`.
-2. It runs `npm test` and `npm run lint`.
-3. It uploads the site with that target's config, **then** the Security Rules and indexes. The site goes first because new rules can expect what a new page sends: the rules refuse an account without the consent record that the new sign-up page adds.
-4. It puts your own `public/js/firebase-config.js` back as it was. That file stays yours for local work (the emulator template, or a project you are trying out).
-5. It runs `npm run smoke:<target>`, which only reads the live site. It checks that every page loads with "Need help now", that the site talks to the right project, that the model check is off on the pilot, that the live files match this folder, and that scripts are served with no-cache.
-
-`npm run smoke:dev` and `npm run smoke:pilot` can be run on their own at any time.
-
-Before the pilot starts, work through [docs/pilot-runbook.md](docs/pilot-runbook.md). [docs/demo-script.md](docs/demo-script.md) is a walk-through for demonstrating Spill on the emulators.
-
-**After the first deploy**
-
-- **Staff accounts.** Sign up on the deployed site with each person's own email and a private password. Then, in the Firebase console, open Firestore > `accounts` > that person's document and change `role` to `moderator` or `admin`. A listener applies on `listener-apply.html`, is checked in person, and is then approved by an admin on `admin-listeners.html` (see "How someone becomes a listener"). Don't run `npm run seed:accounts` here: it refuses, and its password is public.
-- **Helplines and clinics.** An admin adds the verified ones on `admin-resources.html`. Until the first one is added, or whenever the list can't load, the landing page shows the three helplines built into the crisis card instead of an empty card.
-- **Screening terms.** Sign in as an admin, open `admin-terms.html` and press "Import starter terms". It adds the terms in `public/data/term-lists-seed.json` to the three lists, skips any already there, and records each term added in the audit log under that admin. It needs no key and no script, and it is safe to press again. Until it is done, screening uses the built-in lists and the fixed patterns in `firestore.rules`. (`npm run seed:terms` does the same job for the emulators only.)
-
-**Model check on a deployed development copy (optional, demo only)**
-
-The model check is off on every deploy unless these steps are done. It only works for the development project, `spill-dev-01`: that is the one project named in `MODEL_CHECK_PROJECTS` in `public/js/model-check-settings.js`, and the setting is ignored for any other project, including the pilot one. Read "Model check (demo prototype)" above first: it is for made-up messages only.
-
-By hand in the Firebase console, in the development project:
-
-1. AI Logic: press Get started and choose the Gemini Developer API. This is the free option and needs no billing account.
-2. App Check > APIs > Firebase AI Logic: set it to unenforced. App Check is not set up in Spill, so with enforcement on every request is refused. Google allows this only until 21 January 2027 at the latest.
-3. Authentication > Settings > Authorised domains: check the Hosting domain is listed (the same check as in the one-time setup).
-
-Then on your computer:
-
-4. In `config/firebase-config.dev.js`, set `var modelCheckEnabled = true;`. Leave the template, `firebase-config.example.js`, as `false`. The pilot one must stay `false`: `npm run deploy:pilot` refuses otherwise.
-5. Deploy again: `npm run deploy:dev`.
-
-To check it worked, sign in on the deployed site and open "Talk to a listener": the small "Safety check" notice appears. To turn the model check off again, set `modelCheckEnabled` back to `false` in `config/firebase-config.dev.js` and run `npm run deploy:dev` again. Nothing else changes: screening carries on with the term lists and `firestore.rules`.
-
-`firebase.json` sets `Cache-Control: no-cache` on every `.js` and `.css` file, so a deploy that fixes a safety bug (screening, chat) takes effect immediately for everyone instead of waiting out a browser's cached copy. This only applies on a real deploy: the local Hosting emulator doesn't implement custom headers, so you won't see it in `curl` or dev tools while running `npm run emulators`.
 
 ## A note on what Spill is not
 
