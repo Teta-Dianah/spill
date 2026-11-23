@@ -1,6 +1,6 @@
 # Spill: Software Requirements Specification
 
-**Version 3.0, 20 November 2026. Dianah Teta.**
+**Version 3.1, 23 November 2026. Dianah Teta.**
 
 This version describes Spill **as it was built**. Version 2.0 (`docs/Spill_Proposal_and_SRS.pdf`) was written before the code, so some of it no longer matches. Here, every requirement carries a status:
 
@@ -19,6 +19,7 @@ The proposal part of the PDF (problem, research, method) is unchanged and is not
 | 1.0 | Sprint 0 | First draft with the proposal. |
 | 2.0 | Before Sprint 1 | Full SRS with the UML diagrams (the PDF). |
 | 3.0 | 20 November 2026 | Rewritten to match the built app: statuses on every requirement, the real data model, the listener vetting steps, the after-chat questions, the statistics, the model check prototype, the legal decisions for the class pilot, and new diagrams drawn from the code. |
+| 3.1 | 23 November 2026 | The last seven items are built: sign-out after 30 minutes away (FR 1.4), mood tags (FR 3.1), the monthly recap (FR 3.4), one message every 2 seconds (NFR 10), chats removed after 90 days (NFR 13), suspended accounts cannot send (BR 7) and the Help page. A new `sendTimes` collection. Full UML set: class diagrams with operations, and sequence diagrams. |
 
 ---
 
@@ -73,6 +74,7 @@ Version 2.0 set four objectives. How the built app supports each:
 - Version 2.0: `docs/Spill_Proposal_and_SRS.pdf`, including the proposal and its references.
 - Republic of Rwanda (2021). Law No. 058/2021 of 13/10/2021 relating to the protection of personal data and privacy.
 - Evidence in this repository: `docs/test-report.md`, `docs/screening-report.md`, `docs/performance.md`, `docs/accessibility.md`, `docs/legal-privacy-checklist.md`, `docs/breach-procedure.md`, `docs/SRS_change_notes.md`.
+- Code: https://github.com/Teta-Dianah/spill. Live app: https://spill-dev-01.web.app.
 
 ---
 
@@ -82,13 +84,13 @@ Version 2.0 set four objectives. How the built app supports each:
 
 Spill is a new, self-contained web app. It does not connect to any other system. It lists public helplines and clinics that an administrator keeps up to date, but it does not exchange data with them.
 
-There is **no application server**. The pages run in the person's browser and talk directly to three Firebase services: Hosting (the files), Authentication (sign-in) and Cloud Firestore (the data). Firestore Security Rules decide who may read or write each record, and they also screen messages. Matching a user to a listener happens in the user's browser, because the free Spark plan has no server functions. Figure B.7 shows the parts.
+There is **no application server**. The pages run in the person's browser and talk directly to three Firebase services: Hosting (the files), Authentication (sign-in) and Cloud Firestore (the data). Firestore Security Rules decide who may read or write each record, and they also screen messages. Matching a user to a listener happens in the user's browser, because the free Spark plan has no server functions. Figure B.10 shows the parts.
 
 ### 2.2 Product functions
 
-- **Access and accounts:** sign up with an age band (the app gives a random pseudonym), agree to the privacy notice, sign in and out, delete the account.
-- **Open resources:** helplines, clinics and self-help tips, plus "Need help now" on every page.
-- **Mood check-in:** a 1 to 5 mood with an optional note, and a history.
+- **Access and accounts:** sign up with an age band (the app gives a random pseudonym), agree to the privacy notice, sign in and out, be signed out after 30 minutes away, delete the account.
+- **Open resources:** helplines, clinics and self-help tips, a Help page of questions and answers, plus "Need help now" on every page.
+- **Mood check-in:** a 1 to 5 mood with optional topic tags and an optional note, a history, and a private monthly recap.
 - **Listener chat:** choose a topic and a mood, be matched with an eligible listener, chat in real time, end the chat, and answer the after-chat questions.
 - **Becoming a listener:** apply, pass four in-person checks, be approved, pass the training quiz, set availability, accept or decline requests.
 - **Safety and moderation:** screen every message, show the crisis card, block contact-sharing, flag abusive words, report and block, a moderator queue with cases, actions and an audit log.
@@ -133,8 +135,8 @@ Roles are stored on the account (`role`: user, moderator or admin). A listener i
 | Privacy notice, terms of use and confidentiality statement | Built: `privacy.html`, linked from sign-up, the landing page and the dashboard. |
 | Listener training module and quiz, and a code of conduct | Built: `listener-training.html` (three questions, all must be right); the code of conduct is agreed to on the application form. |
 | README covering setup, testing and deployment | Built, and now also a guide to using the app. |
-| Demo walkthrough and pilot runbook | Built: `docs/demo-script.md`, `docs/pilot-runbook.md`. |
-| In-app Help and FAQ page | Not built. Each page explains itself in plain words instead. |
+| Pilot runbook | Built: `docs/pilot-runbook.md`. |
+| In-app Help and FAQ page | Built: `help.html`, linked from the landing page, both dashboards and the privacy notice. Five parts: about Spill, chatting, safety, your account, and listening. |
 | Moderator and administrator guide | Partly: the README describes each staff page; there is no separate guide. |
 
 ### 2.7 Assumptions and dependencies
@@ -157,8 +159,9 @@ The design is mobile-first and calm, with plain, non-clinical words ("Rough day"
 |---|---|---|
 | `index.html` | Anyone | Helplines and clinics, self-help tips, sign-up and sign-in links |
 | `privacy.html` | Anyone | Privacy notice and terms |
+| `help.html` | Anyone | Help: questions and answers about chatting, safety, the account and listening |
 | `signup.html`, `signin.html` | Anyone | Sign up (age band, email, password, first-time question, consent), sign in |
-| `dashboard.html` | Any signed-in account | Numbers for this month, open chat, mood check-in, mood history, links to staff pages for staff |
+| `dashboard.html` | Any signed-in account | Numbers for this month, open chat, mood check-in with tags, mood history, the monthly recap, links to staff pages for staff |
 | `request-chat.html` | User | Topic and mood before, then the wait status |
 | `chat.html` | The two people in a chat | Messages, end, report, block, the "not therapy" notice, after-chat questions |
 | `listener-apply.html` | User aged 18 to 25 | The listener application, reference code, withdraw |
@@ -222,8 +225,8 @@ Data moves between the parts only through Firestore, and the Security Rules chec
 | FR 1.1 | Register with email, password and age band (16 to 17 or 18 to 25); refuse a declared age under 16. | Must | Built | "Under 16" is one of the choices: it shows a kind note with the helplines and makes no account. The Rules refuse any other age band, and the owner can never change it later. |
 | FR 1.2 | Give a random display name, used everywhere instead of a real identity. | Must | Built | `pseudonym.js` makes a name such as "CalmRiver42". |
 | FR 1.3 | Show the privacy notice, the limits of confidentiality and the "not therapy" notice, and require agreement before the account is made. | Must | Built | The account stores `privacyNoticeVersion` and `consentedAt`; the Rules refuse an account without them, or with a backdated time. |
-| FR 1.4 | Sign in and out with email and password; end the session on sign-out or after inactivity. | Must | Partly built | Sign-in and sign-out work. Sessions do **not** end after inactivity: Firebase keeps a person signed in until they sign out. |
-| FR 1.5 | Delete the account and personal data; keep data tied to an open safety case. | Should | Built | Deleting removes the account, sign-in, mood check-ins, listener record and application. Chats, messages, flags and reports are all kept (the app cannot yet tell open cases from closed ones); they hold only a random ID. |
+| FR 1.4 | Sign in and out with email and password; end the session on sign-out or after inactivity. | Must | Built | After 30 minutes with no tap, click, key or scroll, the person is signed out and sees "You were signed out after 30 minutes away." Not during an active chat, or while a listener is set as available, so nobody is cut off mid-conversation or misses a request. `idle-signout.js` is on every page that signs people in. |
+| FR 1.5 | Delete the account and personal data; keep data tied to an open safety case. | Should | Built | Deleting removes the account, sign-in, mood check-ins, the last-message time, listener record and application. Chats, messages, flags and reports are kept (the app cannot yet tell open cases from closed ones); they hold only a random ID. |
 | FR 1.6 | Ask once whether this is the first time seeking support. | Should | Built | Saved as `firstTimeSeekingHelp` on the account. |
 | FR 1.7 | Send a verification link. | Could | Built | A verification email is sent at sign-up. Using the app does not wait for it. |
 
@@ -234,24 +237,24 @@ Data moves between the parts only through Firestore, and the Security Rules chec
 | FR 2.1 | Show helplines with number and a "last verified" date, with no account. | Must | Built | The landing page shows the three built-in helplines at once, then the admin's list. Each entry has a name, a number and a last-verified date. There are no separate "purpose" or "language" fields. |
 | FR 2.2 | Show clinics and hospitals with contact details. | Must | Built | Resources with the category "clinic". |
 | FR 2.3 | Show short self-help guides. | Should | Built | Self-help tips (breathing, grounding and others) are on the landing page and on the wait screen. |
-| FR 2.4 | A fixed "Need help now" button on every page opens the crisis card in one tap. | Must | Built | On all 17 pages; a page test checks it. The card works with no connection to the database. |
+| FR 2.4 | A fixed "Need help now" button on every page opens the crisis card in one tap. | Must | Built | On all 18 pages; a page test checks it. The card works with no connection to the database. |
 
 #### FR 3 Mood check-in
 
 | ID | Requirement | Priority | Status | How it works now |
 |---|---|---|---|---|
-| FR 3.1 | Record mood on a 1 to 5 scale, with optional tags and an optional note. | Must | Partly built | A 1 to 5 scale ("1 is rough, 5 is great") with an optional note. Topic tags were not built. |
+| FR 3.1 | Record mood on a 1 to 5 scale, with optional tags and an optional note. | Must | Built | A 1 to 5 scale ("1 is rough, 5 is great"), up to eight tags (Rough day, Money stress, Study overload, Family, Friends, Lonely, Tired, Good news) and an optional note. The Rules accept only tags from that list. Tags show in the history. |
 | FR 3.2 | Record mood before and after a chat and store both with the chat. | Must | Built | `moodBefore` is part of the request form; the user gives `moodAfter` to end the chat. |
 | FR 3.3 | Show the user's own mood history as a list and a simple chart. | Should | Built | The dashboard shows recent check-ins and simple bars, plus this month's count and average. |
-| FR 3.4 | A private monthly recap. | Could | Not built | Dropped first when time ran short, as the sprint plan allowed. |
+| FR 3.4 | A private monthly recap. | Could | Built | A card on the dashboard for this month: how many check-ins, the average and last month's, the best day, how many rough days, and the most used tag. Only the person can see it. |
 
 #### FR 4 Listener chat
 
 | ID | Requirement | Priority | Status | How it works now |
 |---|---|---|---|---|
 | FR 4.1 | Choose a topic and request a chat. | Must | Built | Topics: exams, family, money stress, loneliness, something else. A user can have only one request waiting: the chat and a `pendingChats` marker are written together, and the Rules refuse a second. |
-| FR 4.2 | Match with an available approved listener; 16 to 17 year olds only with listeners cleared for minors; show the wait status and resources when nobody is free. | Must | Built | The Rules check the listener is approved, available, not blocked either way, both accounts are active, and the minors rule. The search tries again every 15 seconds for up to 10 minutes, then stops (Figure B.5). |
-| FR 4.3 | Send and receive messages in real time. | Must | Built | Firestore listeners; 0.2 to 0.6 s on the emulator (NFR 2). |
+| FR 4.2 | Match with an available approved listener; 16 to 17 year olds only with listeners cleared for minors; show the wait status and resources when nobody is free. | Must | Built | The Rules check the listener is approved, available, not blocked either way, both accounts are active, and the minors rule. The search tries again every 15 seconds for up to 10 minutes, then stops (Figures B.6 and B.8). |
+| FR 4.3 | Send and receive messages in real time. | Must | Built | Firestore listeners; 0.2 to 0.6 s on the emulator (NFR 2). At most one message every 2 seconds (NFR 10). Figure B.7. |
 | FR 4.4 | Only a user may start a chat. | Must | Built | The Rules only let the user named in the chat create it. |
 | FR 4.5 | Either person can end a chat at any time, without a reason. | Must | Built | The user gives a mood after; the listener just ends it. |
 | FR 4.6 | An optional rating and short comment after a chat. | Should | Built | "Was this chat helpful?" with an optional comment, and "Would you use Spill again?" (yes, no, not sure), both optional. Only the user can answer the second. |
@@ -306,7 +309,7 @@ Evidence for each is in the file named, all in `docs/`.
 |---|---|---|---|---|
 | NFR 1 | A page loads in 3 seconds or less on a typical mobile connection. | Should | Partly met | On "Slow 4G": pages show in 1.4 to 3.0 s and finish at about 3 s. Helplines show in 2.8 to 4.8 s live, most of it waiting for the first byte from Firebase. `performance.md` |
 | NFR 2 | A message appears to the other person within 2 seconds. | Must | Met on the emulator | 0.2 to 0.6 s; a rules test fails at 2 s. Not measured on the live service. |
-| NFR 3 | At least 30 people at once, within the free plan. | Should | Met for correctness | 30 people, 45 messages at once, all arrive. A busy day is estimated at about a third of the free reads. Live speed under load was not measured. |
+| NFR 3 | At least 30 people at once, within the free plan. | Should | Met for correctness | 15 chats where all 30 people send a message at the same moment; all arrive. A busy day is estimated at about a third of the free reads. Live speed under load was not measured. |
 
 ### 5.2 Safety
 
@@ -323,10 +326,10 @@ Evidence for each is in the file named, all in `docs/`.
 | NFR 7 | HTTPS only. | Must | Met | Enforced by Firebase. |
 | NFR 8 | Every request for account, mood, chat, flag or staff data needs a valid ID token; Tier 0 is public and read-only. | Must | Met | Only `resources` can be read with no account, and nothing can be written with no account. |
 | NFR 9 | No raw query strings; all output escaped. | Must | Met | Every page escapes text before showing it. |
-| NFR 10 | Sign-in attempts limited by Firebase; message sending throttled by the Rules. | Must | Partly met | Firebase's own sign-in protection applies. A minimum time between messages was **not built**. |
+| NFR 10 | Sign-in attempts limited by Firebase; message sending throttled by the Rules. | Must | Met | Firebase's own sign-in protection applies. Every message is saved together with `sendTimes/{uid}`, which the Rules only let move forward after 2 seconds, so nobody can send faster, even with a changed app. Rules tests check it. |
 | NFR 11 | No real names, phone numbers, location or ID documents; email for sign-in only. | Must | Met | Accounts accept only known fields; contact details are blocked in chat. |
 | NFR 12 | Messages encrypted at rest and readable only by the two people and through a case. | Should | Met | Firestore encryption; rules tests. |
-| NFR 13 | Chats kept for a limited time (about 90 days). | Should | Not built | The free plan has no scheduled jobs. The privacy notice says there is no limit yet. |
+| NFR 13 | Chats kept for a limited time (about 90 days). | Should | Met, with one limit | The free plan has no scheduled jobs, so the app does it: when either person opens their dashboard, finished chats started over 90 days ago are deleted with their messages. The Rules allow this only for that person's own finished chat, only after 90 days, and never for a chat with a flag or report. Limit: a chat stays if neither person comes back. The privacy notice says this. |
 | NFR 14 | Before any public launch: exclude under-16s, privacy notice, 48-hour breach procedure, assess NCSA registration and a DPO, store data in Rwanda or with authorisation. | Must | Done for the class pilot | Under-16s excluded, notice shown and consent recorded, breach procedure and lock-down rules written. For the class pilot the owner decided on 19 November 2026 that NCSA registration, a DPO and ethics approval are not needed, and that the pilot may go ahead with data in South Africa. A public launch would need these again. `legal-privacy-checklist.md` |
 
 ### 5.4 Software quality attributes
@@ -341,7 +344,7 @@ Safety and privacy come first, then usability, then performance.
 | NFR 18 | Messages saved before delivery; 95% availability in the pilot. | Should | Met | A message is only delivered by being saved; a failed send keeps the text. GitHub checks the live site every 3 hours. |
 | NFR 19 | Staff actions and content access logged with user, time and reason; logs not editable. | Should | Met | `auditLog` has no update or delete rule. |
 | NFR 20 | Screening rules documented and version-controlled; ESLint; a README for setup and deployment. | Must | Met | README, `screening-report.md`, lint in CI. |
-| NFR 21 | Tests on every push, with the emulator; screening tested on 40 or more labelled messages with precision and recall. | Must | Met | About 720 tests. Four labelled sets, 151 messages. `test-report.md`, `screening-report.md` |
+| NFR 21 | Tests on every push, with the emulator; screening tested on 40 or more labelled messages with precision and recall. | Must | Met | 803 tests. Four labelled sets, 151 messages. `test-report.md`, `screening-report.md` |
 | NFR 22 | Config kept out of the code; separate development and pilot projects. | Should | Met | `config/` is gitignored; `spill-dev-01` and `spill-pilot`. |
 
 ### 5.5 Business rules
@@ -354,24 +357,25 @@ Safety and privacy come first, then usability, then performance.
 | BR 4 | Admins and developers cannot read chats outside moderation. | Enforced | No rule lets an admin read chats, messages or flags. Developers with console access could; the owner account is the only one. |
 | BR 5 | Either person can end a chat or block at any time, without a reason. | Enforced | Buttons on the chat page; no reason is asked. |
 | BR 6 | Chats are confidential except where there is serious risk of harm; users are told at sign-up. | Enforced | Said in the privacy notice, agreed to before the account is made. |
-| BR 7 | A suspended account cannot chat until reinstated. | Partly enforced | A suspended account cannot start a chat or be matched. A chat that was already open when the suspension happened is not ended automatically. |
+| BR 7 | A suspended account cannot chat until reinstated. | Enforced | A suspended account cannot start a chat or be matched, and the Rules refuse any message it sends, even in a chat that was open before. The chat page turns the message box off at once and says why. It can still end the chat, report, block and open "Need help now". |
 | BR 8 | Tier 0 resources always work without an account. | Enforced | `resources` is public to read; the built-in helplines show even with no connection. |
 
 ---
 
 ## 6. Data model
 
-Version 2.0 listed eight collections. The built app has seventeen. Figures B.3 and B.4 show their fields and links.
+Version 2.0 listed eight collections. The built app has eighteen. Figures B.3 to B.5 show their fields, operations and links.
 
 | Collection | Holds | Who can read it |
 |---|---|---|
 | `accounts/{uid}` | Pseudonym, age band, role, status, first-time answer, blocked list, consent record | The owner, moderators, admins |
-| `moods/{id}` | One check-in: score, note, time | The owner only |
+| `moods/{id}` | One check-in: score, tags, note, time | The owner only |
 | `listeners/{uid}` | Approval, cleared for minors, availability, training | Anyone signed in (matching runs in the browser), so it holds no answers |
 | `listenerApplications/{uid}` | The application answers, reference code, the four checks, any rejection reason | The applicant and admins |
 | `chats/{chatId}` | User, listener, topic, status, moods before and after, after-chat answers | The two people; a moderator with a case |
 | `pendingChats/{uid}` | The one request a user has waiting | The owner |
 | `messages/{id}` | Chat, sender, text, crisis flag link, time | The two people; a moderator with a case |
+| `sendTimes/{uid}` | When this person last sent a message, and nothing else | The owner only |
 | `flags/{id}` | Crisis, contact-sharing or abuse flag, severity, status, the moderator's action | Moderators |
 | `reports/{id}` | Who reported whom, why, status, action | Moderators |
 | `chatFlagged/{chatId}` | A marker: something was raised about this chat | Moderators |
@@ -406,9 +410,17 @@ Version 2.0 listed eight collections. The built app has seventeen. Figures B.3 a
 
 ---
 
-## Appendix B: Diagrams
+## Appendix B: UML diagrams
 
-The diagrams were drawn in draw.io from the code. The editable files (`.drawio`) and the pictures (`.png`) are in [`docs/diagrams/`](diagrams/). Open a `.drawio` file in draw.io or at app.diagrams.net to change it.
+The diagrams follow UML 2.5 and were drawn from the code. The editable files (`.drawio`) and the pictures (`.png`) are in [`docs/diagrams/`](diagrams/). Open a `.drawio` file in draw.io or at app.diagrams.net to change it.
+
+| Figure | Diagram | Shows |
+|---|---|---|
+| B.1, B.2 | Use case | Who uses Spill and what for |
+| B.3, B.4, B.5 | Class | The data, the operations on it, and how the parts relate |
+| B.6, B.7 | Sequence | The order of messages in the two main flows |
+| B.8, B.9 | Activity | The steps and decisions in those flows, by who does them |
+| B.10 | Deployment | Where the software runs |
 
 ### 1. Use case diagrams
 
@@ -416,9 +428,9 @@ The diagrams were drawn in draw.io from the code. The editable files (`.drawio`)
 
 **Figure B.1: Use cases for the Visitor and the User.**
 
-- **Actors:** the Visitor has no account. The User is a signed-in young person aged 16 to 25 and can do everything a Visitor can (the hollow arrow).
-- **Use cases:** a Visitor reads self-help tips, views helplines and clinics, opens the crisis card and reads the privacy notice. A User also registers, signs in and out, records a mood check-in, views their history and deletes the account.
-- **Relationships:**
+- **Actors:** the Visitor has no account. The User is a signed-in young person aged 16 to 25. The hollow triangle is generalisation: a User can do everything a Visitor can.
+- **Use cases:** a Visitor reads self-help tips, views helplines and clinics, opens the crisis card, reads the privacy notice and reads the Help page. A User also registers, signs in and out, records a mood check-in, views their history and monthly recap, and deletes the account.
+- **Relationships:** «include» means the base use case always does the other one. «extend» means the other one only happens sometimes. Both arrows point from the dependent use case to the one it depends on.
 
 | From | To | Type | Meaning |
 |---|---|---|---|
@@ -428,6 +440,7 @@ The diagrams were drawn in draw.io from the code. The editable files (`.drawio`)
 | Register an account | Answer the first-time question | «include» | Asked once at sign-up. |
 | Register an account | Get a verification email | «include» | Sent at sign-up. |
 | Stop an under-16 sign-up | Register an account | «extend» | Only when "Under 16" is chosen; no account is made. |
+| Add topic tags | Record a mood check-in | «extend» | Tags are optional. |
 | Delete the account | Remove check-ins and listener records | «include» | They go with the account. |
 
 ![Figure B.2: Use case diagram for chat and staff roles](diagrams/B2-use-cases-chat-staff.png)
@@ -447,46 +460,120 @@ The diagrams were drawn in draw.io from the code. The editable files (`.drawio`)
 | Block a contact-sharing message | Screen every message | «extend» | Only when contact details are found. |
 | Answer the after-chat questions | End the chat | «extend» | The user's mood after, then the optional questions. |
 
-### 2. Data model (class diagrams)
+### 2. Class diagrams
 
-Firestore stores documents, not objects, so these class diagrams show each collection as a class with its real fields. The behaviour lives in the page scripts and the Security Rules, so no operations are listed. A filled diamond means the parts are deleted with the whole.
+Each class has three compartments: the name, the attributes and the operations.
 
-![Figure B.3: Data model, people and chats](diagrams/B3-data-people-chats.png)
+- **Attributes** are the real Firestore fields, written `- name: Type [multiplicity] {constraint}`. They are private (`-`) because only the Security Rules decide who may read or change them.
+- **Operations** are the real functions in `public/js`, written `+ name(parameters): ReturnType`. They are public (`+`). An underlined operation is static: it works on data passed in, not on one stored record (for example `validateMood`).
+- **Names in braces** under a class name, such as `{accounts/{uid}}`, give the Firestore collection it is stored in.
+- **Italic names** are abstract classes: there is no record of that class on its own, only of its subclasses.
+- **«enumeration»** boxes list the only values a field can hold. The Rules refuse any other value.
 
-**Figure B.3: People and chats.**
-
-| Link | Meaning |
+| Line | Meaning |
 |---|---|
-| Account records MoodCheckIn (1 to 0..*, composition) | Check-ins are deleted with the account (FR 1.5). |
-| Account may also be a Listener (1 to 0..1) | A listener is a user with an approved listener record. |
-| Listener applied with ListenerApplication (1 to 1) | The private answers are kept apart from the public record. |
-| Account starts Chat (1 to 0..*) | Only the user starts a chat (FR 4.4). |
-| Listener listens in Chat (1 to 0..*, at most 2 active) | FR 5.5. |
-| Account holds at most one PendingChat, which names one Chat | One request at a time (FR 4.1). |
-| Chat contains Message (1 to 0..*, composition) | Messages belong to their chat. |
-| Chat copied to ChatStats (1 to 0..1) | The anonymised copy, after the chat ends (FR 7.3). |
-| Account blocks Account (0..* to 0..*) | `blockedUids` (FR 6.6). |
+| Hollow triangle | Generalisation: the class at the plain end is a kind of the class at the triangle. |
+| Filled diamond | Composition: the part at the plain end belongs to the whole at the diamond, and is deleted with it. |
+| Plain line with a name | Association: two classes are linked. The small triangle (▸ or ▾) shows which way to read the name. The numbers at each end are multiplicities: `1` exactly one, `0..1` none or one, `0..*` any number. |
+| Dashed arrow | Dependency: one class uses another, with the kind of use in «guillemets». |
 
-![Figure B.4: Data model, safety and administration](diagrams/B4-data-safety-admin.png)
+![Figure B.3: Class diagram, people and roles](diagrams/B3-class-people-roles.png)
 
-**Figure B.4: Safety and administration.**
+**Figure B.3: People and roles.**
 
-| Link | Meaning |
-|---|---|
-| Flag and Report are about one Chat | Each concerns one chat. |
-| Chat marked by ChatFlagged, which lets a moderator open a ChatCase | The only way to a chat's content (BR 3). |
-| ChatCase opening is logged in AuditLogEntry | FR 6.9. |
-| Flag and Report resolved with an AuditLogEntry | Every action has its entry in the same write. |
-| Flag counted as SafetyTally | One content-free count per flag or report, for statistics. |
-| TermList: every change logged | No unlogged change to a list. |
-| TermSuggestion approved into TermList; review logged | A moderator's phrase only reaches a list through the admin. |
-| Resource | Public, with no links: anyone can read it. |
+- **Account** is abstract. Every signed-in person has one record in `accounts`, and its `role` says which subclass they are. Moderator, User and Administrator are kinds of Account (generalisation).
+- **Listener** is a kind of User: a user who applied and was approved. A Listener can still do everything a User can.
+- The operations show what each role can do. Each one is a real function. For example `User.requestChat` is in `request-chat.js`, and `Administrator.approveListener` is in `listeners.js`.
 
-### 3. Activity diagrams
+| Relationship | Type | Multiplicity | Meaning |
+|---|---|---|---|
+| Moderator, User, Administrator to Account | Generalisation | | Each is a kind of Account. |
+| Listener to User | Generalisation | | A listener is a user who was approved. |
+| User records MoodCheckIn | Composition | 1 to 0..* | Check-ins are deleted with the account (FR 1.5). |
+| User has SendTime | Composition | 1 to 0..1 | The last-message time, deleted with the account (NFR 10). |
+| Listener applied with ListenerApplication | Association | 1 to 1 | The private answers are kept apart from the public record. |
+| Administrator reviews ListenerApplication | Association | 0..* to 0..* | Any admin can review any application (FR 5.2). |
+| ListenerApplication holds Checks | Composition | 1 to 0..1 | The four in-person checks are part of the application. |
+| Account blocks Account | Association | 0..* to 0..* | `blockedUids` (FR 6.6). |
 
-![Figure B.5: Activity diagram, register and get matched](diagrams/B5-activity-register-match.png)
+![Figure B.4: Class diagram, chats and messages](diagrams/B4-class-chats-messages.png)
 
-**Figure B.5: Register and get matched.** Swimlanes: User, System (the browser and the Security Rules), Listener.
+**Figure B.4: Chats and messages.** User and Listener are shown again with their names only; their details are in Figure B.3.
+
+| Relationship | Type | Multiplicity | Meaning |
+|---|---|---|---|
+| User starts Chat | Association | 1 to 0..* | Only a user starts a chat (FR 4.4). |
+| Listener listens in Chat | Association | 1 to 0..*, {at most 2 active} | FR 5.5. |
+| User holds PendingChat | Association | 1 to 0..1 | One request at a time (FR 4.1). |
+| PendingChat names Chat | Association | 0..1 to 1 | The claim points at the one waiting chat. |
+| Chat contains Message | Composition | 1 to 0..* | Messages are deleted with their chat after 90 days (NFR 13). |
+| Chat copied to ChatStats | Association | 1 to 0..1 | The anonymised copy, kept after the chat is deleted (FR 7.3). |
+| Chat uses Screening | Dependency «use» | | Every message is screened before it is sent (FR 6.1). |
+| Screening creates ScreenResult | Dependency «create» | | The three yes or no answers that decide what happens next. |
+
+![Figure B.5: Class diagram, safety and administration](diagrams/B5-class-safety-admin.png)
+
+**Figure B.5: Safety and administration.** Moderator, Administrator and Chat are shown again with their names only.
+
+- **QueueItem** is abstract: the moderator queue holds flags and reports together, sorted by severity and age. Flag and Report are kinds of QueueItem and add their own fields.
+
+| Relationship | Type | Multiplicity | Meaning |
+|---|---|---|---|
+| Flag, Report to QueueItem | Generalisation | | Both are items in the one queue. |
+| Moderator resolves QueueItem | Association | 0..1 to 0..* | With an action and a reason (FR 6.8). |
+| QueueItem about Chat | Association | 0..* to 1 | Each concerns one chat. |
+| QueueItem resolved with AuditLogEntry | Association | 0..1 to 0..1 | The action and its entry are saved in one write (FR 6.9). |
+| QueueItem counted as SafetyTally | Association | 1 to 0..1 | One content-free count for statistics. |
+| ChatFlagged marks Chat | Association | 0..1 to 1 | Something was raised about this chat. |
+| Moderator opens ChatCase | Association | 1 to 0..* | The only way into a chat's content (BR 3). |
+| ChatCase requires ChatFlagged | Dependency «requires» | | A case can only be opened on a flagged chat. |
+| ChatCase opened on Chat | Association | 0..1 to 1 | One case per chat. |
+| ChatCase logged in AuditLogEntry | Association | 1 to 1 | Opening a case is always logged. |
+| Moderator suggests TermSuggestion | Association | 1 to 0..* | A phrase for a term list. |
+| Administrator reviews TermSuggestion | Association | 0..1 to 0..* | Approve or reject, logged. |
+| TermSuggestion approved into TermList | Association | 0..* to 1 | Nothing reaches a list without an admin. |
+| Administrator edits TermList | Association | 1 to 0..3 | The crisis, abuse and contact lists. |
+| TermList logged in AuditLogEntry | Association | 0..1 to 1..* | Every change has its own entry. |
+| Administrator manages Resource | Association | 1 to 0..* | Helplines and clinics (FR 7.2). |
+
+### 3. Sequence diagrams
+
+Each box at the top is a participant, with a dashed lifeline going down. Time runs from top to bottom.
+
+- **Arrows:** a solid line with a filled head is a call. A solid line with an open head is an asynchronous message: a write to Firestore, or a live update from it. A dashed line is a reply.
+- **Activation bars:** the thin rectangles show when a participant is busy.
+- **Frames:** `loop` repeats while its guard in [brackets] is true. `alt` runs exactly one of its parts, split by dashed lines. `opt` runs only if its guard is true.
+
+![Figure B.6: Sequence diagram, request a chat and get matched](diagrams/B6-sequence-request-match.png)
+
+**Figure B.6: Request a chat and get matched.**
+
+1. The user sends the request form. The page first clears any claim older than 10 minutes.
+2. In a loop, every 15 seconds for up to 10 minutes, the page looks for an eligible listener and shows the wait status.
+3. When one is found, the chat and the one-request claim are written together. The Rules check the listener is approved and available, nobody is blocked, both accounts are active, and the minors rule.
+4. The listener's dashboard gets the request live. The listener accepts or declines.
+5. On accept, the user's page hears the change, releases the claim and opens the chat. On decline, it searches again without that listener.
+
+![Figure B.7: Sequence diagram, send a message with screening](diagrams/B7-sequence-send-message.png)
+
+**Figure B.7: Send a message with screening.**
+
+1. The page waits until 2 seconds have passed since the last message, then asks Screening for a ScreenResult.
+2. Exactly one branch runs:
+   - **contact details:** nothing is sent, the sender is warned, and a blocked-attempt flag is saved;
+   - **crisis wording:** the message and a crisis flag are saved in one write, and the sender sees the crisis card;
+   - **abusive words:** the message is saved with an abuse flag;
+   - **otherwise:** the message is saved.
+3. Every saved message goes with the sender's `sendTime`. The Rules check the flag, the 2-second gap and that the sender is not suspended.
+4. The other person's page gets the message live and shows it.
+
+### 4. Activity diagrams
+
+The columns (swimlanes) show who does each step. Rounded boxes are actions, diamonds are decisions with their conditions in [brackets], the thick bar splits into parallel steps and joins them again, the filled circle is the start and the ringed circle the end. A folded-corner box is a note.
+
+![Figure B.8: Activity diagram, register and get matched](diagrams/B8-activity-register-match.png)
+
+**Figure B.8: Register and get matched.** Swimlanes: User, System (the browser and the Security Rules), Listener.
 
 1. The person chooses an age band. "Under 16" shows a kind note and the helplines and ends there.
 2. Otherwise they enter an email and password, answer the first-time question and agree to the privacy notice. The system creates the account with a random pseudonym (the Rules check it) and sends a verification email.
@@ -495,27 +582,23 @@ Firestore stores documents, not objects, so these class diagrams show each colle
 5. When one is found, the chat and the one-request marker are created in one write. The listener accepts or declines. A decline goes back to the search.
 6. On accept, the chat becomes active, and the user's chat page and the listener's chat open in parallel.
 
-![Figure B.6: Activity diagram, chat, screening and moderation](diagrams/B6-activity-chat-safety.png)
+![Figure B.9: Activity diagram, chat, screening and moderation](diagrams/B9-activity-chat-safety.png)
 
-**Figure B.6: Chat, screening and moderation.** Swimlanes: the sender (user or listener), System, Moderator.
+**Figure B.9: Chat, screening and moderation.** Swimlanes: the sender (user or listener), System, Moderator.
 
-1. Each message is screened in the browser. One of four things happens:
-   - **contact details:** not sent (the Rules refuse it too), the sender is warned, and a blocked-attempt flag is saved;
-   - **crisis wording:** the message and a crisis flag are saved in one write, and the crisis card is shown;
-   - **abusive words:** delivered, with an abuse flag;
-   - **nothing:** delivered.
-2. This repeats until either person ends the chat or blocks the other.
+1. Each message waits for the 2-second gap and is screened in the browser. One of four things happens: contact details are blocked and flagged; crisis wording is saved with a crisis flag and the crisis card is shown; abusive words are delivered with an abuse flag; anything else is delivered.
+2. This repeats until either person ends the chat or blocks the other. A suspended account cannot send at all.
 3. The user gives a mood after, and can answer the two questions; the anonymised copy is saved.
 4. A report goes to the queue with severity 2. The moderator opens a case (logged), reads the chat, and chooses an action with a reason. The system updates the item and writes the audit entry in one write.
 
-### 4. Deployment diagram
+### 5. Deployment diagram
 
-![Figure B.7: Deployment diagram](diagrams/B7-deployment.png)
+![Figure B.10: Deployment diagram](diagrams/B10-deployment.png)
 
-**Figure B.7: Deployment.**
+**Figure B.10: Deployment.** 3D boxes are nodes (devices and cloud services), and folded-corner boxes are artifacts (the files deployed onto them).
 
 - **Nodes:** the user's device runs a browser with the Spill pages for every role. The development project (`spill-dev-01`) has Hosting, Authentication, Cloud Firestore and, for the prototype only, Firebase AI Logic. The pilot project (`spill-pilot`) has the same services with separate data and is not in use. The developer's computer has the code and the Emulator Suite. GitHub holds the repository and runs GitHub Actions.
-- **Artifacts:** the 17 pages and their files sit on Hosting; the Security Rules sit on Firestore.
+- **Artifacts:** the 18 pages and their files sit on Hosting; the Security Rules sit on Firestore.
 
 | Connection | Type | Meaning |
 |---|---|---|
@@ -532,7 +615,7 @@ Firestore stores documents, not objects, so these class diagrams show each colle
 
 | Area | Version 2.0 | Version 3.0 (as built) |
 |---|---|---|
-| Collections | 8 | 17 (Section 6) |
+| Collections | 8 | 18 (Section 6) |
 | Under-16s | Registration refused | "Under 16" choice that makes no account |
 | Consent | Shown and accepted | Also recorded with the notice version and time |
 | Listener vetting | Three offline checks | Four (interview added), recorded and enforced; listeners 21 or older |
@@ -541,6 +624,7 @@ Firestore stores documents, not objects, so these class diagrams show each colle
 | Term lists | Admin edits | Plus moderator suggestions approved by the admin |
 | Screening | Rule-based only | Rule-based, plus an AI prototype on the development site only |
 | Pilot | A separate pilot project | Deployed but unused; testing happens on the development site |
-| Not built | (all planned) | Monthly recap (FR 3.4), mood tags (FR 3.1), sign-out after inactivity (FR 1.4), message throttling (NFR 10), 90-day chat limit (NFR 13), Help and FAQ page |
+| Chat removal after 90 days | A scheduled clean-up | Done by the app when a person opens their dashboard, because the free plan has no scheduled jobs |
+| Not built | (all planned) | Nothing in scope. Out of scope as planned: group spaces, under-16s, a mobile app, other languages |
 
 The detailed reasons for each change are in `docs/SRS_change_notes.md`.

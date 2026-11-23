@@ -30,6 +30,7 @@ Everyone starts on the home page. After signing in, each person lands on their o
 1. Open the home page. The helplines and clinics are at the top, with self-help tips below.
 2. Tap **"Need help now"** (bottom of every page) at any time to see the crisis card with helplines and clinics.
 3. Read the privacy notice and terms from the link at the bottom of the page.
+4. Open **Help** (also at the bottom of the page) for short answers about chatting, safety, your account and becoming a listener.
 
 ### As a user
 
@@ -41,14 +42,14 @@ Everyone starts on the home page. After signing in, each person lands on their o
 
 **Check in**
 
-On your dashboard, pick how you feel from 1 (rough) to 5 (great) and add a note if you like. Your recent check-ins and this month's average are shown under the form. Only you can see them.
+On your dashboard, pick how you feel from 1 (rough) to 5 (great). If you like, tick what it's about (such as "Rough day", "Money stress" or "Study overload") and add a note. Your recent check-ins and their tags are shown under the form, with a **monthly recap**: how many times you checked in, your average against last month, your best day and your most used tag. Only you can see them.
 
 **Talk to a listener**
 
 1. On your dashboard, tap **"Talk to a listener"**.
 2. Choose a topic (exams, family, money stress, loneliness or something else) and how you feel right now.
 3. Spill looks for a free listener. While you wait you see self-help tips, and you can cancel at any time. If nobody is free after 10 minutes, Spill tells you so you can try again later.
-4. When a listener accepts, the chat opens. Messages appear straight away.
+4. When a listener accepts, the chat opens. Messages appear straight away. You can send one message every 2 seconds; if you type faster, Spill shows "Sending..." and sends it a moment later.
 5. Either of you can end the chat at any time, with no reason needed. When you end it, you give your mood again, and can answer "Was this chat helpful?" and "Would you use Spill again?".
 
 **If something feels wrong**
@@ -56,7 +57,11 @@ On your dashboard, pick how you feel from 1 (rough) to 5 (great) and add a note 
 - **Report** the listener with a reason. A moderator reviews it.
 - **Block** them. This ends the chat, and you'll never be matched with them again.
 
-**Delete your account** from the dashboard at any time. Your check-ins and any listener application go with it.
+**Your account**
+
+- If you leave Spill open for 30 minutes without using it, you're signed out and asked to sign in again. This doesn't happen during an open chat.
+- Finished chats are removed 90 days after they started, the next time you or the listener open your dashboard. Chats with a report or flag are kept for the moderators.
+- **Delete your account** from the dashboard at any time. Your check-ins and any listener application go with it.
 
 ### As a listener
 
@@ -71,7 +76,7 @@ On your dashboard, pick how you feel from 1 (rough) to 5 (great) and add a note 
 
 1. Open the **moderator queue** from the staff page. Flags and reports are listed most serious first, then oldest. Crisis flags appear within a minute.
 2. Open an item, then **open a case** to read the chat. Opening a case is recorded in the audit log. There is no other way to read a chat.
-3. Choose an action: **dismiss, warn, suspend, reinstate or escalate**, and give a reason. Every action is logged.
+3. Choose an action: **dismiss, warn, suspend, reinstate or escalate**, and give a reason. Every action is logged. A suspended person can't send messages, even in a chat that was already open, until they are reinstated.
 4. If a flag shows a phrase the term lists missed, use **"Suggest a term"**. The administrator decides whether to add it.
 
 ### As an administrator
@@ -103,6 +108,7 @@ The details are under [How message screening works](#how-message-screening-works
 | Page | Address | Who can use it |
 |---|---|---|
 | Resources and crisis card | `/` | Anyone, no account |
+| Help, privacy notice | `/help.html`, `/privacy.html` | Anyone, no account |
 | Sign up, sign in | `/signup.html`, `/signin.html` | Anyone |
 | Dashboard | `/dashboard.html` | Any signed-in account |
 | Staff home | `/staff.html` | Moderator, admin |
@@ -131,14 +137,14 @@ To reach the staff pages later, sign in and look at the dashboard. An approved l
 
 | Document | What it is |
 |---|---|
-| [docs/SRS.md](docs/SRS.md) | **The requirements, version 3.0**, describing the app as built, with the status of every requirement and the diagrams |
-| [docs/diagrams/](docs/diagrams/) | The diagrams as editable draw.io files (`.drawio`) and pictures (`.png`): use cases, the data model, the activity flows and the deployment |
+| [docs/SRS.md](docs/SRS.md) | **The requirements, version 3.1**, describing the app as built, with the status of every requirement and the UML diagrams |
+| [docs/diagrams/](docs/diagrams/) | The UML diagrams as editable draw.io files (`.drawio`) and pictures (`.png`): use case, class, sequence, activity and deployment |
 | [docs/Spill_Proposal_and_SRS.pdf](docs/Spill_Proposal_and_SRS.pdf) | The original proposal and SRS version 2.0, written before the code |
 | [docs/SRS_change_notes.md](docs/SRS_change_notes.md) | Why each part of the app differs from version 2.0 |
 | [docs/test-report.md](docs/test-report.md), [docs/screening-report.md](docs/screening-report.md) | Test results, and how well message screening works |
 | [docs/performance.md](docs/performance.md), [docs/accessibility.md](docs/accessibility.md) | Speed, load and uptime; accessibility checks |
 | [docs/legal-privacy-checklist.md](docs/legal-privacy-checklist.md), [docs/breach-procedure.md](docs/breach-procedure.md) | The legal items and decisions; what to do if data leaks |
-| [docs/demo-script.md](docs/demo-script.md), [docs/pilot-runbook.md](docs/pilot-runbook.md) | A demo walkthrough; how to set up and run a pilot |
+| [docs/pilot-runbook.md](docs/pilot-runbook.md) | How to set up and run a pilot |
 
 ## For developers
 
@@ -149,7 +155,7 @@ The rest of this README is for people working on the code: the tools, how to run
 | Tool | What it's for |
 |---|---|
 | Firebase Hosting | Serves the web app; no separate backend server |
-| Cloud Firestore | The database. From the SRS: accounts, moods, chats, messages, flags, reports, resources, audit log. Added since: `listeners` (listener applications and availability), `termLists` and `termSuggestions` (the screening term lists and moderators' suggestions for them), `chatStats` and `safetyTally` (content-free copies for the admin's anonymised statistics), and three marker collections that hold no chat content: `chatFlagged`, `chatCases` and `pendingChats` |
+| Cloud Firestore | The database. From the SRS: accounts, moods, chats, messages, flags, reports, resources, audit log. Added since: `listeners` (listener applications and availability), `termLists` and `termSuggestions` (the screening term lists and moderators' suggestions for them), `chatStats` and `safetyTally` (content-free copies for the admin's anonymised statistics), three marker collections that hold no chat content: `chatFlagged`, `chatCases` and `pendingChats`, and `sendTimes` (when each person last sent a message, for the 2-second limit) |
 | Firebase Authentication | Handles sign-up, sign-in, and password hashing |
 | Firestore Security Rules | Controls who can read/write what, throttles abuse, and screens messages at write time |
 | Firebase Local Emulator Suite | Runs Firestore and Auth locally so tests don't touch the live project |
@@ -176,17 +182,47 @@ Everything runs on Firebase's free Spark plan, with no billing account and no pa
 
 ## Setup
 
-You'll need Node.js 20 or newer and a JDK 21 or newer (the Firebase emulators run on Java).
+You don't need to set anything up to use Spill: it's live at https://spill-dev-01.web.app. These steps run your own copy on your computer, with made-up data that never leaves it.
 
-The code is on `main`, the default branch, so a plain `git clone` gets everything.
+**1. Install the tools.** You need:
+
+- [Git](https://git-scm.com/downloads);
+- [Node.js](https://nodejs.org/) 20 or newer (npm comes with it);
+- a Java JDK 21 or newer, such as [Temurin](https://adoptium.net/), because the Firebase emulators run on Java.
+
+Check they work:
 
 ```bash
+git --version
+node --version     # v20 or higher
+java -version      # 21 or higher
+```
+
+You don't need to install the Firebase CLI or create a Firebase account to run Spill locally: `npm install` brings the CLI (`firebase-tools`) with the project, and the emulators need no login.
+
+**2. Get the code and install it.**
+
+```bash
+git clone https://github.com/Teta-Dianah/spill.git
+cd spill
 npm install
 ```
 
-Copy `public/js/firebase-config.example.js` to `public/js/firebase-config.js`. That file is gitignored, so it never gets committed. The copy works with the local emulators as it is: its `projectId` is `demo-spill-dev`, an emulator-only project, and the emulators never check the other values. Fill in real values only when you connect to a real Firebase project. Leave `modelCheckEnabled` as `false`; see "Model check (demo prototype)" above.
+The code is on `main`, the default branch, so the clone gets everything.
+
+**3. Add the config file.** Copy the template:
+
+```bash
+cp public/js/firebase-config.example.js public/js/firebase-config.js
+```
+
+(On Windows PowerShell: `Copy-Item public/js/firebase-config.example.js public/js/firebase-config.js`.)
+
+`public/js/firebase-config.js` is gitignored, so it never gets committed. The copy works with the local emulators as it is: its `projectId` is `demo-spill-dev`, an emulator-only project, and the emulators never check the other values. Fill in real values only when you connect to a real Firebase project. Leave `modelCheckEnabled` as `false`; see "Model check (demo prototype)" above.
 
 ## Running locally
+
+**4. Start the emulators.**
 
 ```bash
 npm run emulators
@@ -194,13 +230,15 @@ npm run emulators
 
 This starts the Firestore and Auth emulators plus Hosting, serving the app at `http://localhost:5000`. The emulator UI (for inspecting data) is at `http://localhost:4000`. Everything stays on your computer and is wiped when the emulators stop.
 
-Then, in another terminal while the emulators are running, add the sample data:
+**5. Add the sample data.** In a second terminal, in the same `spill` folder, while the emulators are running:
 
 ```bash
 npm run seed            # sample helplines and clinics for the resources page
 npm run seed:terms      # starter screening terms (FR 7.1)
 npm run seed:accounts   # one demo account per role
 ```
+
+**6. Open the app** at `http://localhost:5000` and sign in with one of the demo accounts below. To stop, press Ctrl+C in the emulators' terminal; all the data is wiped.
 
 ### Demo accounts
 
@@ -290,7 +328,7 @@ npm run deploy:pilot    # the pilot project, from a clean main only
 
 `npm run smoke:dev` and `npm run smoke:pilot` can be run on their own at any time.
 
-Before the pilot starts, work through [docs/pilot-runbook.md](docs/pilot-runbook.md). [docs/demo-script.md](docs/demo-script.md) is a walk-through for demonstrating Spill on the emulators.
+Before the pilot starts, work through [docs/pilot-runbook.md](docs/pilot-runbook.md).
 
 **After the first deploy**
 
