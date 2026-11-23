@@ -410,21 +410,65 @@ The editable files are in [`docs/diagrams/`](diagrams/).
 **Figure B.3: Class diagram, people and roles**
 
 - **Classes:** Account (abstract) is extended by User, Moderator and Administrator; Listener extends User. MoodCheckIn, SendTime, ListenerApplication and Checks hold each person's data.
-- **Relationships:** User owns its MoodCheckIns and SendTime (composition). A Listener has one ListenerApplication, which an Administrator reviews. An Account can block other Accounts.
+- **Inputs and Outputs:** inputs are sign-up details, mood scores, tags and application answers. Outputs are the stored account, check-ins and application.
+- **Relationships:**
+
+| Relationship | Type | Meaning |
+|---|---|---|
+| Moderator, User, Administrator to Account | Inheritance | Every role is an account and inherits the pseudonym, status and sign-in. |
+| Listener to User | Inheritance | A listener is a user who was approved. |
+| User records MoodCheckIn (1 to 0..*) | Composition | Check-ins are deleted with the account (FR 1.5). |
+| User has SendTime (1 to 0..1) | Composition | The last-message time, deleted with the account (NFR 10). |
+| Listener applied with ListenerApplication (1 to 1) | Association | The private answers are kept apart from the listener record. |
+| Administrator reviews ListenerApplication (0..* to 0..*) | Association | Any admin can review any application (FR 5.2). |
+| ListenerApplication to Checks (1 to 0..1) | Composition | The four in-person checks are part of the application. |
+| Account blocks Account (0..* to 0..*) | Association | A user or listener can block another account (FR 6.6). |
 
 ![Figure B.4: Class diagram, chats and messages](diagrams/B4-class-chats-messages.png)
 
 **Figure B.4: Class diagram, chats and messages**
 
-- **Classes:** Chat, Message, PendingChat and ChatStats, with Screening (a utility) and ScreenResult.
-- **Relationships:** a User starts Chats and holds at most one PendingChat. A Listener is in at most 2 active Chats. A Chat contains its Messages (composition) and is copied to ChatStats. Chat uses Screening, which creates a ScreenResult.
+- **Classes:** Chat, Message, PendingChat and ChatStats, with Screening (a utility) and ScreenResult. User and Listener are shown by name only; their details are in Figure B.3.
+- **Inputs and Outputs:** inputs are the topic, moods, messages and after-chat answers. Outputs are the chat, its messages, the screening result and the anonymised copy.
+- **Relationships:**
+
+| Relationship | Type | Meaning |
+|---|---|---|
+| User starts Chat (1 to 0..*) | Association | Only users start chats (FR 4.1, 4.4). |
+| Listener listens in Chat (1 to 0..*) | Association | At most 2 active chats per listener (FR 5.5). |
+| User holds PendingChat (1 to 0..1) | Association | One request at a time (FR 4.1). |
+| PendingChat names Chat (0..1 to 1) | Association | The claim points at the one waiting chat. |
+| Chat to Message (1 to 0..*) | Composition | Messages exist only inside their chat and are deleted with it (NFR 13). |
+| Chat copied to ChatStats (1 to 0..1) | Association | The anonymised copy, kept after the chat is deleted (FR 7.3). |
+| Chat «use» Screening | Dependency | Every message is screened before it is sent (FR 6.1). |
+| Screening «create» ScreenResult | Dependency | The yes or no answers that decide what happens next. |
 
 ![Figure B.5: Class diagram, safety and administration](diagrams/B5-class-safety-admin.png)
 
 **Figure B.5: Class diagram, safety and administration**
 
-- **Classes:** QueueItem (abstract) with Flag and Report; ChatCase, ChatFlagged, AuditLogEntry, SafetyTally, TermSuggestion, TermList and Resource.
-- **Relationships:** a Moderator resolves QueueItems and opens ChatCases, which require a ChatFlagged marker and are always logged. Moderators suggest terms; the Administrator approves them into TermLists and manages Resources.
+- **Classes:** QueueItem (abstract) with Flag and Report; ChatCase, ChatFlagged, AuditLogEntry, SafetyTally, TermSuggestion, TermList and Resource. Moderator, Administrator and Chat are shown by name only.
+- **Inputs and Outputs:** inputs are flags, reports, moderator actions with reasons, suggested terms and resources. Outputs are resolved queue items, cases, audit entries, term lists and statistics counts.
+- **Relationships:**
+
+| Relationship | Type | Meaning |
+|---|---|---|
+| Flag, Report to QueueItem | Inheritance | Both appear in one moderator queue with a severity and status. |
+| Moderator resolves QueueItem (0..1 to 0..*) | Association | With an action and a reason (FR 6.8). |
+| QueueItem about Chat (0..* to 1) | Association | Each flag or report concerns one chat. |
+| QueueItem resolved with AuditLogEntry (0..1 to 0..1) | Association | The action and its log entry are saved together (FR 6.9). |
+| QueueItem counted as SafetyTally (1 to 0..1) | Association | A count with no content, for statistics (FR 7.3). |
+| ChatFlagged marks Chat (0..1 to 1) | Association | Something was raised about this chat. |
+| Moderator opens ChatCase (1 to 0..*) | Association | The only way into a chat's content (BR 3). |
+| ChatCase «requires» ChatFlagged | Dependency | A case can only be opened on a flagged chat. |
+| ChatCase opened on Chat (0..1 to 1) | Association | One case per chat. |
+| ChatCase logged in AuditLogEntry (1 to 1) | Association | Opening a case is always logged. |
+| Moderator suggests TermSuggestion (1 to 0..*) | Association | A phrase for a term list. |
+| Administrator reviews TermSuggestion (0..1 to 0..*) | Association | Approve or reject, logged. |
+| TermSuggestion approved into TermList (0..* to 1) | Association | Nothing reaches a list without an admin. |
+| Administrator edits TermList (1 to 0..3) | Association | The crisis, abuse and contact lists (FR 7.1). |
+| TermList logged in AuditLogEntry (0..1 to 1..*) | Association | Every change has its own log entry. |
+| Administrator manages Resource (1 to 0..*) | Association | Helplines and clinics (FR 7.2). |
 
 ### 3. Sequence diagrams
 
@@ -476,7 +520,15 @@ The editable files are in [`docs/diagrams/`](diagrams/).
 
 - **Nodes:** the user's browser; the development and pilot Firebase projects (Hosting, Authentication, Firestore); the developer's computer with the Emulator Suite; GitHub with Actions.
 - **Artifacts:** the 18 pages on Hosting and the Security Rules on Firestore.
-- **Connections:** all over HTTPS; the developer deploys to each project and pushes to GitHub.
+- **Connections:**
+
+| Connection | Type | Meaning |
+|---|---|---|
+| Browser to Hosting | «HTTPS» | Loads the pages. |
+| Browser to Authentication | «HTTPS» | Sign-up and sign-in. |
+| Browser to Firestore | «HTTPS» | All data, live, checked by the Rules. No application server. |
+| Developer's computer to each project | «deploy» | Tests, lint, deploy, then a live check. |
+| Developer's computer to GitHub | «HTTPS» | Pushes code; Actions runs the tests. |
 
 ---
 
