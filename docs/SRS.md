@@ -613,7 +613,7 @@ The columns (swimlanes) show who does each step. Rounded boxes are actions, diam
 
 ## Appendix C: What changed from version 2.0
 
-| Area | Version 2.0 | Version 3.0 (as built) |
+| Area | Version 2.0 | Version 3.1 (as built) |
 |---|---|---|
 | Collections | 8 | 18 (Section 6) |
 | Under-16s | Registration refused | "Under 16" choice that makes no account |
