@@ -1,6 +1,6 @@
 # Test report
 
-A full run of Spill's automated tests on 2026-11-19: the unit tests and the Security Rules tests on the Firestore emulator (NFR 21). The same tests run on GitHub Actions on every push.
+A full run of Spill's automated tests on 2026-11-23: the unit tests and the Security Rules tests on the Firestore emulator (NFR 21). The same tests run on GitHub Actions on every push.
 
 This file is written by `npm run test:report` (`scripts/test-report.js`). Run it again to bring it up to date.
 
@@ -8,9 +8,9 @@ This file is written by `npm run test:report` (`scripts/test-report.js`). Run it
 
 | | Count |
 |---|---|
-| Test files | 15 |
-| Tests | 718 |
-| Passed | 718 |
+| Test files | 17 |
+| Tests | 803 |
+| Passed | 803 |
 | Failed | 0 |
 | Skipped | 0 |
 
@@ -20,14 +20,16 @@ This file is written by `npm run test:report` (`scripts/test-report.js`). Run it
 
 | File | What it covers | Tests | Passed |
 |---|---|---|---|
-| `test/rules/firestore.test.js` | Security Rules on the Firestore emulator: who can read and write what | 216 | 216 |
+| `test/rules/firestore.test.js` | Security Rules on the Firestore emulator: who can read and write what | 240 | 240 |
 | `test/rules/lockdown.test.js` | The lock-down rules for a data breach refuse everything but the helplines | 8 | 8 |
 | `test/unit/deploy-checks.test.js` | A deploy goes to the right project, from the right branch, with the model check off for the pilot | 11 | 11 |
-| `test/unit/home-summary.test.js` | The numbers and wording on each home page | 25 | 25 |
+| `test/unit/home-summary.test.js` | The numbers and wording on each home page | 30 | 30 |
+| `test/unit/idle-signout.test.js` | Signing out after 30 minutes with nothing done | 23 | 23 |
 | `test/unit/listener-application.test.js` | The listener application and its checks | 33 | 33 |
 | `test/unit/model-check-settings.test.js` | When the model check may switch on | 22 | 22 |
-| `test/unit/mood-validate.test.js` | Mood check-in validation | 6 | 6 |
-| `test/unit/pages.test.js` | Every page: "Need help now", viewport, no inline styles, home page privacy | 266 | 266 |
+| `test/unit/mood-validate.test.js` | Mood check-in validation, including topic tags | 12 | 12 |
+| `test/unit/old-chats.test.js` | Finding old chats to remove after 90 days | 9 | 9 |
+| `test/unit/pages.test.js` | Every page: "Need help now", viewport, no inline styles, home page privacy | 284 | 284 |
 | `test/unit/pseudonym.test.js` | Pseudonym generation | 4 | 4 |
 | `test/unit/screening-report.test.js` | The screening report stays in step with the code | 7 | 7 |
 | `test/unit/screening.test.js` | Message screening, admin terms and the model check answer handling | 87 | 87 |
@@ -44,7 +46,10 @@ Each row counts the tests whose name, or the name of the group they sit in, give
 |---|---|---|---|
 | FR 1.1 | 6 | 6 | firestore.test.js |
 | FR 1.3 | 10 | 10 | firestore.test.js, pages.test.js |
-| FR 1.5 | 1 | 1 | firestore.test.js |
+| FR 1.4 | 6 | 6 | idle-signout.test.js |
+| FR 1.5 | 2 | 2 | firestore.test.js |
+| FR 3.1 | 11 | 11 | firestore.test.js, mood-validate.test.js |
+| FR 3.4 | 5 | 5 | home-summary.test.js |
 | FR 4.1 | 2 | 2 | firestore.test.js |
 | FR 5.5 | 4 | 4 | firestore.test.js |
 | FR 6.2 | 3 | 3 | firestore.test.js |
@@ -58,18 +63,21 @@ Each row counts the tests whose name, or the name of the group they sit in, give
 | NFR 2 | 2 | 2 | firestore.test.js |
 | NFR 3 | 2 | 2 | firestore.test.js |
 | NFR 4 | 1 | 1 | firestore.test.js |
-| NFR 5 | 17 | 17 | pages.test.js |
+| NFR 5 | 18 | 18 | pages.test.js |
+| NFR 10 | 8 | 8 | firestore.test.js |
 | NFR 11 | 1 | 1 | firestore.test.js |
+| NFR 13 | 12 | 12 | firestore.test.js, old-chats.test.js |
 | NFR 14 | 20 | 20 | firestore.test.js, lockdown.test.js, pages.test.js |
-| NFR 16 | 22 | 22 | pages.test.js |
-| NFR 17 | 22 | 22 | pages.test.js |
+| NFR 16 | 23 | 23 | pages.test.js |
+| NFR 17 | 23 | 23 | pages.test.js |
 | NFR 19 | 2 | 2 | firestore.test.js |
 | NFR 21 | 17 | 17 | screening-report.test.js, screening.test.js |
 | NFR 22 | 8 | 8 | deploy-checks.test.js |
 | BR 1 | 3 | 3 | firestore.test.js |
 | BR 3 | 13 | 13 | firestore.test.js, pages.test.js |
 | BR 4 | 5 | 5 | firestore.test.js |
-| BR 7 | 3 | 3 | firestore.test.js |
+| BR 5 | 1 | 1 | firestore.test.js |
+| BR 7 | 7 | 7 | firestore.test.js |
 | BR 8 | 2 | 2 | lockdown.test.js, pages.test.js |
 
 ## Screening and speed
