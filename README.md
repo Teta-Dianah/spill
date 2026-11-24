@@ -139,7 +139,7 @@ To reach the staff pages later, sign in and look at the dashboard. An approved l
 |---|---|
 | [docs/SRS.md](docs/SRS.md) | **The requirements, version 3.1**, describing the app as built, with the status of every requirement and the UML diagrams |
 | [docs/diagrams/](docs/diagrams/) | The UML diagrams as editable draw.io files (`.drawio`) and pictures (`.png`): use case, class, sequence, activity and deployment |
-| [docs/Spill_Proposal_and_SRS.pdf](docs/Spill_Proposal_and_SRS.pdf) | The original proposal and SRS version 2.0, written before the code |
+| [docs/Spill_Proposal_and_SRS.pdf](docs/Spill_Proposal_and_SRS.pdf) | The original proposal and SRS version 2.0, written before the code. GitHub can't preview this PDF: [read it online](https://docs.google.com/document/d/1AyOTfv977WMjCm7x-QivJHcqVSb6ayUTol51n_A_9tw/view) or use Download. |
 | [docs/SRS_change_notes.md](docs/SRS_change_notes.md) | Why each part of the app differs from version 2.0 |
 | [docs/test-report.md](docs/test-report.md), [docs/screening-report.md](docs/screening-report.md) | Test results, and how well message screening works |
 | [docs/performance.md](docs/performance.md), [docs/accessibility.md](docs/accessibility.md) | Speed, load and uptime; accessibility checks |
