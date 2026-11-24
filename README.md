@@ -2,7 +2,7 @@
 
 Spill is a free, anonymous peer-listener web app for young people aged 16 to 25 in Rwanda. You sign up with a pseudonym, do a quick mood check-in, and talk one-to-one with a vetted, trained volunteer listener. You never talk to other users, only to listeners, and every message is screened before it's delivered.
 
-**Live site: https://spill-dev-01.web.app** (test data only; please don't type anything real or personal).
+**Live site: https://spill-dev-01.web.app**
 
 Spill is peer support, not therapy, and not an emergency service. The "Need help now" button on every page lists real Rwandan helplines and clinics.
 
